@@ -1,0 +1,23 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist-main/
+dist-renderer/
+
+# IDE / OS
+.idea/
+.vscode/
+*.swp
+.DS_Store
+Thumbs.db
+
+# User export output
+export.log
+
+# Env
+.env
+.env.local
+
+# Electron (if any)
+out/
