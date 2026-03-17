@@ -12,6 +12,7 @@ export interface LogViewerApi {
   saveExport: (filePath: string, content: string) => Promise<{ error?: string }>;
   showSaveDialog: () => Promise<{ path?: string; error?: string }>;
   onTailUpdate: (callback: (filePath: string, chunk: string) => void) => void;
+  onMenuOpenFile: (callback: () => void) => void;
 }
 
 declare global {

@@ -1,7 +1,6 @@
 import React from 'react';
 
 interface ToolbarProps {
-  onOpenFile: () => void;
   onPaste: () => void;
   onFormatConfig: () => void;
   levelFilter: string;
@@ -28,7 +27,6 @@ interface ToolbarProps {
 const LEVELS = ['', 'TRACE', 'DEBUG', 'INFO', 'WARN', 'ERROR', 'FATAL'];
 
 export function Toolbar({
-  onOpenFile,
   onPaste,
   onFormatConfig,
   levelFilter,
@@ -54,9 +52,6 @@ export function Toolbar({
   return (
     <div className="toolbar">
       <div className="toolbar-row">
-        <button type="button" className="primary" onClick={onOpenFile}>
-          Open file
-        </button>
         <button type="button" onClick={onPaste}>
           Paste
         </button>

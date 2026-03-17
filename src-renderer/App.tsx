@@ -149,6 +149,12 @@ export default function App() {
     setActiveTabId(tab.id);
   }, [formatConfigResolved]);
 
+  useEffect(() => {
+    window.logViewerApi?.onMenuOpenFile?.(() => {
+      openFile();
+    });
+  }, [openFile]);
+
   const pasteBuffer = useCallback(() => {
     const label = prompt('Tab name (optional)', 'Pasted log');
     const tab: Tab = {
@@ -236,7 +242,6 @@ export default function App() {
           ))}
         </div>
         <Toolbar
-          onOpenFile={openFile}
           onPaste={pasteBuffer}
           onFormatConfig={() => setShowFormatModal(true)}
           levelFilter={levelFilter}

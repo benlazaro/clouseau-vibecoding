@@ -10,4 +10,7 @@ contextBridge.exposeInMainWorld('logViewerApi', {
   onTailUpdate: (callback: (filePath: string, chunk: string) => void) => {
     ipcRenderer.on('tail-update', (_, filePath: string, chunk: string) => callback(filePath, chunk));
   },
+  onMenuOpenFile: (callback: () => void) => {
+    ipcRenderer.on('menu-open-file', () => callback());
+  },
 });
