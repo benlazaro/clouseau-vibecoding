@@ -1,7 +1,7 @@
 {
-  "name": "log4j2-viewer",
+  "name": "clouseau-log-viewer",
   "version": "1.0.0",
-  "description": "Desktop Log4j2 log viewer with local, tail, and paste support",
+  "description": "Clouseau Log Viewer – desktop Log4j2 log viewer (offline) with open, tail, paste, search, export",
   "main": "dist-main/main.js",
   "author": "",
   "license": "MIT",

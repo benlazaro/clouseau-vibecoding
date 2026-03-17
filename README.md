@@ -1,4 +1,4 @@
-# Log4j2 Viewer
+# Clouseau Log Viewer
 
 Desktop log viewer for **Log4j2** logs. Supports local files, live tail, and pasted content. Runs fully offline.
 

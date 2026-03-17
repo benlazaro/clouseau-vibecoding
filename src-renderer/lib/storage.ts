@@ -1,7 +1,7 @@
 import type { LogFormatConfig } from '@/types/global';
 
-const FORMAT_KEY = 'log4j2-viewer-format';
-const BOOKMARKS_KEY = 'log4j2-viewer-bookmarks';
+const FORMAT_KEY = 'clouseau-log-viewer-format';
+const BOOKMARKS_KEY = 'clouseau-log-viewer-bookmarks';
 
 export function loadFormatConfig(): LogFormatConfig | null {
   try {
