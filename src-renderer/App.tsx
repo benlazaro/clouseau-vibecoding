@@ -163,14 +163,17 @@ export default function App() {
       entries: [],
       tailing: false,
     };
-    navigator.clipboard.readText().then((text) => {
+    try {
+      const text = window.logViewerApi.readClipboardText();
       const entries = parseLines(text, formatConfigResolved, 0);
       setTabs((prev) => {
         const next = [...prev, { ...tab, entries }];
         setActiveTabId(tab.id);
         return next;
       });
-    }).catch(() => alert('Could not read clipboard'));
+    } catch {
+      alert('Could not read clipboard');
+    }
   }, [formatConfigResolved]);
 
   const startTail = useCallback(async () => {

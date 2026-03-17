@@ -1,4 +1,4 @@
-import { contextBridge, ipcRenderer } from 'electron';
+import { contextBridge, ipcRenderer, clipboard } from 'electron';
 
 contextBridge.exposeInMainWorld('logViewerApi', {
   openFile: () => ipcRenderer.invoke('open-file'),
@@ -7,6 +7,7 @@ contextBridge.exposeInMainWorld('logViewerApi', {
   stopTail: (filePath: string) => ipcRenderer.invoke('stop-tail', filePath),
   saveExport: (filePath: string, content: string) => ipcRenderer.invoke('save-export', filePath, content),
   showSaveDialog: () => ipcRenderer.invoke('show-save-dialog'),
+  readClipboardText: () => clipboard.readText(),
   onTailUpdate: (callback: (filePath: string, chunk: string) => void) => {
     ipcRenderer.on('tail-update', (_, filePath: string, chunk: string) => callback(filePath, chunk));
   },

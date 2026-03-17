@@ -11,6 +11,7 @@ export interface LogViewerApi {
   stopTail: (filePath: string) => void;
   saveExport: (filePath: string, content: string) => Promise<{ error?: string }>;
   showSaveDialog: () => Promise<{ path?: string; error?: string }>;
+  readClipboardText: () => string;
   onTailUpdate: (callback: (filePath: string, chunk: string) => void) => void;
   onMenuOpenFile: (callback: () => void) => void;
 }
