@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, dialog, Menu } from 'electron';
+import { app, BrowserWindow, ipcMain, dialog, Menu, type MenuItemConstructorOptions } from 'electron';
 import * as path from 'path';
 import * as fs from 'fs';
 import * as readline from 'readline';
@@ -13,14 +13,14 @@ const watchers = new Map<string, ReturnType<typeof watch>>();
 
 function buildMenu() {
   const isMac = process.platform === 'darwin';
-  const template: Electron.MenuItemConstructorOptions[] = [
+  const template: MenuItemConstructorOptions[] = [
     ...(isMac
       ? ([
           {
             label: app.name,
             submenu: [{ role: 'about' }, { type: 'separator' }, { role: 'quit' }],
-          },
-        ] as Electron.MenuItemConstructorOptions[])
+          } satisfies MenuItemConstructorOptions,
+        ] as MenuItemConstructorOptions[])
       : []),
     {
       label: 'File',
@@ -32,17 +32,30 @@ function buildMenu() {
             mainWindow?.webContents.send('menu-open-file');
           },
         },
-        { type: 'separator' },
-        isMac ? { role: 'close' } : { role: 'quit' },
+        { type: 'separator' as const },
+        (isMac ? { role: 'close' as const } : { role: 'quit' as const }) as MenuItemConstructorOptions,
       ],
     },
     {
       label: 'View',
-      submenu: [{ role: 'reload' }, { role: 'toggleDevTools' }, { type: 'separator' }, { role: 'resetZoom' }, { role: 'zoomIn' }, { role: 'zoomOut' }, { type: 'separator' }, { role: 'togglefullscreen' }],
+      submenu: [
+        { role: 'reload' as const },
+        { role: 'toggleDevTools' as const },
+        { type: 'separator' as const },
+        { role: 'resetZoom' as const },
+        { role: 'zoomIn' as const },
+        { role: 'zoomOut' as const },
+        { type: 'separator' as const },
+        { role: 'togglefullscreen' as const },
+      ] satisfies MenuItemConstructorOptions[],
     },
     {
       label: 'Window',
-      submenu: [{ role: 'minimize' }, { role: 'zoom' }, ...(isMac ? [{ type: 'separator' }, { role: 'front' }] : [])],
+      submenu: [
+        { role: 'minimize' as const },
+        { role: 'zoom' as const },
+        ...(isMac ? ([{ type: 'separator' as const }, { role: 'front' as const }] satisfies MenuItemConstructorOptions[]) : []),
+      ] satisfies MenuItemConstructorOptions[],
     },
   ];
 
