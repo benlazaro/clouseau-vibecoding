@@ -6,3 +6,28 @@
 	at com.example.Filter.doFilter(Filter.java:18)
 	at java.base/java.lang.Thread.run(Thread.java:834)
 2024-01-15 10:30:48,345 INFO  [main] com.example.App - Shutdown complete
+2024-01-15 10:30:45,123 INFO  [main] com.example.App - Application started
+2024-01-15 10:30:45,456 DEBUG [pool-1] com.example.Service - Loading config
+2024-01-15 10:30:46,789 WARN  [main] com.example.Util - Deprecated API used
+2024-01-15 10:30:47,012 ERROR [http-nio-8080] com.example.Handler - Request failed
+	at com.example.Handler.process(Handler.java:42)
+	at com.example.Filter.doFilter(Filter.java:18)
+	at java.base/java.lang.Thread.run(Thread.java:834)
+2024-01-15 10:30:48,345 INFO  [main] com.example.App - Shutdown complete
+2024-01-15 10:30:45,123 INFO  [main] com.example.App - Application started
+2024-01-15 10:30:45,456 DEBUG [pool-1] com.example.Service - Loading config
+2024-01-15 10:30:46,789 WARN  [main] com.example.Util - Deprecated API used
+2024-01-15 10:30:47,012 ERROR [http-nio-8080] com.example.Handler - Request failed
+	at com.example.Handler.process(Handler.java:42)
+	at com.example.Filter.doFilter(Filter.java:18)
+	at java.base/java.lang.Thread.run(Thread.java:834)
+2024-01-15 10:30:48,345 INFO  [main] com.example.App - Shutdown complete
+2024-01-15 10:30:45,456 DEBUG [pool-1] com.example.Service - Loading config
+2024-01-15 10:30:45,456 DEBUG [pool-1] com.example.Service - Loading config
+2024-01-15 10:30:45,456 DEBUG [pool-1] com.example.Service - Loading config
+2024-01-15 10:30:45,456 DEBUG [pool-1] com.example.Service - Loading config
+2024-01-15 10:30:45,456 DEBUG [pool-1] com.example.Service - Loading config
+2024-01-15 10:30:45,456 DEBUG [pool-1] com.example.Service - Loading config
+2024-01-15 10:30:45,456 DEBUG [pool-1] com.example.Service - Loading config
+2024-01-15 10:30:45,456 DEBUG [pool-1] com.example.Service - Loading config
+2024-01-15 10:30:45,456 DEBUG [pool-1] com.example.Service - Loading config

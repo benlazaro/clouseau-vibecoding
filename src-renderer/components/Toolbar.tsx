@@ -1,7 +1,6 @@
 import React from 'react';
 
 interface ToolbarProps {
-  onPaste: () => void;
   onFormatConfig: () => void;
   levelFilter: string;
   onLevelFilterChange: (v: string) => void;
@@ -27,7 +26,6 @@ interface ToolbarProps {
 const LEVELS = ['', 'TRACE', 'DEBUG', 'INFO', 'WARN', 'ERROR', 'FATAL'];
 
 export function Toolbar({
-  onPaste,
   onFormatConfig,
   levelFilter,
   onLevelFilterChange,
@@ -52,9 +50,6 @@ export function Toolbar({
   return (
     <div className="toolbar">
       <div className="toolbar-row">
-        <button type="button" onClick={onPaste}>
-          Paste
-        </button>
         {canTail && (
           tailing ? (
             <button type="button" onClick={onStopTail}>Stop tail</button>

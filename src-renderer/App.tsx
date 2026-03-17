@@ -155,27 +155,6 @@ export default function App() {
     });
   }, [openFile]);
 
-  const pasteBuffer = useCallback(() => {
-    const label = prompt('Tab name (optional)', 'Pasted log');
-    const tab: Tab = {
-      id: `paste-${Date.now()}`,
-      label: label || 'Pasted log',
-      entries: [],
-      tailing: false,
-    };
-    try {
-      const text = window.logViewerApi.readClipboardText();
-      const entries = parseLines(text, formatConfigResolved, 0);
-      setTabs((prev) => {
-        const next = [...prev, { ...tab, entries }];
-        setActiveTabId(tab.id);
-        return next;
-      });
-    } catch {
-      alert('Could not read clipboard');
-    }
-  }, [formatConfigResolved]);
-
   const startTail = useCallback(async () => {
     if (!activeTab?.filePath) return;
     const err = await window.logViewerApi.tailFile(activeTab.filePath);
@@ -245,7 +224,6 @@ export default function App() {
           ))}
         </div>
         <Toolbar
-          onPaste={pasteBuffer}
           onFormatConfig={() => setShowFormatModal(true)}
           levelFilter={levelFilter}
           onLevelFilterChange={(v) => setLevelFilter(v as LogLevel | '')}

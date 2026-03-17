@@ -1,11 +1,10 @@
 # Clouseau Log Viewer
 
-Desktop log viewer for **Log4j2** logs. Supports local files, live tail, and pasted content. Runs fully offline.
+Desktop log viewer for **Log4j2** logs. Supports local files and live tail. Runs fully offline.
 
 ## Features
 
 - **Open file** – Load one or more log files from disk (up to 1GB; very large files show the last 200k lines)
-- **Paste** – Paste log content from clipboard into a new tab
 - **Tail** – Watch a file for changes (after opening, use “Tail file” on that tab)
 - **Configurable format** – Plain text (regex) or JSON; default pattern matches common Log4j2 layout
 - **Filter by level** – TRACE, DEBUG, INFO, WARN, ERROR, FATAL
