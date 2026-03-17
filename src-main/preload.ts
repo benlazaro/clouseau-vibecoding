@@ -13,4 +13,7 @@ contextBridge.exposeInMainWorld('logViewerApi', {
   onMenuOpenFile: (callback: () => void) => {
     ipcRenderer.on('menu-open-file', () => callback());
   },
+  onMenuCloseTab: (callback: () => void) => {
+    ipcRenderer.on('menu-close-tab', () => callback());
+  },
 });

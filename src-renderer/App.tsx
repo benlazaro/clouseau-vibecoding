@@ -125,6 +125,38 @@ export default function App() {
     saveFormatConfig(config);
   }, []);
 
+  const closeTab = useCallback(
+    (tabId: string) => {
+      setTabs((prev) => {
+        const idx = prev.findIndex((t) => t.id === tabId);
+        if (idx === -1) return prev;
+
+        const tab = prev[idx]!;
+        if (tab.tailing && tab.filePath) {
+          window.logViewerApi.stopTail(tab.filePath);
+        }
+
+        const next = prev.filter((t) => t.id !== tabId);
+
+        setBookmarks((bm) => bm.filter((b) => b.tabId !== tabId));
+
+        setActiveTabId((current) => {
+          if (current !== tabId) return current;
+          if (next.length === 0) return null;
+          const newIdx = Math.min(idx, next.length - 1);
+          return next[newIdx]!.id;
+        });
+
+        return next;
+      });
+    },
+    [setBookmarks]
+  );
+
+  const closeActiveTab = useCallback(() => {
+    if (activeTabId) closeTab(activeTabId);
+  }, [activeTabId, closeTab]);
+
   const openFile = useCallback(async () => {
     const result = await window.logViewerApi.openFile();
     if ('error' in result) {
@@ -154,6 +186,12 @@ export default function App() {
       openFile();
     });
   }, [openFile]);
+
+  useEffect(() => {
+    window.logViewerApi?.onMenuCloseTab?.(() => {
+      closeActiveTab();
+    });
+  }, [closeActiveTab]);
 
   const startTail = useCallback(async () => {
     if (!activeTab?.filePath) return;
@@ -219,7 +257,18 @@ export default function App() {
               className={`tab ${t.id === activeTabId ? 'active' : ''}`}
               onClick={() => setActiveTabId(t.id)}
             >
-              {t.label}
+              <span className="tab-label">{t.label}</span>
+              <button
+                type="button"
+                className="tab-close"
+                title="Close tab"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  closeTab(t.id);
+                }}
+              >
+                ×
+              </button>
             </button>
           ))}
         </div>

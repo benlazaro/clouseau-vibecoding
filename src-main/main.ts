@@ -32,6 +32,13 @@ function buildMenu() {
             mainWindow?.webContents.send('menu-open-file');
           },
         },
+        {
+          label: 'Close Tab',
+          accelerator: 'CmdOrCtrl+W',
+          click: () => {
+            mainWindow?.webContents.send('menu-close-tab');
+          },
+        },
         { type: 'separator' as const },
         (isMac ? { role: 'close' as const } : { role: 'quit' as const }) as MenuItemConstructorOptions,
       ],
