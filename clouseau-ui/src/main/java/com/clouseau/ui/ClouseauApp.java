@@ -20,10 +20,10 @@ public final class ClouseauApp {
         FlatOneDarkIJTheme.setup();
 
         // Global UI tweaks
-        UIManager.put("defaultFont",          new javax.swing.plaf.FontUIResource(new Font(Font.SANS_SERIF, Font.PLAIN, 13)));
+        UIManager.put("defaultFont",              new javax.swing.plaf.FontUIResource(new Font(Font.SANS_SERIF, Font.PLAIN, 13)));
         UIManager.put("TabbedPane.showTabSeparators", true);
-        UIManager.put("ScrollBar.thumbArc",   999);
-        UIManager.put("Component.focusWidth", 1);
+        UIManager.put("ScrollBar.thumbArc",       999);
+        UIManager.put("Component.focusWidth",     1);
 
         LogIndex logIndex = new LogIndex();
         List<LogParser> parsers = List.of(new SpringBootPatternParser(), new Log4jPatternParser());
