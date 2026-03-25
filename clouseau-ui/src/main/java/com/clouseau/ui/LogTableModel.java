@@ -53,12 +53,14 @@ public final class LogTableModel extends AbstractTableModel {
     }
 
     public void clear() {
-        SwingUtilities.invokeLater(() -> {
+        Runnable doClear = () -> {
             int last = rows.size() - 1;
             if (last < 0) return;
             rows.clear();
             fireTableRowsDeleted(0, last);
-        });
+        };
+        if (SwingUtilities.isEventDispatchThread()) doClear.run();
+        else SwingUtilities.invokeLater(doClear);
     }
 
     /** Returns the LogEntry at the given view row, or null if out of range. */
