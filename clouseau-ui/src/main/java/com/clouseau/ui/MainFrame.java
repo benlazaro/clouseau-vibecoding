@@ -2,15 +2,17 @@ package com.clouseau.ui;
 
 import com.clouseau.api.LogEntry;
 import com.clouseau.api.LogParser;
-import com.clouseau.api.LogSource;
-import com.clouseau.core.FileLogSource;
 import com.clouseau.core.LogIndex;
 import lombok.extern.slf4j.Slf4j;
 import net.miginfocom.swing.MigLayout;
 
 import javax.swing.*;
+import javax.swing.border.Border;
 import javax.swing.filechooser.FileNameExtensionFilter;
 import javax.swing.plaf.basic.BasicFileChooserUI;
+import javax.swing.table.DefaultTableCellRenderer;
+import javax.swing.table.JTableHeader;
+import javax.swing.table.TableCellRenderer;
 import java.awt.*;
 import java.awt.Component;
 import java.io.BufferedReader;
@@ -18,6 +20,7 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Stream;
@@ -29,7 +32,9 @@ public final class MainFrame extends JFrame {
     private final List<LogParser> parsers;
     private final LogTableModel logTableModel = new LogTableModel();
     private JTable logTable;
-    private volatile LogSource currentSource;
+    private boolean tableColumnsManaged = false; // true after first autoResizeColumns()
+    private int fittedColumnsWidth = 0;          // sum of widths for all columns except message
+    private volatile SwingWorker<?, ?> currentWorker;
     private int lastParserIndex = 0;  // 0 = Auto-detect; 1..n = parsers.get(n-1)
 
     public MainFrame(LogIndex logIndex, List<LogParser> parsers) {
@@ -78,6 +83,14 @@ public final class MainFrame extends JFrame {
             @Override public boolean isCellEditable(int r, int c) { return false; }
 
             @Override
+            public void doLayout() {
+                // Once we've fitted columns to content, prevent Swing from
+                // proportionally scaling them back to fill the table width.
+                if (tableColumnsManaged && getTableHeader().getResizingColumn() == null) return;
+                super.doLayout();
+            }
+
+            @Override
             public Component prepareRenderer(javax.swing.table.TableCellRenderer renderer, int row, int col) {
                 Component c = super.prepareRenderer(renderer, row, col);
                 if (!isRowSelected(row)) {
@@ -93,10 +106,55 @@ public final class MainFrame extends JFrame {
         logTable.getColumnModel().getColumn(2).setPreferredWidth(60);
         logTable.getColumnModel().getColumn(3).setPreferredWidth(120);
         logTable.getColumnModel().getColumn(4).setPreferredWidth(200);
+
+        // Left-aligned cell renderer with horizontal padding for all columns
+        Border cellPad = BorderFactory.createEmptyBorder(0, 8, 0, 8);
+        DefaultTableCellRenderer paddedRenderer = new DefaultTableCellRenderer() {
+            @Override
+            public Component getTableCellRendererComponent(
+                    JTable t, Object v, boolean sel, boolean foc, int r, int c) {
+                super.getTableCellRendererComponent(t, v, sel, foc, r, c);
+                setBorder(cellPad);
+                return this;
+            }
+        };
+        paddedRenderer.setHorizontalAlignment(SwingConstants.LEFT);
+        for (int i = 0; i < logTable.getColumnCount(); i++) {
+            logTable.getColumnModel().getColumn(i).setCellRenderer(paddedRenderer);
+        }
+
+        // Header renderer: wrap FlatLaf's own renderer to add the same padding
+        JTableHeader header = logTable.getTableHeader();
+        TableCellRenderer origHeaderRenderer = header.getDefaultRenderer();
+        header.setDefaultRenderer((table, value, isSelected, hasFocus, row, column) -> {
+            Component c = origHeaderRenderer.getTableCellRendererComponent(
+                    table, value, isSelected, hasFocus, row, column);
+            if (c instanceof JLabel label) {
+                Border existing = label.getBorder();
+                label.setBorder(existing != null
+                        ? BorderFactory.createCompoundBorder(existing, cellPad)
+                        : cellPad);
+            }
+            return c;
+        });
+
+        // Minimum column widths: header text + padding so titles never get clipped
+        Font headerFont = header.getFont();
+        for (int i = 0; i < logTable.getColumnCount(); i++) {
+            JLabel measure = new JLabel(logTable.getColumnName(i));
+            measure.setFont(headerFont);
+            int minW = measure.getPreferredSize().width + 40;
+            logTable.getColumnModel().getColumn(i).setMinWidth(minW);
+        }
         logTable.setShowHorizontalLines(true);
         logTable.setShowVerticalLines(false);
         logTable.setGridColor(new Color(0x2C2F3A));
         logTable.setRowHeight(22);
+        logTable.addComponentListener(new java.awt.event.ComponentAdapter() {
+            @Override public void componentResized(java.awt.event.ComponentEvent e) {
+                if (tableColumnsManaged) stretchMessageColumn();
+            }
+        });
         JScrollPane scrollPane = new JScrollPane(logTable);
         scrollPane.getViewport().setBackground(new Color(0x1E1F22));
         return scrollPane;
@@ -133,37 +191,54 @@ public final class MainFrame extends JFrame {
         log.info("Opening {} with parser: {}", file.getFileName(),
                 chosen.map(LogParser::getName).orElse("Auto-detect"));
 
-        // Stop and discard any in-progress source
-        LogSource old = currentSource;
-        if (old != null) {
-            try { old.close(); } catch (Exception ex) { log.warn("Failed to close previous source", ex); }
-        }
+        // Cancel any in-progress load
+        SwingWorker<?, ?> old = currentWorker;
+        if (old != null) old.cancel(true);
 
-        // Clear stale data synchronously on the EDT before starting the new source
         logIndex.clear();
         logTableModel.clear();
 
-        // Open the new source — reads in a background thread
-        FileLogSource source = new FileLogSource(file);
-        currentSource = source;
-        try {
-            source.open(rawLine -> {
-                Stream<LogParser> candidates = chosen
-                        .map(Stream::of)
-                        .orElseGet(parsers::stream);
-                candidates.filter(p -> p.canParse(rawLine))
-                        .findFirst()
-                        .map(p -> p.parse(rawLine))
-                        .ifPresent(logIndex::add);
-            });
-            setTitle(Messages.get("app.title") + " \u2014 " + file.getFileName());
-        } catch (Exception ex) {
-            log.error("Failed to open {}", file, ex);
-            JOptionPane.showMessageDialog(this,
-                    ex.getMessage(),
-                    Messages.get("filechooser.error.title"),
-                    JOptionPane.ERROR_MESSAGE);
-        }
+        SwingWorker<ArrayList<LogEntry>, Void> worker =
+                new SwingWorker<>() {
+            @Override
+            protected ArrayList<LogEntry> doInBackground() throws Exception {
+                ArrayList<LogEntry> result = new java.util.ArrayList<>();
+                try (BufferedReader reader = Files.newBufferedReader(file)) {
+                    String line;
+                    while ((line = reader.readLine()) != null && !isCancelled()) {
+                        if (line.isBlank()) continue;
+                        final String candidate = line;
+                        chosen.map(Stream::of)
+                                .orElseGet(parsers::stream)
+                                .filter(p -> p.canParse(candidate))
+                                .findFirst()
+                                .map(p -> p.parse(candidate))
+                                .ifPresent(result::add);
+                    }
+                }
+                return result;
+            }
+
+            @Override
+            protected void done() {
+                if (isCancelled()) return;
+                try {
+                    ArrayList<LogEntry> entries = get();
+                    logIndex.load(entries);
+                    logTableModel.load(entries);
+                    setTitle(Messages.get("app.title") + " \u2014 " + file.getFileName());
+                    autoResizeColumns();
+                } catch (Exception ex) {
+                    log.error("Failed to load {}", file, ex);
+                    JOptionPane.showMessageDialog(MainFrame.this,
+                            ex.getMessage(),
+                            Messages.get("filechooser.error.title"),
+                            JOptionPane.ERROR_MESSAGE);
+                }
+            }
+        };
+        currentWorker = worker;
+        worker.execute();
     }
 
     /**
@@ -275,6 +350,46 @@ public final class MainFrame extends JFrame {
             }
         }
         return Optional.empty();
+    }
+
+    /** Fit all columns except the last (message) to their widest content. Called on EDT. */
+    private void autoResizeColumns() {
+        int lastCol = logTable.getColumnCount() - 1;
+        int totalFitted = 0;
+
+        for (int col = 0; col < lastCol; col++) {
+            int maxWidth = 0;
+            // measure header
+            TableCellRenderer hr = logTable.getColumnModel().getColumn(col).getHeaderRenderer();
+            if (hr == null) hr = logTable.getTableHeader().getDefaultRenderer();
+            Component hc = hr.getTableCellRendererComponent(
+                    logTable, logTable.getColumnName(col), false, false, -1, col);
+            maxWidth = Math.max(maxWidth, hc.getPreferredSize().width);
+            // measure every row
+            for (int row = 0; row < logTable.getRowCount(); row++) {
+                Component rc = logTable.prepareRenderer(logTable.getCellRenderer(row, col), row, col);
+                maxWidth = Math.max(maxWidth, rc.getPreferredSize().width);
+            }
+            maxWidth += 8; // small buffer so content never clips into ellipsis
+            logTable.getColumnModel().getColumn(col).setPreferredWidth(maxWidth);
+            logTable.getColumnModel().getColumn(col).setWidth(maxWidth);
+            totalFitted += maxWidth;
+        }
+
+        fittedColumnsWidth = totalFitted;
+        tableColumnsManaged = true; // must be set before stretchMessageColumn()
+        stretchMessageColumn();
+
+        logTable.repaint();
+        logTable.getTableHeader().repaint();
+    }
+
+    private void stretchMessageColumn() {
+        int lastCol = logTable.getColumnCount() - 1;
+        int margins = logTable.getColumnModel().getColumnMargin() * logTable.getColumnCount();
+        int msgWidth = Math.max(logTable.getWidth() - fittedColumnsWidth - margins, 150);
+        logTable.getColumnModel().getColumn(lastCol).setPreferredWidth(msgWidth);
+        logTable.getColumnModel().getColumn(lastCol).setWidth(msgWidth);
     }
 
     public LogTableModel getLogTableModel() { return logTableModel; }

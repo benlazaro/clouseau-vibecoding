@@ -37,6 +37,12 @@ public final class LogIndex {
             .toList();
     }
 
+    /** Replaces all entries without firing any events. Use for bulk file loads. */
+    public void load(List<LogEntry> newEntries) {
+        entries.clear();
+        entries.addAll(newEntries);
+    }
+
     public int size()  { return entries.size(); }
     public void clear() { entries.clear(); }
 

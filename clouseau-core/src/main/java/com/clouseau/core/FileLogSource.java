@@ -36,6 +36,14 @@ public final class FileLogSource implements LogSource {
      */
     @Override
     public void open(Consumer<String> lineConsumer) throws Exception {
+        open(lineConsumer, () -> {});
+    }
+
+    /**
+     * Same as {@link #open(Consumer)}, but calls {@code onComplete} on the reader
+     * thread once the file has been fully read (not called if interrupted).
+     */
+    public void open(Consumer<String> lineConsumer, Runnable onComplete) throws Exception {
         log.info("Opening log file: {}", file);
         readerThread = new Thread(() -> {
             try (BufferedReader reader = Files.newBufferedReader(file)) {
@@ -46,7 +54,10 @@ public final class FileLogSource implements LogSource {
                         lineConsumer.accept(line);
                     }
                 }
-                log.info("Finished reading {}", file);
+                if (!Thread.currentThread().isInterrupted()) {
+                    log.info("Finished reading {}", file);
+                    onComplete.run();
+                }
             } catch (IOException e) {
                 if (!Thread.currentThread().isInterrupted()) {
                     log.error("Error reading {}", file, e);

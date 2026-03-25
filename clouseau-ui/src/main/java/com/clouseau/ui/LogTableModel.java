@@ -63,6 +63,13 @@ public final class LogTableModel extends AbstractTableModel {
         else SwingUtilities.invokeLater(doClear);
     }
 
+    /** Replaces all rows with {@code newRows} in one shot. Must be called on the EDT. */
+    public void load(List<LogEntry> newRows) {
+        rows.clear();
+        rows.addAll(newRows);
+        fireTableDataChanged();
+    }
+
     /** Returns the LogEntry at the given view row, or null if out of range. */
     public LogEntry getEntry(int row) {
         if (row < 0 || row >= rows.size()) return null;
