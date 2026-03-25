@@ -48,16 +48,41 @@ public final class MainFrame extends JFrame {
 
         setLayout(new MigLayout("fill, insets 0", "[grow]", "[36!][grow][180!]"));
 
+        setJMenuBar(buildMenuBar());
         add(buildToolbar(),  "growx, wrap");
         add(buildLogTable(), "grow, wrap");
         add(buildDetail(),   "growx");
     }
 
-    private JPanel buildToolbar() {
-        JPanel bar = new JPanel(new MigLayout("insets 4 8 4 8, gap 6", "[][][][grow][]"));
+    private JMenuBar buildMenuBar() {
+        JMenuBar menuBar = new JMenuBar();
 
-        JButton open   = new JButton(Messages.get("toolbar.open"));
-        open.addActionListener(e -> openFile());
+        JMenu fileMenu = new JMenu(Messages.get("menu.file"));
+        JMenuItem openItem = new JMenuItem(Messages.get("menu.file.open"));
+        openItem.setAccelerator(KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_O,
+                java.awt.Toolkit.getDefaultToolkit().getMenuShortcutKeyMaskEx()));
+        openItem.addActionListener(e -> openFile());
+        fileMenu.add(openItem);
+
+        fileMenu.addSeparator();
+
+        JMenuItem settingsItem = new JMenuItem(Messages.get("menu.file.settings"));
+        settingsItem.addActionListener(e -> new SettingsDialog(this, logTable).setVisible(true));
+        fileMenu.add(settingsItem);
+
+        fileMenu.addSeparator();
+
+        JMenuItem exitItem = new JMenuItem(Messages.get("menu.file.exit"));
+        exitItem.addActionListener(e -> dispose());
+        fileMenu.add(exitItem);
+
+        menuBar.add(fileMenu);
+        return menuBar;
+    }
+
+    private JPanel buildToolbar() {
+        JPanel bar = new JPanel(new MigLayout("insets 4 8 4 8, gap 6", "[][][grow][]"));
+
         JButton follow = new JButton(Messages.get("toolbar.follow"));
         follow.setToolTipText(Messages.get("toolbar.follow.tooltip"));
 
@@ -67,7 +92,6 @@ public final class MainFrame extends JFrame {
         JButton plugins = new JButton(Messages.get("toolbar.plugins"));
         plugins.setToolTipText(Messages.get("toolbar.plugins.tooltip"));
 
-        bar.add(open);
         bar.add(follow);
         bar.add(new JSeparator(JSeparator.VERTICAL), "growy");
         bar.add(filter,  "growx");
