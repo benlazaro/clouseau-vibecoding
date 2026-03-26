@@ -19,14 +19,19 @@ final class SettingsDialog extends JDialog {
     private final JSpinner detailFontSizeSpinner;
     private final JCheckBox wrapLinesCheckBox;
 
+    // Tab settings
+    private final JCheckBox confirmCloseCheckBox;
+
     SettingsDialog(Frame owner, JTable logTable) {
         super(owner, Messages.get("settings.title"), true);
         this.logTable = logTable;
 
         // Capture current values as defaults
-        rowHeightSpinner       = new JSpinner(new SpinnerNumberModel(logTable.getRowHeight(), 14, 64, 1));
+        int currentRowHeight = logTable != null ? logTable.getRowHeight() : 22;
+        rowHeightSpinner       = new JSpinner(new SpinnerNumberModel(currentRowHeight, 14, 64, 1));
         detailFontSizeSpinner  = new JSpinner(new SpinnerNumberModel(12, 8, 36, 1));
         wrapLinesCheckBox      = new JCheckBox(Messages.get("settings.detail.wrap"), true);
+        confirmCloseCheckBox   = new JCheckBox(Messages.get("settings.tab.confirm.close"), AppPrefs.isTabCloseConfirm());
 
         JPanel content = new JPanel(new MigLayout("insets 16, wrap 2, gapy 6", "[grow,fill][120px!]"));
 
@@ -40,6 +45,10 @@ final class SettingsDialog extends JDialog {
         content.add(new JLabel(Messages.get("settings.detail.font.size")));
         content.add(detailFontSizeSpinner);
         content.add(wrapLinesCheckBox, "span 2");
+
+        // ── Tabs section ──────────────────────────────────────────────────
+        content.add(sectionLabel(Messages.get("settings.section.tabs")), "span 2, gaptop 12, gapbottom 4");
+        content.add(confirmCloseCheckBox, "span 2");
 
         // ── Buttons ──────────────────────────────────────────────────────
         JButton ok     = new JButton(Messages.get("settings.button.ok"));
@@ -65,10 +74,9 @@ final class SettingsDialog extends JDialog {
     }
 
     private void applySettings() {
-        int rowHeight = (int) rowHeightSpinner.getValue();
-        logTable.setRowHeight(rowHeight);
-        // detailFontSizeSpinner and wrapLinesCheckBox values are stored here
-        // for future wiring to the detail panel.
+        if (logTable != null) logTable.setRowHeight((int) rowHeightSpinner.getValue());
+        // detailFontSizeSpinner and wrapLinesCheckBox: future wiring to detail panel.
+        AppPrefs.setTabCloseConfirm(confirmCloseCheckBox.isSelected());
     }
 
     private static JLabel sectionLabel(String text) {

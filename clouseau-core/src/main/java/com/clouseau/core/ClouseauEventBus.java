@@ -29,7 +29,8 @@ public final class ClouseauEventBus {
 
     public static void register(Object subscriber)      { SYNC.register(subscriber);   }
     public static void registerAsync(Object subscriber) { ASYNC.register(subscriber);  }
-    public static void unregister(Object subscriber)    { SYNC.unregister(subscriber); }
+    public static void unregister(Object subscriber)      { SYNC.unregister(subscriber);  }
+    public static void unregisterAsync(Object subscriber) { ASYNC.unregister(subscriber); }
 
     public static void post(Object event)               { SYNC.post(event);   }
     public static void postAsync(Object event)          { ASYNC.post(event);  }

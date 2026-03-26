@@ -32,6 +32,10 @@ public final class LogTableModel extends AbstractTableModel {
         ClouseauEventBus.registerAsync(this);
     }
 
+    public void dispose() {
+        ClouseauEventBus.unregisterAsync(this);
+    }
+
     @Subscribe
     public void onEntryAdded(LogIndex.LogEntryAddedEvent event) {
         LogEntry entry = event.entry();

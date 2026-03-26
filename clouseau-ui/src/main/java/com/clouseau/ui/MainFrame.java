@@ -1,32 +1,18 @@
 package com.clouseau.ui;
 
-import com.clouseau.api.LogEntry;
 import com.clouseau.api.LogParser;
-import com.clouseau.core.LogIndex;
 import lombok.extern.slf4j.Slf4j;
 import net.miginfocom.swing.MigLayout;
 
 import javax.swing.*;
-import javax.swing.border.Border;
 import javax.swing.filechooser.FileNameExtensionFilter;
 import javax.swing.plaf.basic.BasicFileChooserUI;
-import javax.swing.table.DefaultTableCellRenderer;
-import javax.swing.table.JTableHeader;
-import javax.swing.table.TableCellRenderer;
-import javax.swing.text.BadLocationException;
-import javax.swing.text.SimpleAttributeSet;
-import javax.swing.text.StyleConstants;
-import javax.swing.text.StyledDocument;
 import java.awt.*;
-import java.awt.Component;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.time.ZoneId;
-import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Stream;
@@ -34,68 +20,97 @@ import java.util.stream.Stream;
 @Slf4j
 public final class MainFrame extends JFrame {
 
-    private final LogIndex logIndex;
     private final List<LogParser> parsers;
-    private final LogTableModel logTableModel = new LogTableModel();
-    private JTable logTable;
-    private JTextPane detailArea;
-    private boolean tableColumnsManaged = false; // true after first autoResizeColumns()
-    private int fittedColumnsWidth = 0;          // sum of widths for all columns except message
-    private volatile SwingWorker<?, ?> currentWorker;
-    private int lastParserIndex = 0;  // 0 = Auto-detect; 1..n = parsers.get(n-1)
+    private final JTabbedPane tabbedPane = new JTabbedPane();
+    private final CardLayout cardLayout  = new CardLayout();
+    private final JPanel contentArea     = new JPanel(cardLayout);
+    private int lastParserIndex = 0;
 
-    public MainFrame(LogIndex logIndex, List<LogParser> parsers) {
+    private static final String CARD_WELCOME = "welcome";
+    private static final String CARD_TABS    = "tabs";
+
+    public MainFrame(List<LogParser> parsers) {
         super(Messages.get("app.title"));
-        this.logIndex = logIndex;
-        this.parsers  = parsers;
+        this.parsers = parsers;
         setDefaultCloseOperation(EXIT_ON_CLOSE);
         setSize(1280, 800);
         setMinimumSize(new Dimension(800, 500));
         setLocationRelativeTo(null);
 
+        contentArea.add(buildWelcomePanel(), CARD_WELCOME);
+        contentArea.add(tabbedPane,          CARD_TABS);
+
         setLayout(new MigLayout("fill, insets 0", "[grow]", "[36!][grow]"));
-
-        JSplitPane splitPane = new JSplitPane(JSplitPane.VERTICAL_SPLIT, buildLogTable(), buildDetail());
-        splitPane.setResizeWeight(0.5);
-        splitPane.setOneTouchExpandable(true);
-
         setJMenuBar(buildMenuBar());
         add(buildToolbar(), "growx, wrap");
-        add(splitPane,      "grow");
+        add(contentArea,    "grow");
 
-        logTable.getSelectionModel().addListSelectionListener(e -> {
-            if (!e.getValueIsAdjusting()) {
-                int row = logTable.getSelectedRow();
-                showDetail(row >= 0 ? logTableModel.getEntry(row) : null);
-            }
+        // VK-based binding drives the actual Ctrl+, shortcut.
+        // The menu item uses a char-based KeyStroke so it renders "," not "Comma".
+        KeyStroke settingsKs = KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_COMMA,
+                java.awt.Toolkit.getDefaultToolkit().getMenuShortcutKeyMaskEx());
+        getRootPane().getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(settingsKs, "openSettings");
+        getRootPane().getActionMap().put("openSettings", new AbstractAction() {
+            @Override public void actionPerformed(java.awt.event.ActionEvent e) { openSettings(); }
         });
     }
 
+    // ── Menu bar ─────────────────────────────────────────────────────────────
+
     private JMenuBar buildMenuBar() {
         JMenuBar menuBar = new JMenuBar();
+        menuBar.setBorder(BorderFactory.createEmptyBorder(8, 0, 8, 0));
 
         JMenu fileMenu = new JMenu(Messages.get("menu.file"));
-        JMenuItem openItem = new JMenuItem(Messages.get("menu.file.open"));
+
+        JMenuItem openItem = menuItem(Messages.get("menu.file.open"));
         openItem.setAccelerator(KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_O,
                 java.awt.Toolkit.getDefaultToolkit().getMenuShortcutKeyMaskEx()));
         openItem.addActionListener(e -> openFile());
         fileMenu.add(openItem);
 
+        JMenuItem closeTabItem = menuItem(Messages.get("menu.file.close.tab"));
+        closeTabItem.setAccelerator(KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_W,
+                java.awt.Toolkit.getDefaultToolkit().getMenuShortcutKeyMaskEx()));
+        closeTabItem.addActionListener(e -> closeTab(tabbedPane.getSelectedIndex()));
+        fileMenu.add(closeTabItem);
+
         fileMenu.addSeparator();
 
-        JMenuItem settingsItem = new JMenuItem(Messages.get("menu.file.settings"));
-        settingsItem.addActionListener(e -> new SettingsDialog(this, logTable).setVisible(true));
+        // KeyStroke.getKeyStroke(char, int) casts char to int → ',' (44) == VK_COMMA,
+        // so getKeyText renders "Comma". The string form with "typed" creates a true
+        // char-based stroke (keyCode=0, keyChar=',') that renders the literal character.
+        // The actual Ctrl+, binding lives in the root-pane InputMap in the constructor.
+        int shortcutMask = java.awt.Toolkit.getDefaultToolkit().getMenuShortcutKeyMaskEx();
+        String modName = (shortcutMask & java.awt.event.InputEvent.META_DOWN_MASK) != 0 ? "meta" : "ctrl";
+        JMenuItem settingsItem = menuItem(Messages.get("menu.file.settings"));
+        settingsItem.setAccelerator(KeyStroke.getKeyStroke(modName + " typed ,"));
+        settingsItem.addActionListener(e -> openSettings());
         fileMenu.add(settingsItem);
 
         fileMenu.addSeparator();
 
-        JMenuItem exitItem = new JMenuItem(Messages.get("menu.file.exit"));
+        JMenuItem exitItem = menuItem(Messages.get("menu.file.exit"));
         exitItem.addActionListener(e -> dispose());
         fileMenu.add(exitItem);
 
         menuBar.add(fileMenu);
         return menuBar;
     }
+
+    /** Creates a {@link JMenuItem} with VSCode-style vertical padding pre-applied. */
+    private static JMenuItem menuItem(String text) {
+        JMenuItem item = new JMenuItem(text);
+        item.setMargin(new Insets(7, 0, 7, 0));
+        return item;
+    }
+
+    private void openSettings() {
+        LogPanel panel = activeLogPanel();
+        new SettingsDialog(this, panel != null ? panel.getLogTable() : null).setVisible(true);
+    }
+
+    // ── Toolbar ───────────────────────────────────────────────────────────────
 
     private JPanel buildToolbar() {
         JPanel bar = new JPanel(new MigLayout("insets 4 8 4 8, gap 6", "[][][grow][]"));
@@ -116,90 +131,7 @@ public final class MainFrame extends JFrame {
         return bar;
     }
 
-    private JScrollPane buildLogTable() {
-        logTable = new JTable(logTableModel) {
-            private static final Color ROW_DARK  = new Color(0x25272E);
-            private static final Color ROW_LIGHT = new Color(0x2D2F38);
-
-            @Override public boolean isCellEditable(int r, int c) { return false; }
-
-            @Override
-            public void doLayout() {
-                // Once we've fitted columns to content, prevent Swing from
-                // proportionally scaling them back to fill the table width.
-                if (tableColumnsManaged && getTableHeader().getResizingColumn() == null) return;
-                super.doLayout();
-            }
-
-            @Override
-            public Component prepareRenderer(javax.swing.table.TableCellRenderer renderer, int row, int col) {
-                Component c = super.prepareRenderer(renderer, row, col);
-                if (!isRowSelected(row)) {
-                    c.setBackground(row % 2 == 0 ? ROW_DARK : ROW_LIGHT);
-                }
-                return c;
-            }
-        };
-        logTable.setBackground(new Color(0x1E1F22));
-        logTable.setAutoResizeMode(JTable.AUTO_RESIZE_LAST_COLUMN);
-        logTable.getColumnModel().getColumn(0).setPreferredWidth(50);
-        logTable.getColumnModel().getColumn(1).setPreferredWidth(180);
-        logTable.getColumnModel().getColumn(2).setPreferredWidth(60);
-        logTable.getColumnModel().getColumn(3).setPreferredWidth(120);
-        logTable.getColumnModel().getColumn(4).setPreferredWidth(200);
-
-        // Left-aligned cell renderer with horizontal padding for all columns
-        Border cellPad = BorderFactory.createEmptyBorder(0, 8, 0, 8);
-        DefaultTableCellRenderer paddedRenderer = new DefaultTableCellRenderer() {
-            @Override
-            public Component getTableCellRendererComponent(
-                    JTable t, Object v, boolean sel, boolean foc, int r, int c) {
-                super.getTableCellRendererComponent(t, v, sel, foc, r, c);
-                setBorder(cellPad);
-                return this;
-            }
-        };
-        paddedRenderer.setHorizontalAlignment(SwingConstants.LEFT);
-        for (int i = 0; i < logTable.getColumnCount(); i++) {
-            logTable.getColumnModel().getColumn(i).setCellRenderer(paddedRenderer);
-        }
-
-        // Header renderer: wrap FlatLaf's own renderer to add the same padding
-        JTableHeader header = logTable.getTableHeader();
-        TableCellRenderer origHeaderRenderer = header.getDefaultRenderer();
-        header.setDefaultRenderer((table, value, isSelected, hasFocus, row, column) -> {
-            Component c = origHeaderRenderer.getTableCellRendererComponent(
-                    table, value, isSelected, hasFocus, row, column);
-            if (c instanceof JLabel label) {
-                Border existing = label.getBorder();
-                label.setBorder(existing != null
-                        ? BorderFactory.createCompoundBorder(existing, cellPad)
-                        : cellPad);
-            }
-            return c;
-        });
-
-        // Minimum column widths: header text + padding so titles never get clipped
-        Font headerFont = header.getFont();
-        for (int i = 0; i < logTable.getColumnCount(); i++) {
-            JLabel measure = new JLabel(logTable.getColumnName(i));
-            measure.setFont(headerFont);
-            int minW = measure.getPreferredSize().width + 40;
-            logTable.getColumnModel().getColumn(i).setMinWidth(minW);
-        }
-        logTable.setShowHorizontalLines(true);
-        logTable.setShowVerticalLines(false);
-        logTable.setGridColor(new Color(0x2C2F3A));
-        logTable.setRowHeight(22);
-        logTable.addComponentListener(new java.awt.event.ComponentAdapter() {
-            @Override public void componentResized(java.awt.event.ComponentEvent e) {
-                if (tableColumnsManaged) stretchMessageColumn();
-            }
-        });
-        JScrollPane scrollPane = new JScrollPane(logTable);
-        scrollPane.getViewport().setBackground(new Color(0x1E1F22));
-        return scrollPane;
-    }
+    // ── File opening ──────────────────────────────────────────────────────────
 
     private void openFile() {
         JFileChooser chooser = new JFileChooser() {
@@ -224,69 +156,153 @@ public final class MainFrame extends JFrame {
         if (chooser.showOpenDialog(this) != JFileChooser.APPROVE_OPTION) return;
 
         Path file = chooser.getSelectedFile().toPath();
-
-        // Resolve which parser(s) to use based on the combo selection
         Optional<LogParser> chosen = lastParserIndex == 0
                 ? Optional.empty()
                 : Optional.of(parsers.get(lastParserIndex - 1));
         log.info("Opening {} with parser: {}", file.getFileName(),
                 chosen.map(LogParser::getName).orElse("Auto-detect"));
+        openFile(file, chosen);
+    }
 
-        // Cancel any in-progress load
-        SwingWorker<?, ?> old = currentWorker;
-        if (old != null) old.cancel(true);
+    /** Opens {@code file} in a new tab with auto-detect parser. Called via IPC or CLI args. */
+    public void openFile(Path file) {
+        openFile(file, Optional.empty());
+    }
 
-        logIndex.clear();
-        logTableModel.clear();
+    private void openFile(Path file, Optional<LogParser> parser) {
+        LogPanel panel = new LogPanel(parsers);
+        addLogTab(file.getFileName().toString(), panel);
+        panel.load(file, parser);
+    }
 
-        SwingWorker<ArrayList<LogEntry>, Void> worker =
-                new SwingWorker<>() {
-            @Override
-            protected ArrayList<LogEntry> doInBackground() throws Exception {
-                ArrayList<LogEntry> result = new java.util.ArrayList<>();
-                try (BufferedReader reader = Files.newBufferedReader(file)) {
-                    String line;
-                    while ((line = reader.readLine()) != null && !isCancelled()) {
-                        if (line.isBlank()) continue;
-                        final String candidate = line;
-                        chosen.map(Stream::of)
-                                .orElseGet(parsers::stream)
-                                .filter(p -> p.canParse(candidate))
-                                .findFirst()
-                                .map(p -> p.parse(candidate))
-                                .ifPresent(result::add);
-                    }
-                }
-                return result;
-            }
+    // ── Tab management ────────────────────────────────────────────────────────
 
-            @Override
-            protected void done() {
-                if (isCancelled()) return;
-                try {
-                    ArrayList<LogEntry> entries = get();
-                    logIndex.load(entries);
-                    logTableModel.load(entries);
-                    setTitle(Messages.get("app.title") + " \u2014 " + file.getFileName());
-                    autoResizeColumns();
-                } catch (Exception ex) {
-                    log.error("Failed to load {}", file, ex);
-                    JOptionPane.showMessageDialog(MainFrame.this,
-                            ex.getMessage(),
-                            Messages.get("filechooser.error.title"),
-                            JOptionPane.ERROR_MESSAGE);
-                }
-            }
-        };
-        currentWorker = worker;
-        worker.execute();
+    private void addLogTab(String title, LogPanel panel) {
+        tabbedPane.addTab(null, panel);
+        int idx = tabbedPane.getTabCount() - 1;
+        tabbedPane.setTabComponentAt(idx, buildTabHeader(title, panel));
+        tabbedPane.setSelectedIndex(idx);
+        updateCard();
+    }
+
+    private JPanel buildTabHeader(String title, LogPanel panel) {
+        JPanel header = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 0));
+        header.setOpaque(false);
+
+        JLabel label = new JLabel(title);
+
+        JButton close = new JButton("\u00d7"); // ×
+        close.setPreferredSize(new Dimension(18, 18));
+        close.setFocusable(false);
+        close.setBorderPainted(false);
+        close.setContentAreaFilled(false);
+        close.setFont(close.getFont().deriveFont(Font.BOLD));
+        close.addActionListener(e -> closeTab(tabbedPane.indexOfTabComponent(header)));
+
+        header.add(label);
+        header.add(close);
+        return header;
+    }
+
+    private void closeTab(int idx) {
+        if (idx < 0 || idx >= tabbedPane.getTabCount()) return;
+        if (AppPrefs.isTabCloseConfirm()) {
+            JCheckBox dontAsk = new JCheckBox(Messages.get("tab.close.dontask"));
+            int result = JOptionPane.showConfirmDialog(
+                    this,
+                    new Object[]{Messages.get("tab.close.confirm.message"), dontAsk},
+                    Messages.get("tab.close.confirm.title"),
+                    JOptionPane.YES_NO_OPTION,
+                    JOptionPane.QUESTION_MESSAGE);
+            if (dontAsk.isSelected()) AppPrefs.setTabCloseConfirm(false);
+            if (result != JOptionPane.YES_OPTION) return;
+        }
+        Component comp = tabbedPane.getComponentAt(idx);
+        if (comp instanceof LogPanel lp) lp.dispose();
+        tabbedPane.removeTabAt(idx);
+        updateCard();
+    }
+
+    private void updateCard() {
+        cardLayout.show(contentArea, tabbedPane.getTabCount() > 0 ? CARD_TABS : CARD_WELCOME);
+    }
+
+    private LogPanel activeLogPanel() {
+        Component c = tabbedPane.getSelectedComponent();
+        return c instanceof LogPanel lp ? lp : null;
+    }
+
+    // ── Welcome panel ─────────────────────────────────────────────────────────
+
+    private JPanel buildWelcomePanel() {
+        JPanel outer = new JPanel(new GridBagLayout());
+
+        JPanel content = new JPanel(new MigLayout("insets 0, wrap 1, gapy 0", "[center]"));
+        content.setOpaque(false);
+
+        JLabel title = new JLabel(Messages.get("app.title"));
+        title.setFont(title.getFont().deriveFont(Font.PLAIN, 26f));
+        content.add(title, "gapbottom 28");
+
+        JPanel grid = new JPanel(new MigLayout("insets 0, wrap 2, gapy 10, gapx 24", "[right][left]"));
+        grid.setOpaque(false);
+        addShortcutRow(grid, Messages.get("welcome.shortcut.open"),      "Ctrl+O");
+        addShortcutRow(grid, Messages.get("welcome.shortcut.close.tab"), "Ctrl+W");
+        addShortcutRow(grid, Messages.get("welcome.shortcut.settings"),  "Ctrl+,");
+        content.add(grid);
+
+        outer.add(content);
+        return outer;
     }
 
     /**
-     * Reads up to 50 non-blank lines and returns the first parser that matches,
-     * or empty if none do. On I/O error returns the chosen parser (or the first
-     * available parser) so a network hiccup doesn't block the open.
+     * Adds one shortcut row to {@code grid}.
+     * The shortcut string is split on {@code "+"} so each token gets its own
+     * rounded key badge; the {@code "+"} separators are plain (unboxed) labels.
      */
+    private static void addShortcutRow(JPanel grid, String description, String shortcut) {
+        grid.add(new JLabel(description));
+
+        JPanel badgeRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
+        badgeRow.setOpaque(false);
+
+        String[] parts = shortcut.split("\\+", -1);
+        for (int i = 0; i < parts.length; i++) {
+            if (i > 0) {
+                JLabel plus = new JLabel("+");
+                plus.setBorder(BorderFactory.createEmptyBorder(0, 5, 0, 5));
+                badgeRow.add(plus);
+            }
+            badgeRow.add(keyBadge(parts[i]));
+        }
+        grid.add(badgeRow);
+    }
+
+    /** A rounded key-chip label, styled like a keyboard key. */
+    private static JComponent keyBadge(String text) {
+        JLabel label = new JLabel(text);
+        label.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 12));
+
+        JPanel badge = new JPanel(new BorderLayout()) {
+            @Override
+            protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                g2.setColor(new Color(0x2D2F38));
+                g2.fillRoundRect(0, 0, getWidth(), getHeight(), 8, 8);
+                g2.setColor(new Color(0x555566));
+                g2.drawRoundRect(0, 0, getWidth() - 1, getHeight() - 1, 8, 8);
+                g2.dispose();
+            }
+        };
+        badge.setOpaque(false);
+        badge.setBorder(BorderFactory.createEmptyBorder(2, 7, 2, 7));
+        badge.add(label);
+        return badge;
+    }
+
+    // ── Parser detection + file-chooser accessory ────────────────────────────
+
     private Optional<LogParser> detectParser(Path file, Optional<LogParser> chosen) {
         try (BufferedReader reader = Files.newBufferedReader(file)) {
             String line;
@@ -335,7 +351,6 @@ public final class MainFrame extends JFrame {
             Optional<LogParser> matched = detectParser(selected.toPath(), chosen);
             if (matched.isPresent()) {
                 statusLabel.setForeground(new Color(0x4CAF50));
-                // Show matched parser name only when auto-detect resolved it
                 String statusText = chosen.isPresent()
                         ? Messages.get("filechooser.status.compatible")
                         : Messages.get("filechooser.status.compatible.detected").formatted(matched.get().getName());
@@ -357,14 +372,9 @@ public final class MainFrame extends JFrame {
                 e -> validate.run());
         chooser.addPropertyChangeListener(JFileChooser.DIRECTORY_CHANGED_PROPERTY, e -> {
             chooser.setSelectedFile(null);
-            // BasicFileChooserUI skips setFileName() when the new file is null,
-            // so the text field keeps the old name — clear it explicitly.
             if (chooser.getUI() instanceof BasicFileChooserUI basicUI) {
                 basicUI.setFileName("");
             }
-            // The L&F's own DIRECTORY_CHANGED handler runs after ours and may
-            // leave the approve button in an inconsistent state — re-validate
-            // once the event queue has settled.
             SwingUtilities.invokeLater(validate);
         });
 
@@ -391,115 +401,5 @@ public final class MainFrame extends JFrame {
             }
         }
         return Optional.empty();
-    }
-
-    /** Fit all columns except the last (message) to their widest content. Called on EDT. */
-    private void autoResizeColumns() {
-        int lastCol = logTable.getColumnCount() - 1;
-        int totalFitted = 0;
-
-        for (int col = 0; col < lastCol; col++) {
-            int maxWidth = 0;
-            // measure header
-            TableCellRenderer hr = logTable.getColumnModel().getColumn(col).getHeaderRenderer();
-            if (hr == null) hr = logTable.getTableHeader().getDefaultRenderer();
-            Component hc = hr.getTableCellRendererComponent(
-                    logTable, logTable.getColumnName(col), false, false, -1, col);
-            maxWidth = Math.max(maxWidth, hc.getPreferredSize().width);
-            // measure every row
-            for (int row = 0; row < logTable.getRowCount(); row++) {
-                Component rc = logTable.prepareRenderer(logTable.getCellRenderer(row, col), row, col);
-                maxWidth = Math.max(maxWidth, rc.getPreferredSize().width);
-            }
-            maxWidth += 8; // small buffer so content never clips into ellipsis
-            logTable.getColumnModel().getColumn(col).setPreferredWidth(maxWidth);
-            logTable.getColumnModel().getColumn(col).setWidth(maxWidth);
-            totalFitted += maxWidth;
-        }
-
-        fittedColumnsWidth = totalFitted;
-        tableColumnsManaged = true; // must be set before stretchMessageColumn()
-        stretchMessageColumn();
-
-        logTable.repaint();
-        logTable.getTableHeader().repaint();
-    }
-
-    private void stretchMessageColumn() {
-        int lastCol = logTable.getColumnCount() - 1;
-        int margins = logTable.getColumnModel().getColumnMargin() * logTable.getColumnCount();
-        int msgWidth = Math.max(logTable.getWidth() - fittedColumnsWidth - margins, 150);
-        logTable.getColumnModel().getColumn(lastCol).setPreferredWidth(msgWidth);
-        logTable.getColumnModel().getColumn(lastCol).setWidth(msgWidth);
-    }
-
-    public LogTableModel getLogTableModel() { return logTableModel; }
-    public JTable getLogTable()             { return logTable; }
-
-    private JScrollPane buildDetail() {
-        detailArea = new JTextPane();
-        detailArea.setEditable(false);
-        detailArea.setBackground(new Color(0x1E1F22));
-        detailArea.setBorder(BorderFactory.createEmptyBorder(8, 10, 8, 10));
-        showDetail(null);
-        return new JScrollPane(detailArea);
-    }
-
-    private static final DateTimeFormatter DETAIL_TS_FMT =
-            DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS").withZone(ZoneId.systemDefault());
-
-    private void showDetail(LogEntry entry) {
-        StyledDocument doc = detailArea.getStyledDocument();
-        try { doc.remove(0, doc.getLength()); } catch (BadLocationException ignored) {}
-
-        SimpleAttributeSet key = new SimpleAttributeSet();
-        StyleConstants.setFontFamily(key, Font.MONOSPACED);
-        StyleConstants.setFontSize(key, 12);
-        StyleConstants.setBold(key, true);
-
-        SimpleAttributeSet val = new SimpleAttributeSet();
-        StyleConstants.setFontFamily(val, Font.MONOSPACED);
-        StyleConstants.setFontSize(val, 12);
-
-        if (entry == null) {
-            insertText(doc, Messages.get("detail.placeholder"), val);
-            detailArea.setCaretPosition(0);
-            return;
-        }
-
-        String ts     = entry.timestamp() != null ? DETAIL_TS_FMT.format(entry.timestamp()) : "";
-        String level  = entry.level()     != null ? entry.level().name()  : "";
-        String thread = entry.thread()    != null ? entry.thread()        : "";
-        String logger = entry.logger()    != null ? entry.logger()        : "";
-
-        appendField(doc, key, val, Messages.get("table.col.timestamp"), ts);
-        appendField(doc, key, val, Messages.get("table.col.level"),     level);
-        appendField(doc, key, val, Messages.get("table.col.thread"),    thread);
-        appendField(doc, key, val, Messages.get("table.col.logger"),    logger);
-
-        if (entry.fields() != null) {
-            entry.fields().forEach((k, v) -> appendField(doc, key, val, k, v));
-        }
-
-        appendField(doc, key, val, Messages.get("table.col.message"),
-                entry.message() != null ? entry.message() : "");
-
-        if (entry.rawLine() != null) {
-            insertText(doc, "\n" + "─".repeat(60) + "\n", val);
-            insertText(doc, Messages.get("detail.raw.label") + "\n", key);
-            insertText(doc, entry.rawLine(), val);
-        }
-
-        detailArea.setCaretPosition(0);
-    }
-
-    private static void appendField(StyledDocument doc, SimpleAttributeSet keyStyle,
-                                    SimpleAttributeSet valStyle, String label, String value) {
-        insertText(doc, String.format("%-12s ", label + ":"), keyStyle);
-        insertText(doc, value + "\n", valStyle);
-    }
-
-    private static void insertText(StyledDocument doc, String text, SimpleAttributeSet style) {
-        try { doc.insertString(doc.getLength(), text, style); } catch (BadLocationException ignored) {}
     }
 }
