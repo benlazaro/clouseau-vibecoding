@@ -10,7 +10,7 @@ import java.awt.*;
  */
 final class SettingsDialog extends JDialog {
 
-    private final JTable logTable;
+    private final LogPanel logPanel;
 
     // Table settings
     private final JSpinner rowHeightSpinner;
@@ -22,14 +22,14 @@ final class SettingsDialog extends JDialog {
     // Tab settings
     private final JCheckBox confirmCloseCheckBox;
 
-    SettingsDialog(Frame owner, JTable logTable) {
+    SettingsDialog(Frame owner, LogPanel logPanel) {
         super(owner, Messages.get("settings.title"), true);
-        this.logTable = logTable;
+        this.logPanel = logPanel;
 
-        // Capture current values as defaults
+        JTable logTable = logPanel != null ? logPanel.getLogTable() : null;
         int currentRowHeight = logTable != null ? logTable.getRowHeight() : 22;
         rowHeightSpinner       = new JSpinner(new SpinnerNumberModel(currentRowHeight, 14, 64, 1));
-        detailFontSizeSpinner  = new JSpinner(new SpinnerNumberModel(12, 8, 36, 1));
+        detailFontSizeSpinner  = new JSpinner(new SpinnerNumberModel(AppPrefs.getDetailFontSize(), 8, 36, 1));
         wrapLinesCheckBox      = new JCheckBox(Messages.get("settings.detail.wrap"), true);
         confirmCloseCheckBox   = new JCheckBox(Messages.get("settings.tab.confirm.close"), AppPrefs.isTabCloseConfirm());
 
@@ -74,8 +74,11 @@ final class SettingsDialog extends JDialog {
     }
 
     private void applySettings() {
+        JTable logTable = logPanel != null ? logPanel.getLogTable() : null;
         if (logTable != null) logTable.setRowHeight((int) rowHeightSpinner.getValue());
-        // detailFontSizeSpinner and wrapLinesCheckBox: future wiring to detail panel.
+        int fontSize = (int) detailFontSizeSpinner.getValue();
+        AppPrefs.setDetailFontSize(fontSize);
+        if (logPanel != null) logPanel.applyDetailFontSize(fontSize);
         AppPrefs.setTabCloseConfirm(confirmCloseCheckBox.isSelected());
     }
 

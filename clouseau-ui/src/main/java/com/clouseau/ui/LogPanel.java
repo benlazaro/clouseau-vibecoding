@@ -120,6 +120,11 @@ public final class LogPanel extends JPanel {
 
     public JTable getLogTable() { return logTable; }
 
+    public void applyDetailFontSize(int size) {
+        int row = logTable.getSelectedRow();
+        showDetail(row >= 0 ? logTableModel.getEntry(row) : null);
+    }
+
     // ── Log table ────────────────────────────────────────────────────────────
 
     private JScrollPane buildLogTable() {
@@ -257,14 +262,16 @@ public final class LogPanel extends JPanel {
         StyledDocument doc = detailArea.getStyledDocument();
         try { doc.remove(0, doc.getLength()); } catch (BadLocationException ignored) {}
 
+        int fontSize = AppPrefs.getDetailFontSize();
+
         SimpleAttributeSet key = new SimpleAttributeSet();
         StyleConstants.setFontFamily(key, Font.MONOSPACED);
-        StyleConstants.setFontSize(key, 12);
+        StyleConstants.setFontSize(key, fontSize);
         StyleConstants.setBold(key, true);
 
         SimpleAttributeSet val = new SimpleAttributeSet();
         StyleConstants.setFontFamily(val, Font.MONOSPACED);
-        StyleConstants.setFontSize(val, 12);
+        StyleConstants.setFontSize(val, fontSize);
 
         if (entry == null) {
             insertText(doc, Messages.get("detail.placeholder"), val);

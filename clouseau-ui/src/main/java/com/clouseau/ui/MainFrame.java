@@ -17,6 +17,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Stream;
 
@@ -28,6 +29,7 @@ public final class MainFrame extends JFrame {
     private final CardLayout cardLayout  = new CardLayout();
     private final JPanel contentArea     = new JPanel(cardLayout);
     private int lastParserIndex = 0;
+    private JMenuItem closeTabItem;
 
     private static final String CARD_WELCOME = "welcome";
     private static final String CARD_TABS    = "tabs";
@@ -63,7 +65,7 @@ public final class MainFrame extends JFrame {
 
     private JMenuBar buildMenuBar() {
         JMenuBar menuBar = new JMenuBar();
-        menuBar.setBorder(BorderFactory.createEmptyBorder(8, 0, 8, 0));
+        menuBar.setBorder(BorderFactory.createEmptyBorder(5, 1, 2, 0));
 
         JMenu fileMenu = new JMenu(Messages.get("menu.file"));
 
@@ -73,7 +75,8 @@ public final class MainFrame extends JFrame {
         openItem.addActionListener(e -> openFile());
         fileMenu.add(openItem);
 
-        JMenuItem closeTabItem = menuItem(Messages.get("menu.file.close.tab"));
+        closeTabItem = menuItem(Messages.get("menu.file.close.tab"));
+        closeTabItem.setEnabled(false);
         closeTabItem.setAccelerator(KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_W,
                 java.awt.Toolkit.getDefaultToolkit().getMenuShortcutKeyMaskEx()));
         closeTabItem.addActionListener(e -> closeTab(tabbedPane.getSelectedIndex()));
@@ -99,7 +102,33 @@ public final class MainFrame extends JFrame {
         fileMenu.add(exitItem);
 
         menuBar.add(fileMenu);
+
+        JMenu helpMenu = new JMenu(Messages.get("menu.help"));
+
+        JMenuItem docsItem = menuItem(Messages.get("menu.help.docs"));
+        docsItem.setEnabled(false);
+        helpMenu.add(docsItem);
+
+        helpMenu.addSeparator();
+
+        JMenuItem aboutItem = menuItem(Messages.get("menu.help.about"));
+        aboutItem.addActionListener(e -> openAbout());
+        helpMenu.add(aboutItem);
+
+        menuBar.add(helpMenu);
         return menuBar;
+    }
+
+    private void openAbout() {
+        BufferedImage icon64 = rasterizeSvg(
+                MainFrame.class.getResource("/com/clouseau/ui/icons/clouseau.svg").toString(), 64, 1.15f);
+        JOptionPane.showMessageDialog(
+                this,
+                "<html><b>" + Messages.get("about.version") + "</b><br><br>"
+                        + Messages.get("about.description") + "</html>",
+                Messages.get("about.title"),
+                JOptionPane.INFORMATION_MESSAGE,
+                icon64 != null ? new ImageIcon(icon64) : null);
     }
 
     /** Creates a {@link JMenuItem} with VSCode-style vertical padding pre-applied. */
@@ -110,8 +139,7 @@ public final class MainFrame extends JFrame {
     }
 
     private void openSettings() {
-        LogPanel panel = activeLogPanel();
-        new SettingsDialog(this, panel != null ? panel.getLogTable() : null).setVisible(true);
+        new SettingsDialog(this, activeLogPanel()).setVisible(true);
     }
 
     // ── Toolbar ───────────────────────────────────────────────────────────────
@@ -228,7 +256,9 @@ public final class MainFrame extends JFrame {
     }
 
     private void updateCard() {
-        cardLayout.show(contentArea, tabbedPane.getTabCount() > 0 ? CARD_TABS : CARD_WELCOME);
+        boolean hasTabs = tabbedPane.getTabCount() > 0;
+        cardLayout.show(contentArea, hasTabs ? CARD_TABS : CARD_WELCOME);
+        if (closeTabItem != null) closeTabItem.setEnabled(hasTabs);
     }
 
     private LogPanel activeLogPanel() {
@@ -478,8 +508,8 @@ public final class MainFrame extends JFrame {
         var svgUrl = MainFrame.class.getResource("/com/clouseau/ui/icons/clouseau.svg");
         if (svgUrl == null) return List.of();
         return Stream.of(256, 64, 16)
-                .map(size -> rasterizeSvg(svgUrl.toString(), size, 1.15f))
-                .filter(img -> img != null)
+                .map(size -> rasterizeSvg(svgUrl.toString(), size, 1.19f))
+                .filter(Objects::nonNull)
                 .map(img -> (Image) img)
                 .toList();
     }
