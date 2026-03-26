@@ -13,6 +13,10 @@ import javax.swing.plaf.basic.BasicFileChooserUI;
 import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.JTableHeader;
 import javax.swing.table.TableCellRenderer;
+import javax.swing.text.BadLocationException;
+import javax.swing.text.SimpleAttributeSet;
+import javax.swing.text.StyleConstants;
+import javax.swing.text.StyledDocument;
 import java.awt.*;
 import java.awt.Component;
 import java.io.BufferedReader;
@@ -20,6 +24,8 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -32,6 +38,7 @@ public final class MainFrame extends JFrame {
     private final List<LogParser> parsers;
     private final LogTableModel logTableModel = new LogTableModel();
     private JTable logTable;
+    private JTextPane detailArea;
     private boolean tableColumnsManaged = false; // true after first autoResizeColumns()
     private int fittedColumnsWidth = 0;          // sum of widths for all columns except message
     private volatile SwingWorker<?, ?> currentWorker;
@@ -46,12 +53,22 @@ public final class MainFrame extends JFrame {
         setMinimumSize(new Dimension(800, 500));
         setLocationRelativeTo(null);
 
-        setLayout(new MigLayout("fill, insets 0", "[grow]", "[36!][grow][180!]"));
+        setLayout(new MigLayout("fill, insets 0", "[grow]", "[36!][grow]"));
+
+        JSplitPane splitPane = new JSplitPane(JSplitPane.VERTICAL_SPLIT, buildLogTable(), buildDetail());
+        splitPane.setResizeWeight(0.5);
+        splitPane.setOneTouchExpandable(true);
 
         setJMenuBar(buildMenuBar());
-        add(buildToolbar(),  "growx, wrap");
-        add(buildLogTable(), "grow, wrap");
-        add(buildDetail(),   "growx");
+        add(buildToolbar(), "growx, wrap");
+        add(splitPane,      "grow");
+
+        logTable.getSelectionModel().addListSelectionListener(e -> {
+            if (!e.getValueIsAdjusting()) {
+                int row = logTable.getSelectedRow();
+                showDetail(row >= 0 ? logTableModel.getEntry(row) : null);
+            }
+        });
     }
 
     private JMenuBar buildMenuBar() {
@@ -420,10 +437,69 @@ public final class MainFrame extends JFrame {
     public JTable getLogTable()             { return logTable; }
 
     private JScrollPane buildDetail() {
-        JTextArea area = new JTextArea(Messages.get("detail.placeholder"));
-        area.setEditable(false);
-        area.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 12));
-        area.setBorder(BorderFactory.createEmptyBorder(8, 10, 8, 10));
-        return new JScrollPane(area);
+        detailArea = new JTextPane();
+        detailArea.setEditable(false);
+        detailArea.setBackground(new Color(0x1E1F22));
+        detailArea.setBorder(BorderFactory.createEmptyBorder(8, 10, 8, 10));
+        showDetail(null);
+        return new JScrollPane(detailArea);
+    }
+
+    private static final DateTimeFormatter DETAIL_TS_FMT =
+            DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS").withZone(ZoneId.systemDefault());
+
+    private void showDetail(LogEntry entry) {
+        StyledDocument doc = detailArea.getStyledDocument();
+        try { doc.remove(0, doc.getLength()); } catch (BadLocationException ignored) {}
+
+        SimpleAttributeSet key = new SimpleAttributeSet();
+        StyleConstants.setFontFamily(key, Font.MONOSPACED);
+        StyleConstants.setFontSize(key, 12);
+        StyleConstants.setBold(key, true);
+
+        SimpleAttributeSet val = new SimpleAttributeSet();
+        StyleConstants.setFontFamily(val, Font.MONOSPACED);
+        StyleConstants.setFontSize(val, 12);
+
+        if (entry == null) {
+            insertText(doc, Messages.get("detail.placeholder"), val);
+            detailArea.setCaretPosition(0);
+            return;
+        }
+
+        String ts     = entry.timestamp() != null ? DETAIL_TS_FMT.format(entry.timestamp()) : "";
+        String level  = entry.level()     != null ? entry.level().name()  : "";
+        String thread = entry.thread()    != null ? entry.thread()        : "";
+        String logger = entry.logger()    != null ? entry.logger()        : "";
+
+        appendField(doc, key, val, Messages.get("table.col.timestamp"), ts);
+        appendField(doc, key, val, Messages.get("table.col.level"),     level);
+        appendField(doc, key, val, Messages.get("table.col.thread"),    thread);
+        appendField(doc, key, val, Messages.get("table.col.logger"),    logger);
+
+        if (entry.fields() != null) {
+            entry.fields().forEach((k, v) -> appendField(doc, key, val, k, v));
+        }
+
+        appendField(doc, key, val, Messages.get("table.col.message"),
+                entry.message() != null ? entry.message() : "");
+
+        if (entry.rawLine() != null) {
+            insertText(doc, "\n" + "─".repeat(60) + "\n", val);
+            insertText(doc, Messages.get("detail.raw.label") + "\n", key);
+            insertText(doc, entry.rawLine(), val);
+        }
+
+        detailArea.setCaretPosition(0);
+    }
+
+    private static void appendField(StyledDocument doc, SimpleAttributeSet keyStyle,
+                                    SimpleAttributeSet valStyle, String label, String value) {
+        insertText(doc, String.format("%-12s ", label + ":"), keyStyle);
+        insertText(doc, value + "\n", valStyle);
+    }
+
+    private static void insertText(StyledDocument doc, String text, SimpleAttributeSet style) {
+        try { doc.insertString(doc.getLength(), text, style); } catch (BadLocationException ignored) {}
     }
 }
