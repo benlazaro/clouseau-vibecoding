@@ -20,6 +20,8 @@ dependencies {
     implementation("com.formdev:flatlaf-intellij-themes:${rootProject.extra["flatlafVersion"]}")
     implementation("com.miglayout:miglayout-swing:${rootProject.extra["migLayoutVersion"]}")
     implementation("com.fifesoft:rsyntaxtextarea:${rootProject.extra["rstaVersion"]}")
+    implementation("org.apache.xmlgraphics:batik-transcoder:1.17")
+    implementation("org.apache.xmlgraphics:batik-codec:1.17")
 }
 
 // Copy built-in plugin JAR into the plugins/ folder alongside the app
