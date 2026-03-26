@@ -184,9 +184,12 @@ public final class MainFrame extends JFrame {
                 Messages.get("filechooser.filter.desc"), "log", "txt", "out", "gz"));
         chooser.setAcceptAllFileFilterUsed(true);
         chooser.setAccessory(buildParserAccessory(chooser));
+        File lastDir = AppPrefs.getLastOpenDir();
+        if (lastDir != null) chooser.setCurrentDirectory(lastDir);
 
         if (chooser.showOpenDialog(this) != JFileChooser.APPROVE_OPTION) return;
 
+        AppPrefs.setLastOpenDir(chooser.getCurrentDirectory());
         Path file = chooser.getSelectedFile().toPath();
         Optional<LogParser> chosen = lastParserIndex == 0
                 ? Optional.empty()

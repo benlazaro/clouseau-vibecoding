@@ -12,6 +12,7 @@ public final class AppPrefs {
 
     private static final String KEY_TAB_CLOSE_CONFIRM = "tab.close.confirm";
     private static final String KEY_DETAIL_FONT_SIZE  = "detail.font.size";
+    private static final String KEY_LAST_OPEN_DIR     = "last.open.dir";
 
     private AppPrefs() {}
 
@@ -29,5 +30,16 @@ public final class AppPrefs {
 
     public static void setDetailFontSize(int size) {
         PREFS.putInt(KEY_DETAIL_FONT_SIZE, size);
+    }
+
+    public static java.io.File getLastOpenDir() {
+        String path = PREFS.get(KEY_LAST_OPEN_DIR, null);
+        if (path == null) return null;
+        java.io.File dir = new java.io.File(path);
+        return dir.isDirectory() ? dir : null;
+    }
+
+    public static void setLastOpenDir(java.io.File dir) {
+        if (dir != null) PREFS.put(KEY_LAST_OPEN_DIR, dir.getAbsolutePath());
     }
 }
