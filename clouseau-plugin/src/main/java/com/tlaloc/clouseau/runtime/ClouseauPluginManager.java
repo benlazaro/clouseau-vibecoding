@@ -1,5 +1,7 @@
 package com.tlaloc.clouseau.runtime;
 
+import com.tlaloc.clouseau.api.LogFormatter;
+import com.tlaloc.clouseau.api.LogParser;
 import lombok.extern.slf4j.Slf4j;
 import org.pf4j.DefaultPluginManager;
 import org.pf4j.PluginManager;
@@ -19,7 +21,7 @@ import java.util.List;
 public final class ClouseauPluginManager {
 
     /** Snapshot of a loaded plugin's identity and runtime state. */
-    public record PluginInfo(String id, String version, String state, boolean enabled) {}
+    public record PluginInfo(String id, String version, String types, String state, boolean enabled) {}
 
     private final PluginManager pf4j;
 
@@ -36,9 +38,17 @@ public final class ClouseauPluginManager {
                 .map(pw -> new PluginInfo(
                         pw.getPluginId(),
                         pw.getDescriptor().getVersion(),
+                        deriveTypes(pw.getPluginId()),
                         friendlyState(pw),
                         pw.getPluginState() == PluginState.STARTED))
                 .toList();
+    }
+
+    private String deriveTypes(String pluginId) {
+        List<String> types = new java.util.ArrayList<>();
+        if (!pf4j.getExtensions(LogParser.class,    pluginId).isEmpty()) types.add("Parser");
+        if (!pf4j.getExtensions(LogFormatter.class, pluginId).isEmpty()) types.add("Formatter");
+        return types.isEmpty() ? "\u2014" : String.join(", ", types);
     }
 
     public void enablePlugin(String id) {

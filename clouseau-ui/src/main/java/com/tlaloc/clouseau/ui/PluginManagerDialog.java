@@ -57,10 +57,12 @@ public final class PluginManagerDialog extends JDialog {
         // Column widths
         table.getColumnModel().getColumn(0).setMinWidth(60);
         table.getColumnModel().getColumn(0).setMaxWidth(60);
-        table.getColumnModel().getColumn(2).setMinWidth(90);
-        table.getColumnModel().getColumn(2).setMaxWidth(90);
-        table.getColumnModel().getColumn(3).setMinWidth(80);
-        table.getColumnModel().getColumn(3).setMaxWidth(80);
+        table.getColumnModel().getColumn(2).setMinWidth(110);
+        table.getColumnModel().getColumn(2).setMaxWidth(110);
+        table.getColumnModel().getColumn(3).setMinWidth(90);
+        table.getColumnModel().getColumn(3).setMaxWidth(90);
+        table.getColumnModel().getColumn(4).setMinWidth(80);
+        table.getColumnModel().getColumn(4).setMaxWidth(80);
 
         add(new JScrollPane(table), "grow, wrap");
 
@@ -100,6 +102,7 @@ public final class PluginManagerDialog extends JDialog {
         private static final String[] COLUMNS = {
             Messages.get("plugins.table.col.enabled"),
             Messages.get("plugins.table.col.id"),
+            Messages.get("plugins.table.col.type"),
             Messages.get("plugins.table.col.version"),
             Messages.get("plugins.table.col.status"),
         };
@@ -140,8 +143,9 @@ public final class PluginManagerDialog extends JDialog {
             return switch (col) {
                 case 0 -> p.enabled();
                 case 1 -> p.id();
-                case 2 -> p.version();
-                case 3 -> p.state();
+                case 2 -> p.types();
+                case 3 -> p.version();
+                case 4 -> p.state();
                 default -> null;
             };
         }
