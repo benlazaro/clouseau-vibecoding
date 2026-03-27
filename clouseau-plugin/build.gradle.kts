@@ -1,4 +1,4 @@
-// plugin-runtime — discovers, loads, and manages plugin lifecycle via PF4J
+// clouseau-plugin — discovers, loads, and manages plugin lifecycle via PF4J
 
 plugins {
     java

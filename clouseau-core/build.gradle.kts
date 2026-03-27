@@ -8,4 +8,7 @@ plugins {
 dependencies {
     api(project(":clouseau-api"))
     implementation("com.google.guava:guava:${rootProject.extra["guavaVersion"]}")
+    compileOnly("org.pf4j:pf4j:${rootProject.extra["pf4jVersion"]}")
+    testCompileOnly("org.pf4j:pf4j:${rootProject.extra["pf4jVersion"]}")
+    testRuntimeOnly("org.pf4j:pf4j:${rootProject.extra["pf4jVersion"]}")
 }

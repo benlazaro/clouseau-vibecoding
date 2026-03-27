@@ -3,6 +3,7 @@ package com.clouseau.ui;
 import com.clouseau.api.LogParser;
 import com.clouseau.core.Log4jPatternParser;
 import com.clouseau.core.SpringBootPatternParser;
+import com.clouseau.runtime.ClouseauPluginManager;
 import com.formdev.flatlaf.intellijthemes.FlatOneDarkIJTheme;
 import lombok.extern.slf4j.Slf4j;
 
@@ -17,7 +18,30 @@ public final class ClouseauApp {
     public static void main(String[] args) {
         log.info("Starting Clouseau Log Viewer");
 
-        List<LogParser> parsers = List.of(new SpringBootPatternParser(), new Log4jPatternParser());
+        // Built-in parsers — always available regardless of how the app is launched
+        List<LogParser> builtins = List.of(new SpringBootPatternParser(), new Log4jPatternParser());
+
+        // Plugin parsers — loaded from the plugins directory; may be empty if dir not found
+        String pluginsDirProp = System.getProperty("clouseau.plugins.dir");
+        // Default: ~/.clouseau/plugins — safe in dev (won't collide with the project tree)
+        // and a sensible install location for end users.
+        Path pluginsDir = pluginsDirProp != null
+                ? Path.of(pluginsDirProp)
+                : Path.of(System.getProperty("user.home"), ".clouseau", "plugins");
+        ClouseauPluginManager pluginManager = new ClouseauPluginManager(pluginsDir);
+        pluginManager.loadAll();
+        // Merge: built-ins first, then any plugin parsers not already covered by name
+        java.util.Set<String> builtinNames = new java.util.HashSet<>();
+        builtins.forEach(p -> builtinNames.add(p.getName()));
+        List<LogParser> parsers = java.util.stream.Stream.concat(
+                builtins.stream(),
+                pluginManager.getExtensions(LogParser.class).stream()
+                             .filter(p -> !builtinNames.contains(p.getName()))
+        ).toList();
+        log.info("Loaded {} parser(s): {}", parsers.size(),
+                parsers.stream().map(LogParser::getName).toList());
+
+        Runtime.getRuntime().addShutdownHook(new Thread(pluginManager::stopAll, "plugin-shutdown"));
 
         // Use an array so the IPC lambda can capture the reference set later on the EDT.
         MainFrame[] frameRef = new MainFrame[1];

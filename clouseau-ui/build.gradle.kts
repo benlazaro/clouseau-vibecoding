@@ -12,7 +12,7 @@ application {
 
 dependencies {
     implementation(project(":clouseau-core"))
-    implementation(project(":plugin-runtime"))
+    implementation(project(":clouseau-plugin"))
 
     implementation("com.google.guava:guava:${rootProject.extra["guavaVersion"]}")
     runtimeOnly("org.slf4j:slf4j-simple:${rootProject.extra["slf4jVersion"]}")
@@ -22,10 +22,8 @@ dependencies {
     implementation("com.fifesoft:rsyntaxtextarea:${rootProject.extra["rstaVersion"]}")
     implementation("org.apache.xmlgraphics:batik-transcoder:1.17")
     implementation("org.apache.xmlgraphics:batik-codec:1.17")
+    // PF4J is on the runtime classpath via clouseau-plugin; needed here only for compilation
+    // because LogParser extends ExtensionPoint
+    compileOnly("org.pf4j:pf4j:${rootProject.extra["pf4jVersion"]}")
 }
 
-// Copy built-in plugin JAR into the plugins/ folder alongside the app
-tasks.named<ProcessResources>("processResources") {
-    from(project(":plugins:builtin-parsers").tasks.named("jar"))
-    into(layout.buildDirectory.dir("plugins"))
-}

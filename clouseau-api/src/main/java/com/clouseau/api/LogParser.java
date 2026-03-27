@@ -1,10 +1,12 @@
 package com.clouseau.api;
 
+import org.pf4j.ExtensionPoint;
+
 /**
  * Implement this to support a new log format.
- * Annotate with @Extension and register via PF4J.
+ * Annotate your implementation with @Extension and drop the JAR in the plugins folder.
  */
-public interface LogParser {
+public interface LogParser extends ExtensionPoint {
 
     /** Human-readable name shown in the UI (e.g. "Log4j Pattern"). */
     String getName();
