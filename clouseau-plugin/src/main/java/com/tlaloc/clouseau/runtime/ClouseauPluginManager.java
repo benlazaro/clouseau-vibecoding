@@ -3,6 +3,8 @@ package com.tlaloc.clouseau.runtime;
 import lombok.extern.slf4j.Slf4j;
 import org.pf4j.DefaultPluginManager;
 import org.pf4j.PluginManager;
+import org.pf4j.PluginState;
+import org.pf4j.PluginWrapper;
 
 import java.nio.file.Path;
 import java.util.List;
@@ -16,10 +18,49 @@ import java.util.List;
 @Slf4j
 public final class ClouseauPluginManager {
 
+    /** Snapshot of a loaded plugin's identity and runtime state. */
+    public record PluginInfo(String id, String version, String state, boolean enabled) {}
+
     private final PluginManager pf4j;
 
     public ClouseauPluginManager(Path pluginsDir) {
         this.pf4j = new DefaultPluginManager(pluginsDir);
+    }
+
+    public Path getPluginsRoot() {
+        return pf4j.getPluginsRoot();
+    }
+
+    public List<PluginInfo> getPluginInfos() {
+        return pf4j.getPlugins().stream()
+                .map(pw -> new PluginInfo(
+                        pw.getPluginId(),
+                        pw.getDescriptor().getVersion(),
+                        friendlyState(pw),
+                        pw.getPluginState() == PluginState.STARTED))
+                .toList();
+    }
+
+    public void enablePlugin(String id) {
+        pf4j.enablePlugin(id);
+        pf4j.startPlugin(id);
+        log.info("Enabled plugin '{}'", id);
+    }
+
+    public void disablePlugin(String id) {
+        pf4j.stopPlugin(id);
+        pf4j.disablePlugin(id);
+        log.info("Disabled plugin '{}'", id);
+    }
+
+    private static String friendlyState(PluginWrapper pw) {
+        return switch (pw.getPluginState()) {
+            case STARTED  -> "Running";
+            case STOPPED  -> "Stopped";
+            case DISABLED -> "Disabled";
+            case FAILED   -> "Failed";
+            default       -> pw.getPluginState().toString();
+        };
     }
 
     public void loadAll() {

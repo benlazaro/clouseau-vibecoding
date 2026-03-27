@@ -30,16 +30,7 @@ public final class ClouseauApp {
                 : Path.of(System.getProperty("user.home"), ".clouseau", "plugins", "parser");
         ClouseauPluginManager pluginManager = new ClouseauPluginManager(pluginsDir);
         pluginManager.loadAll();
-        // Merge: built-ins first, then any plugin parsers not already covered by name
-        java.util.Set<String> builtinNames = new java.util.HashSet<>();
-        builtins.forEach(p -> builtinNames.add(p.getName()));
-        List<LogParser> parsers = java.util.stream.Stream.concat(
-                builtins.stream(),
-                pluginManager.getExtensions(LogParser.class).stream()
-                             .filter(p -> !builtinNames.contains(p.getName()))
-        ).toList();
-        log.info("Loaded {} parser(s): {}", parsers.size(),
-                parsers.stream().map(LogParser::getName).toList());
+        log.info("Loaded {} built-in parser(s)", builtins.size());
 
         Runtime.getRuntime().addShutdownHook(new Thread(pluginManager::stopAll, "plugin-shutdown"));
 
@@ -74,7 +65,7 @@ public final class ClouseauApp {
 
 
         SwingUtilities.invokeLater(() -> {
-            MainFrame frame = new MainFrame(parsers);
+            MainFrame frame = new MainFrame(builtins, pluginManager);
             frameRef[0] = frame;
             frame.setVisible(true);
 

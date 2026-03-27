@@ -1,6 +1,7 @@
 package com.tlaloc.clouseau.ui;
 
 import com.tlaloc.clouseau.api.LogParser;
+import com.tlaloc.clouseau.runtime.ClouseauPluginManager;
 import lombok.extern.slf4j.Slf4j;
 import net.miginfocom.swing.MigLayout;
 
@@ -16,15 +17,20 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 @Slf4j
 public final class MainFrame extends JFrame {
 
-    private final List<LogParser> parsers;
+    private final List<LogParser> builtins;
+    private final ClouseauPluginManager pluginManager;
+    private List<LogParser> parsers;
     private final JTabbedPane tabbedPane = new JTabbedPane();
     private final CardLayout cardLayout  = new CardLayout();
     private final JPanel contentArea     = new JPanel(cardLayout);
@@ -34,9 +40,11 @@ public final class MainFrame extends JFrame {
     private static final String CARD_WELCOME = "welcome";
     private static final String CARD_TABS    = "tabs";
 
-    public MainFrame(List<LogParser> parsers) {
+    public MainFrame(List<LogParser> builtins, ClouseauPluginManager pluginManager) {
         super(Messages.get("app.title"));
-        this.parsers = parsers;
+        this.builtins = builtins;
+        this.pluginManager = pluginManager;
+        this.parsers = buildParserList();
         setDefaultCloseOperation(EXIT_ON_CLOSE);
         setSize(1280, 800);
         setMinimumSize(new Dimension(800, 500));
@@ -59,6 +67,24 @@ public final class MainFrame extends JFrame {
         getRootPane().getActionMap().put("openSettings", new AbstractAction() {
             @Override public void actionPerformed(java.awt.event.ActionEvent e) { openSettings(); }
         });
+    }
+
+    // ── Parser list management ────────────────────────────────────────────────
+
+    private List<LogParser> buildParserList() {
+        Set<String> builtinNames = builtins.stream().map(LogParser::getName).collect(Collectors.toSet());
+        return Stream.concat(
+                builtins.stream(),
+                pluginManager.getExtensions(LogParser.class).stream()
+                             .filter(p -> !builtinNames.contains(p.getName()))
+        ).collect(Collectors.toCollection(ArrayList::new));
+    }
+
+    /** Called after plugin enable/disable or refresh to update the active parser list. */
+    void rebuildParsers() {
+        this.parsers = buildParserList();
+        // Reset parser selection if the previously selected index no longer exists
+        if (lastParserIndex > parsers.size()) lastParserIndex = 0;
     }
 
     // ── Menu bar ─────────────────────────────────────────────────────────────
@@ -155,6 +181,8 @@ public final class MainFrame extends JFrame {
 
         JButton plugins = new JButton(Messages.get("toolbar.plugins"));
         plugins.setToolTipText(Messages.get("toolbar.plugins.tooltip"));
+        plugins.addActionListener(e ->
+                new PluginManagerDialog(this, pluginManager, this::rebuildParsers).setVisible(true));
 
         bar.add(follow);
         bar.add(new JSeparator(JSeparator.VERTICAL), "growy");
