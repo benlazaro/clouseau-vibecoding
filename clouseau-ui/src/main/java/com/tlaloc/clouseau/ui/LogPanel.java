@@ -73,8 +73,9 @@ public final class LogPanel extends JPanel {
 
         logTable.getSelectionModel().addListSelectionListener(e -> {
             if (!e.getValueIsAdjusting()) {
-                int row = logTable.getSelectedRow();
-                showDetail(row >= 0 ? logTableModel.getEntry(row) : null);
+                int viewRow = logTable.getSelectedRow();
+                int modelRow = viewRow >= 0 ? logTable.convertRowIndexToModel(viewRow) : -1;
+                showDetail(modelRow >= 0 ? logTableModel.getEntry(modelRow) : null);
             }
         });
     }
@@ -154,8 +155,9 @@ public final class LogPanel extends JPanel {
     public JTable getLogTable() { return logTable; }
 
     public void applyDetailFontSize(int size) {
-        int row = logTable.getSelectedRow();
-        showDetail(row >= 0 ? logTableModel.getEntry(row) : null);
+        int viewRow = logTable.getSelectedRow();
+        int modelRow = viewRow >= 0 ? logTable.convertRowIndexToModel(viewRow) : -1;
+        showDetail(modelRow >= 0 ? logTableModel.getEntry(modelRow) : null);
     }
 
     // ── Log table ────────────────────────────────────────────────────────────
@@ -172,6 +174,7 @@ public final class LogPanel extends JPanel {
         };
         logTable.setBackground(new Color(0x191919));
         logTable.setAutoResizeMode(JTable.AUTO_RESIZE_LAST_COLUMN);
+        logTable.setRowSorter(new javax.swing.table.TableRowSorter<>(logTableModel));
         logTable.getColumnModel().getColumn(0).setPreferredWidth(50);
         logTable.getColumnModel().getColumn(1).setPreferredWidth(180);
         logTable.getColumnModel().getColumn(2).setPreferredWidth(60);
@@ -186,7 +189,7 @@ public final class LogPanel extends JPanel {
                 super.getTableCellRendererComponent(t, v, sel, foc, r, c);
                 setBorder(cellPad);
                 if (!sel) {
-                    LogEntry entry = logTableModel.getEntry(r);
+                    LogEntry entry = logTableModel.getEntry(logTable.convertRowIndexToModel(r));
                     LogEntry.LogLevel level = entry != null ? entry.level() : null;
                     Color levelColor = level != null
                             ? LEVEL_COLORS.getOrDefault(level, FG_DEFAULT)
