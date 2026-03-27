@@ -8,6 +8,7 @@ import net.miginfocom.swing.MigLayout;
 
 import javax.swing.*;
 import javax.swing.border.Border;
+import javax.swing.event.TableModelEvent;
 import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.JTableHeader;
 import javax.swing.table.TableCellRenderer;
@@ -45,6 +46,7 @@ public final class LogPanel extends JPanel {
     private boolean tableColumnsManaged = false;
     private int fittedColumnsWidth = 0;
     private volatile SwingWorker<?, ?> currentWorker;
+    private boolean follow = false;
 
     public LogPanel(List<LogParser> parsers) {
         super(new MigLayout("fill, insets 0", "[grow]", "[][grow]"));
@@ -54,10 +56,20 @@ public final class LogPanel extends JPanel {
         this.filterBar = fbHolder[0];
 
         JSplitPane split = new JSplitPane(JSplitPane.VERTICAL_SPLIT, buildLogTable(), buildDetail());
-        split.setResizeWeight(0.75);
+        split.setResizeWeight(0.70);
         split.setOneTouchExpandable(true);
+        split.addComponentListener(new java.awt.event.ComponentAdapter() {
+            @Override public void componentResized(java.awt.event.ComponentEvent e) {
+                split.removeComponentListener(this);
+                split.setDividerLocation(0.70);
+            }
+        });
         add(filterBar, "growx, wrap");
         add(split, "grow");
+
+        logTableModel.addTableModelListener(e -> {
+            if (follow && e.getType() == TableModelEvent.INSERT) scrollToBottom();
+        });
 
         logTable.getSelectionModel().addListSelectionListener(e -> {
             if (!e.getValueIsAdjusting()) {
@@ -65,6 +77,18 @@ public final class LogPanel extends JPanel {
                 showDetail(row >= 0 ? logTableModel.getEntry(row) : null);
             }
         });
+    }
+
+    public boolean isFollow() { return follow; }
+
+    public void setFollow(boolean follow) {
+        this.follow = follow;
+        if (follow) scrollToBottom();
+    }
+
+    private void scrollToBottom() {
+        int last = logTable.getRowCount() - 1;
+        if (last >= 0) logTable.scrollRectToVisible(logTable.getCellRect(last, 0, true));
     }
 
     // ── File loading ─────────────────────────────────────────────────────────
@@ -280,7 +304,7 @@ public final class LogPanel extends JPanel {
         detailArea.setBorder(BorderFactory.createEmptyBorder(8, 10, 8, 10));
         showDetail(null);
         JScrollPane scroll = new JScrollPane(detailArea);
-        scroll.getViewport().setBackground(new Color(0x191919));
+//        scroll.getViewport().setBackground(new Color(0x191919));
         return scroll;
     }
 

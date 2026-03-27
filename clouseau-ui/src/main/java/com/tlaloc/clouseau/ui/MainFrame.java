@@ -36,6 +36,7 @@ public final class MainFrame extends JFrame {
     private final JPanel contentArea     = new JPanel(cardLayout);
     private int lastParserIndex = 0;
     private JMenuItem closeTabItem;
+    private JToggleButton followBtn;
 
     private static final String CARD_WELCOME = "welcome";
     private static final String CARD_TABS    = "tabs";
@@ -53,6 +54,11 @@ public final class MainFrame extends JFrame {
 
         contentArea.add(buildWelcomePanel(), CARD_WELCOME);
         contentArea.add(tabbedPane,          CARD_TABS);
+
+        tabbedPane.addChangeListener(e -> {
+            LogPanel lp = activeLogPanel();
+            followBtn.setSelected(lp != null && lp.isFollow());
+        });
 
         setLayout(new MigLayout("fill, insets 0", "[grow]", "[36!][grow]"));
         setJMenuBar(buildMenuBar());
@@ -173,15 +179,20 @@ public final class MainFrame extends JFrame {
     private JPanel buildToolbar() {
         JPanel bar = new JPanel(new MigLayout("insets 4 8 4 8, gap 6", "[]push[]"));
 
-        JButton follow = new JButton(Messages.get("toolbar.follow"));
-        follow.setToolTipText(Messages.get("toolbar.follow.tooltip"));
+        followBtn = new JToggleButton(Messages.get("toolbar.follow"));
+        followBtn.setToolTipText(Messages.get("toolbar.follow.tooltip"));
+        followBtn.setEnabled(false);
+        followBtn.addActionListener(e -> {
+            LogPanel lp = activeLogPanel();
+            if (lp != null) lp.setFollow(followBtn.isSelected());
+        });
 
         JButton plugins = new JButton(Messages.get("toolbar.plugins"));
         plugins.setToolTipText(Messages.get("toolbar.plugins.tooltip"));
         plugins.addActionListener(e ->
                 new PluginManagerDialog(this, pluginManager, this::rebuildParsers).setVisible(true));
 
-        bar.add(follow);
+        bar.add(followBtn);
         bar.add(plugins);
         return bar;
     }
@@ -285,6 +296,10 @@ public final class MainFrame extends JFrame {
         boolean hasTabs = tabbedPane.getTabCount() > 0;
         cardLayout.show(contentArea, hasTabs ? CARD_TABS : CARD_WELCOME);
         if (closeTabItem != null) closeTabItem.setEnabled(hasTabs);
+        if (followBtn != null) {
+            followBtn.setEnabled(hasTabs);
+            if (!hasTabs) followBtn.setSelected(false);
+        }
     }
 
     private LogPanel activeLogPanel() {

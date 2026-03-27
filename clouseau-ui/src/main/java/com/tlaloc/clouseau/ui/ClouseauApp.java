@@ -57,8 +57,8 @@ public final class ClouseauApp {
         // (IntelliJ-wrapper themes bypass this variable system entirely.)
         FlatLaf.setGlobalExtraDefaults(java.util.Map.of(
             "@background",          "#2c2c2c",   // panels, toolbar, tabs, menus
-                "@componentBackground", "#282828"   // text fields, combos, lists, trees
-//                "@accentColor",         "#4d4d4d"    // focus rings, selection, active indicators
+                "@componentBackground", "#282828",   // text fields, combos, lists, trees
+                "@accentColor",         "#4d4d4d"    // focus rings, selection, active indicators
         ));
         FlatDarkLaf.setup();
 
