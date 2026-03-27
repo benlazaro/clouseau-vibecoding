@@ -11,6 +11,7 @@ import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Predicate;
 
 /**
  * Table model backed by LogIndex events.
@@ -26,7 +27,9 @@ public final class LogTableModel extends AbstractTableModel {
     private static final DateTimeFormatter TS_FMT =
         DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS").withZone(ZoneId.systemDefault());
 
-    private final List<LogEntry> rows = new ArrayList<>();
+    private final List<LogEntry> allEntries = new ArrayList<>();
+    private final List<LogEntry> rows       = new ArrayList<>();
+    private Predicate<LogEntry>  activeFilter = e -> true;
 
     public LogTableModel() {
         ClouseauEventBus.registerAsync(this);
@@ -40,9 +43,12 @@ public final class LogTableModel extends AbstractTableModel {
     public void onEntryAdded(LogIndex.LogEntryAddedEvent event) {
         LogEntry entry = event.entry();
         SwingUtilities.invokeLater(() -> {
-            int idx = rows.size();
-            rows.add(entry);
-            fireTableRowsInserted(idx, idx);
+            allEntries.add(entry);
+            if (activeFilter.test(entry)) {
+                int idx = rows.size();
+                rows.add(entry);
+                fireTableRowsInserted(idx, idx);
+            }
         });
     }
 
@@ -50,14 +56,19 @@ public final class LogTableModel extends AbstractTableModel {
     public void onBatchAdded(LogIndex.LogBatchAddedEvent event) {
         List<LogEntry> batch = List.copyOf(event.entries());
         SwingUtilities.invokeLater(() -> {
+            allEntries.addAll(batch);
             int first = rows.size();
-            rows.addAll(batch);
-            fireTableRowsInserted(first, rows.size() - 1);
+            List<LogEntry> matching = batch.stream().filter(activeFilter).toList();
+            if (!matching.isEmpty()) {
+                rows.addAll(matching);
+                fireTableRowsInserted(first, rows.size() - 1);
+            }
         });
     }
 
     public void clear() {
         Runnable doClear = () -> {
+            allEntries.clear();
             int last = rows.size() - 1;
             if (last < 0) return;
             rows.clear();
@@ -67,10 +78,22 @@ public final class LogTableModel extends AbstractTableModel {
         else SwingUtilities.invokeLater(doClear);
     }
 
-    /** Replaces all rows with {@code newRows} in one shot. Must be called on the EDT. */
-    public void load(List<LogEntry> newRows) {
+    /** Replaces all entries and reapplies the active filter. Must be called on the EDT. */
+    public void load(List<LogEntry> newEntries) {
+        allEntries.clear();
+        allEntries.addAll(newEntries);
+        reapplyFilter();
+    }
+
+    /** Installs a new filter and recomputes the visible rows. Must be called on the EDT. */
+    public void applyFilter(Predicate<LogEntry> filter) {
+        activeFilter = filter;
+        reapplyFilter();
+    }
+
+    private void reapplyFilter() {
         rows.clear();
-        rows.addAll(newRows);
+        allEntries.stream().filter(activeFilter).forEach(rows::add);
         fireTableDataChanged();
     }
 

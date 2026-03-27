@@ -34,8 +34,9 @@ import java.util.stream.Stream;
 public final class LogPanel extends JPanel {
 
     private final List<LogParser> parsers;
-    private final LogIndex logIndex = new LogIndex();
-    private final LogTableModel logTableModel = new LogTableModel();
+    private final LogIndex        logIndex      = new LogIndex();
+    private final LogTableModel   logTableModel = new LogTableModel();
+    private final FilterBar       filterBar;
     private JTable logTable;
     private JTextPane detailArea;
     private boolean tableColumnsManaged = false;
@@ -43,12 +44,16 @@ public final class LogPanel extends JPanel {
     private volatile SwingWorker<?, ?> currentWorker;
 
     public LogPanel(List<LogParser> parsers) {
-        super(new MigLayout("fill, insets 0", "[grow]", "[grow]"));
-        this.parsers = parsers;
+        super(new MigLayout("fill, insets 0", "[grow]", "[][grow]"));
+        this.parsers   = parsers;
+        FilterBar[] fbHolder = new FilterBar[1];
+        fbHolder[0] = new FilterBar(() -> logTableModel.applyFilter(fbHolder[0].buildPredicate()));
+        this.filterBar = fbHolder[0];
 
         JSplitPane split = new JSplitPane(JSplitPane.VERTICAL_SPLIT, buildLogTable(), buildDetail());
         split.setResizeWeight(0.75);
         split.setOneTouchExpandable(true);
+        add(filterBar, "growx, wrap");
         add(split, "grow");
 
         logTable.getSelectionModel().addListSelectionListener(e -> {
@@ -93,6 +98,7 @@ public final class LogPanel extends JPanel {
                 try {
                     ArrayList<LogEntry> entries = get();
                     logIndex.load(entries);
+                    filterBar.updateLoggers(entries);
                     logTableModel.load(entries);
                     autoResizeColumns();
                 } catch (Exception ex) {

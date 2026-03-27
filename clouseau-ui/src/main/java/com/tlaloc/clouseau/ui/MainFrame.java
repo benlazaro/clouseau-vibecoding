@@ -171,13 +171,10 @@ public final class MainFrame extends JFrame {
     // ── Toolbar ───────────────────────────────────────────────────────────────
 
     private JPanel buildToolbar() {
-        JPanel bar = new JPanel(new MigLayout("insets 4 8 4 8, gap 6", "[][][grow][]"));
+        JPanel bar = new JPanel(new MigLayout("insets 4 8 4 8, gap 6", "[]push[]"));
 
         JButton follow = new JButton(Messages.get("toolbar.follow"));
         follow.setToolTipText(Messages.get("toolbar.follow.tooltip"));
-
-        JTextField filter = new JTextField();
-        filter.putClientProperty("JTextField.placeholderText", Messages.get("toolbar.filter.placeholder"));
 
         JButton plugins = new JButton(Messages.get("toolbar.plugins"));
         plugins.setToolTipText(Messages.get("toolbar.plugins.tooltip"));
@@ -185,8 +182,6 @@ public final class MainFrame extends JFrame {
                 new PluginManagerDialog(this, pluginManager, this::rebuildParsers).setVisible(true));
 
         bar.add(follow);
-        bar.add(new JSeparator(JSeparator.VERTICAL), "growy");
-        bar.add(filter,  "growx");
         bar.add(plugins);
         return bar;
     }
