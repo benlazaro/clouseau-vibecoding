@@ -65,6 +65,11 @@ public final class ClouseauApp {
         Color componentBg =new Color(0x282828);
         UIManager.put("defaultFont",                  new javax.swing.plaf.FontUIResource(new Font(Font.SANS_SERIF, Font.PLAIN, 13)));
         UIManager.put("TabbedPane.showTabSeparators", true);
+        UIManager.put("TabbedPane.tabArc",             10);
+        UIManager.put("TabbedPane.selectedBackground", new Color(0x191919));  // accent-tinted highlight
+        UIManager.put("TabbedPane.hoverBackground",    new Color(0x4d4d4d));
+        UIManager.put("TabbedPane.underlineHeight",    2);
+        UIManager.put("TabbedPane.underlineColor",     new Color(0x4d4d4d));
         UIManager.put("ScrollBar.thumbArc",           999);
         UIManager.put("Component.focusWidth",         0.5);
         // Menu-bar item padding and hover-highlight style (FlatLaf-specific properties).
