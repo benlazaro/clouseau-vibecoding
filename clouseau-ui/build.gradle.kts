@@ -7,7 +7,7 @@ plugins {
 }
 
 application {
-    mainClass.set("com.clouseau.ui.ClouseauApp")
+    mainClass.set("com.tlaloc.clouseau.ui.ClouseauApp")
 }
 
 dependencies {

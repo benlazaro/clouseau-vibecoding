@@ -21,7 +21,7 @@ extra["slf4jVersion"]     = slf4jVersion
 subprojects {
     apply(plugin = "java")
 
-    group   = "com.clouseau"
+    group   = "com.tlaloc"
     version = "0.1.0-SNAPSHOT"
 
     repositories {

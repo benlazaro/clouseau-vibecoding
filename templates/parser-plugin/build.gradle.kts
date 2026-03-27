@@ -1,13 +1,8 @@
 // Clouseau parser plugin template.
 // Copy this directory, rename the classes, and implement your own LogParser.
 //
-// Before building, generate clouseau-api.jar from the main project:
-//   ./gradlew :clouseau-api:jar
-//
-// Then build this plugin:
-//   ./gradlew jar
-//
-// Drop the resulting JAR into ~/.clouseau/plugins/ and restart Clouseau.
+// Build:  ./gradlew jar
+// Install: drop the resulting JAR into ~/.clouseau/plugins/parser/ and restart Clouseau.
 
 plugins {
     java
@@ -24,12 +19,11 @@ repositories {
 }
 
 dependencies {
-    // clouseau-api must be built from the main project first (see above)
-    compileOnly("org.tlaloc:clouseau-api:$clouseauVersion"))
+    compileOnly("com.tlaloc:clouseau-api:$clouseauVersion")
     compileOnly("org.pf4j:pf4j:$pf4jVersion")
     annotationProcessor("org.pf4j:pf4j:$pf4jVersion")
 
-    testImplementation("org.tlaloc:clouseau-api:$clouseauVersion"))
+    testImplementation("com.tlaloc:clouseau-api:$clouseauVersion")
     testCompileOnly("org.pf4j:pf4j:$pf4jVersion")
     testRuntimeOnly("org.pf4j:pf4j:$pf4jVersion")
 }
