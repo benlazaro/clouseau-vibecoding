@@ -7,6 +7,11 @@ import net.miginfocom.swing.MigLayout;
 import javax.swing.*;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
+import javax.swing.tree.DefaultMutableTreeNode;
+import javax.swing.tree.TreeCellRenderer;
+import javax.swing.tree.TreePath;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 import java.awt.*;
 import java.time.*;
 import java.time.format.DateTimeFormatter;
@@ -209,54 +214,58 @@ final class FilterBar extends JPanel {
 
     private void showLoggerPopup(JButton invoker) {
         JPopupMenu popup = new JPopupMenu();
-        JPanel content = new JPanel(new MigLayout("fill, insets 6", "[grow]", "[][grow][]"));
-        content.setPreferredSize(new Dimension(270, 300));
+        JPanel content = new JPanel(new MigLayout("fill, insets 6", "[grow]", "[grow][]"));
+        content.setPreferredSize(new Dimension(300, 350));
 
-        JTextField search = new JTextField();
-        search.putClientProperty("JTextField.placeholderText", Messages.get("filter.loggers.search"));
-        content.add(search, "growx, wrap");
+        DefaultMutableTreeNode root = buildLoggerTree();
+        JTree tree = new JTree(root);
+        tree.setRootVisible(false);
+        tree.setShowsRootHandles(true);
+        tree.setToggleClickCount(0); // expand/collapse only via handle; click = checkbox toggle
+        for (int i = 0; i < tree.getRowCount(); i++) tree.expandRow(i);
 
-        JPanel listPanel = new JPanel();
-        listPanel.setLayout(new BoxLayout(listPanel, BoxLayout.Y_AXIS));
-        JScrollPane scroll = new JScrollPane(listPanel);
-        content.add(scroll, "grow, wrap");
+        JCheckBox rendererCb = new JCheckBox();
+        rendererCb.setOpaque(false);
+        tree.setCellRenderer((TreeCellRenderer) (t, value, selected, expanded, leaf, row, hasFocus) -> {
+            if (!(((DefaultMutableTreeNode) value).getUserObject() instanceof LoggerNode ln))
+                return new JLabel();
+            CheckState state = getCheckState((DefaultMutableTreeNode) value);
+            rendererCb.setText(ln.segment());
+            rendererCb.setSelected(state != CheckState.UNCHECKED);
+            rendererCb.putClientProperty("JCheckBox.indeterminate", state == CheckState.INDETERMINATE);
+            return rendererCb;
+        });
 
-        Runnable rebuildList = () -> {
-            String q = search.getText().toLowerCase();
-            listPanel.removeAll();
-            for (String logger : allLoggers) {
-                if (!q.isEmpty() && !logger.toLowerCase().contains(q)) continue;
-                JCheckBox cb = new JCheckBox(logger, !excludedLoggers.contains(logger));
-                cb.setFont(cb.getFont().deriveFont(12f));
-                cb.addItemListener(e -> {
-                    if (cb.isSelected()) excludedLoggers.remove(logger);
-                    else                 excludedLoggers.add(logger);
-                    updateLoggerButtonLabel();
-                    onChanged.run();
-                });
-                listPanel.add(cb);
+        tree.addMouseListener(new MouseAdapter() {
+            @Override public void mouseClicked(MouseEvent e) {
+                TreePath path = tree.getPathForLocation(e.getX(), e.getY());
+                if (path == null) return;
+                DefaultMutableTreeNode node = (DefaultMutableTreeNode) path.getLastPathComponent();
+                if (!(node.getUserObject() instanceof LoggerNode)) return;
+                boolean nowChecked = getCheckState(node) != CheckState.CHECKED;
+                setNodeChecked(node, nowChecked);
+                tree.repaint();
+                updateLoggerButtonLabel();
+                onChanged.run();
             }
-            listPanel.revalidate();
-            listPanel.repaint();
-        };
-        rebuildList.run();
-        search.getDocument().addDocumentListener(docListener(rebuildList));
+        });
+
+        content.add(new JScrollPane(tree), "grow, wrap");
 
         JButton allBtn  = new JButton(Messages.get("filter.loggers.select.all"));
         JButton noneBtn = new JButton(Messages.get("filter.loggers.select.none"));
         allBtn.addActionListener(e -> {
             excludedLoggers.clear();
-            rebuildList.run();
+            tree.repaint();
             updateLoggerButtonLabel();
             onChanged.run();
         });
         noneBtn.addActionListener(e -> {
             excludedLoggers.addAll(allLoggers);
-            rebuildList.run();
+            tree.repaint();
             updateLoggerButtonLabel();
             onChanged.run();
         });
-
         JPanel btnRow = new JPanel(new MigLayout("insets 0", "[]push[]"));
         btnRow.add(allBtn);
         btnRow.add(noneBtn);
@@ -265,6 +274,65 @@ final class FilterBar extends JPanel {
         popup.add(content);
         popup.show(invoker, 0, invoker.getHeight());
     }
+
+    private DefaultMutableTreeNode buildLoggerTree() {
+        DefaultMutableTreeNode root = new DefaultMutableTreeNode("ROOT");
+        for (String logger : allLoggers) {
+            String[] parts = logger.split("\\.", -1);
+            DefaultMutableTreeNode current = root;
+            int offset = 0;
+            for (String part : parts) {
+                String fullPath = logger.substring(0, offset + part.length());
+                DefaultMutableTreeNode child = findTreeChild(current, part);
+                if (child == null) {
+                    child = new DefaultMutableTreeNode(new LoggerNode(part, fullPath));
+                    current.add(child);
+                }
+                current = child;
+                offset += part.length() + 1; // +1 for the dot separator
+            }
+        }
+        return root;
+    }
+
+    private static DefaultMutableTreeNode findTreeChild(DefaultMutableTreeNode parent, String segment) {
+        for (int i = 0; i < parent.getChildCount(); i++) {
+            DefaultMutableTreeNode child = (DefaultMutableTreeNode) parent.getChildAt(i);
+            if (child.getUserObject() instanceof LoggerNode ln && ln.segment().equals(segment))
+                return child;
+        }
+        return null;
+    }
+
+    private CheckState getCheckState(DefaultMutableTreeNode node) {
+        if (node.isLeaf()) {
+            String path = node.getUserObject() instanceof LoggerNode ln ? ln.fullPath() : "";
+            return excludedLoggers.contains(path) ? CheckState.UNCHECKED : CheckState.CHECKED;
+        }
+        boolean anyChecked = false, anyUnchecked = false;
+        for (int i = 0; i < node.getChildCount(); i++) {
+            CheckState cs = getCheckState((DefaultMutableTreeNode) node.getChildAt(i));
+            if (cs != CheckState.UNCHECKED) anyChecked = true;
+            if (cs != CheckState.CHECKED)   anyUnchecked = true;
+            if (anyChecked && anyUnchecked) return CheckState.INDETERMINATE;
+        }
+        return anyChecked ? CheckState.CHECKED : CheckState.UNCHECKED;
+    }
+
+    private void setNodeChecked(DefaultMutableTreeNode node, boolean checked) {
+        if (node.isLeaf()) {
+            if (node.getUserObject() instanceof LoggerNode ln) {
+                if (checked) excludedLoggers.remove(ln.fullPath());
+                else         excludedLoggers.add(ln.fullPath());
+            }
+            return;
+        }
+        for (int i = 0; i < node.getChildCount(); i++)
+            setNodeChecked((DefaultMutableTreeNode) node.getChildAt(i), checked);
+    }
+
+    private record LoggerNode(String segment, String fullPath) {}
+    private enum CheckState { CHECKED, UNCHECKED, INDETERMINATE }
 
     // ── Helpers ───────────────────────────────────────────────────────────────
 
