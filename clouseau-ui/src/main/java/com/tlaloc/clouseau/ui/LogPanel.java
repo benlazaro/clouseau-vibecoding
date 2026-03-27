@@ -22,7 +22,10 @@ import java.nio.file.Path;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.EnumMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Stream;
 
@@ -135,9 +138,6 @@ public final class LogPanel extends JPanel {
 
     private JScrollPane buildLogTable() {
         logTable = new JTable(logTableModel) {
-            private static final Color ROW_DARK  = new Color(0x25272E);
-            private static final Color ROW_LIGHT = new Color(0x2D2F38);
-
             @Override public boolean isCellEditable(int r, int c) { return false; }
 
             @Override
@@ -145,17 +145,8 @@ public final class LogPanel extends JPanel {
                 if (tableColumnsManaged && getTableHeader().getResizingColumn() == null) return;
                 super.doLayout();
             }
-
-            @Override
-            public Component prepareRenderer(TableCellRenderer renderer, int row, int col) {
-                Component c = super.prepareRenderer(renderer, row, col);
-                if (!isRowSelected(row)) {
-                    c.setBackground(row % 2 == 0 ? ROW_DARK : ROW_LIGHT);
-                }
-                return c;
-            }
         };
-        logTable.setBackground(new Color(0x1E1F22));
+        logTable.setBackground(new Color(0x191919));
         logTable.setAutoResizeMode(JTable.AUTO_RESIZE_LAST_COLUMN);
         logTable.getColumnModel().getColumn(0).setPreferredWidth(50);
         logTable.getColumnModel().getColumn(1).setPreferredWidth(180);
@@ -164,18 +155,30 @@ public final class LogPanel extends JPanel {
         logTable.getColumnModel().getColumn(4).setPreferredWidth(200);
 
         Border cellPad = BorderFactory.createEmptyBorder(0, 8, 0, 8);
-        DefaultTableCellRenderer paddedRenderer = new DefaultTableCellRenderer() {
+        DefaultTableCellRenderer levelRenderer = new DefaultTableCellRenderer() {
             @Override
             public Component getTableCellRendererComponent(
                     JTable t, Object v, boolean sel, boolean foc, int r, int c) {
                 super.getTableCellRendererComponent(t, v, sel, foc, r, c);
                 setBorder(cellPad);
+                if (!sel) {
+                    LogEntry entry = logTableModel.getEntry(r);
+                    LogEntry.LogLevel level = entry != null ? entry.level() : null;
+                    Color levelColor = level != null
+                            ? LEVEL_COLORS.getOrDefault(level, FG_DEFAULT)
+                            : FG_DEFAULT;
+                    setForeground(switch (c) {
+                        case 2, 5 -> levelColor;   // Level, Message
+                        case 3, 4 -> FG_DIM;       // Thread, Logger
+                        default   -> FG_DEFAULT;   // #, Timestamp
+                    });
+                }
                 return this;
             }
         };
-        paddedRenderer.setHorizontalAlignment(SwingConstants.LEFT);
+        levelRenderer.setHorizontalAlignment(SwingConstants.LEFT);
         for (int i = 0; i < logTable.getColumnCount(); i++) {
-            logTable.getColumnModel().getColumn(i).setCellRenderer(paddedRenderer);
+            logTable.getColumnModel().getColumn(i).setCellRenderer(levelRenderer);
         }
 
         JTableHeader header = logTable.getTableHeader();
@@ -201,7 +204,7 @@ public final class LogPanel extends JPanel {
         }
         logTable.setShowHorizontalLines(true);
         logTable.setShowVerticalLines(false);
-        logTable.setGridColor(new Color(0x2C2F3A));
+        logTable.setGridColor(new Color(0x272727));
         logTable.setRowHeight(22);
         logTable.addComponentListener(new java.awt.event.ComponentAdapter() {
             @Override public void componentResized(java.awt.event.ComponentEvent e) {
@@ -210,7 +213,7 @@ public final class LogPanel extends JPanel {
         });
 
         JScrollPane scrollPane = new JScrollPane(logTable);
-        scrollPane.getViewport().setBackground(new Color(0x1E1F22));
+        scrollPane.getViewport().setBackground(new Color(0x181818));
         return scrollPane;
     }
 
@@ -250,15 +253,35 @@ public final class LogPanel extends JPanel {
         logTable.getColumnModel().getColumn(lastCol).setWidth(msgWidth);
     }
 
+    // ── Level color palette ───────────────────────────────────────────────────
+
+    private static final Map<LogEntry.LogLevel, Color> LEVEL_COLORS;
+    static {
+        Map<LogEntry.LogLevel, Color> m = new EnumMap<>(LogEntry.LogLevel.class);
+        m.put(LogEntry.LogLevel.TRACE,   new Color(0x9E9E9E));
+        m.put(LogEntry.LogLevel.DEBUG,   new Color(0x29B6F6));
+        m.put(LogEntry.LogLevel.INFO,    new Color(0x66BB6A));
+        m.put(LogEntry.LogLevel.WARN,    new Color(0xFFA726));
+        m.put(LogEntry.LogLevel.ERROR,   new Color(0xEF5350));
+        m.put(LogEntry.LogLevel.FATAL,   new Color(0xF44336));
+        m.put(LogEntry.LogLevel.UNKNOWN, new Color(0x9E9E9E));
+        LEVEL_COLORS = Collections.unmodifiableMap(m);
+    }
+    private static final Color FG_DEFAULT = new Color(0xB0B7C3);
+    private static final Color FG_DIM     = new Color(0x6B7280);
+
     // ── Detail panel ─────────────────────────────────────────────────────────
 
     private JScrollPane buildDetail() {
         detailArea = new JTextPane();
         detailArea.setEditable(false);
-        detailArea.setBackground(new Color(0x1E1F22));
+        detailArea.setBackground(new Color(0x191919));
+        detailArea.setForeground(FG_DEFAULT);
         detailArea.setBorder(BorderFactory.createEmptyBorder(8, 10, 8, 10));
         showDetail(null);
-        return new JScrollPane(detailArea);
+        JScrollPane scroll = new JScrollPane(detailArea);
+        scroll.getViewport().setBackground(new Color(0x191919));
+        return scroll;
     }
 
     private static final DateTimeFormatter DETAIL_TS_FMT =
@@ -274,10 +297,12 @@ public final class LogPanel extends JPanel {
         StyleConstants.setFontFamily(key, Font.MONOSPACED);
         StyleConstants.setFontSize(key, fontSize);
         StyleConstants.setBold(key, true);
+        StyleConstants.setForeground(key, FG_DIM);
 
         SimpleAttributeSet val = new SimpleAttributeSet();
         StyleConstants.setFontFamily(val, Font.MONOSPACED);
         StyleConstants.setFontSize(val, fontSize);
+        StyleConstants.setForeground(val, FG_DEFAULT);
 
         if (entry == null) {
             insertText(doc, Messages.get("detail.placeholder"), val);
@@ -285,28 +310,34 @@ public final class LogPanel extends JPanel {
             return;
         }
 
+        Color levelColor = entry.level() != null
+                ? LEVEL_COLORS.getOrDefault(entry.level(), FG_DEFAULT)
+                : FG_DEFAULT;
+        SimpleAttributeSet msgVal = new SimpleAttributeSet(val);
+        StyleConstants.setForeground(msgVal, levelColor);
+
         String ts     = entry.timestamp() != null ? DETAIL_TS_FMT.format(entry.timestamp()) : "";
         String level  = entry.level()     != null ? entry.level().name()  : "";
         String thread = entry.thread()    != null ? entry.thread()        : "";
         String logger = entry.logger()    != null ? entry.logger()        : "";
 
-        appendField(doc, key, val, Messages.get("table.col.timestamp"), ts);
-        appendField(doc, key, val, Messages.get("table.col.level"),     level);
-        appendField(doc, key, val, Messages.get("table.col.thread"),    thread);
-        appendField(doc, key, val, Messages.get("table.col.logger"),    logger);
+        appendField(doc, key, val,    Messages.get("table.col.timestamp"), ts);
+        appendField(doc, key, msgVal, Messages.get("table.col.level"),     level);
+        appendField(doc, key, val,    Messages.get("table.col.thread"),    thread);
+        appendField(doc, key, val,    Messages.get("table.col.logger"),    logger);
 
         if (entry.fields() != null) {
             entry.fields().forEach((k, v) -> appendField(doc, key, val, k, v));
         }
 
-        appendField(doc, key, val, Messages.get("table.col.message"),
+        appendField(doc, key, msgVal, Messages.get("table.col.message"),
                 entry.message() != null ? entry.message() : "");
 
-        if (entry.rawLine() != null) {
-            insertText(doc, "\n" + "─".repeat(60) + "\n", val);
-            insertText(doc, Messages.get("detail.raw.label") + "\n", key);
-            insertText(doc, entry.rawLine(), val);
-        }
+//        if (entry.rawLine() != null) {
+//            insertText(doc, "\n" + "─".repeat(60) + "\n", val);
+//            insertText(doc, Messages.get("detail.raw.label") + "\n", key);
+//            insertText(doc, entry.rawLine(), msgVal);
+//        }
 
         detailArea.setCaretPosition(0);
     }

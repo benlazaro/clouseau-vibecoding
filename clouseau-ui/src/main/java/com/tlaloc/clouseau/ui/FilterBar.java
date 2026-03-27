@@ -37,13 +37,13 @@ final class FilterBar extends JPanel {
     private static final Map<LogLevel, Color> LEVEL_COLORS;
     static {
         Map<LogLevel, Color> m = new EnumMap<>(LogLevel.class);
-        m.put(LogLevel.TRACE,   new Color(0x888888));
-        m.put(LogLevel.DEBUG,   new Color(0x56A8F5));
-        m.put(LogLevel.INFO,    new Color(0x73C991));
-        m.put(LogLevel.WARN,    new Color(0xF0A030));
-        m.put(LogLevel.ERROR,   new Color(0xFF6B68));
-        m.put(LogLevel.FATAL,   new Color(0xFF3333));
-        m.put(LogLevel.UNKNOWN, new Color(0x888888));
+        m.put(LogLevel.TRACE,   new Color(0x9E9E9E));
+        m.put(LogLevel.DEBUG,   new Color(0x29B6F6));
+        m.put(LogLevel.INFO,    new Color(0x66BB6A));
+        m.put(LogLevel.WARN,    new Color(0xFFA726));
+        m.put(LogLevel.ERROR,   new Color(0xEF5350));
+        m.put(LogLevel.FATAL,   new Color(0xF44336));
+        m.put(LogLevel.UNKNOWN, new Color(0x9E9E9E));
         LEVEL_COLORS = Collections.unmodifiableMap(m);
     }
 

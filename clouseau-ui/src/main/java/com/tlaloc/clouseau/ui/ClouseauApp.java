@@ -4,7 +4,8 @@ import com.tlaloc.clouseau.api.LogParser;
 import com.tlaloc.clouseau.core.Log4jPatternParser;
 import com.tlaloc.clouseau.core.SpringBootPatternParser;
 import com.tlaloc.clouseau.runtime.ClouseauPluginManager;
-import com.formdev.flatlaf.intellijthemes.FlatOneDarkIJTheme;
+import com.formdev.flatlaf.FlatDarkLaf;
+import com.formdev.flatlaf.FlatLaf;
 import lombok.extern.slf4j.Slf4j;
 
 import javax.swing.*;
@@ -51,8 +52,17 @@ public final class ClouseauApp {
             System.exit(0);
         }
 
-        FlatOneDarkIJTheme.setup();
+        // FlatDarkLaf resolves all component colors from @-variables, so a single
+        // setGlobalExtraDefaults call propagates to every component uniformly.
+        // (IntelliJ-wrapper themes bypass this variable system entirely.)
+        FlatLaf.setGlobalExtraDefaults(java.util.Map.of(
+            "@background",          "#2c2c2c",   // panels, toolbar, tabs, menus
+                "@componentBackground", "#282828"   // text fields, combos, lists, trees
+//                "@accentColor",         "#4d4d4d"    // focus rings, selection, active indicators
+        ));
+        FlatDarkLaf.setup();
 
+        Color componentBg =new Color(0x282828);
         UIManager.put("defaultFont",                  new javax.swing.plaf.FontUIResource(new Font(Font.SANS_SERIF, Font.PLAIN, 13)));
         UIManager.put("TabbedPane.showTabSeparators", true);
         UIManager.put("ScrollBar.thumbArc",           999);
@@ -61,7 +71,27 @@ public final class ClouseauApp {
         UIManager.put("MenuBar.itemMargins",          new Insets(2, 12, 2, 12));
         UIManager.put("MenuBar.selectionInsets",      new Insets(0, 2, 0, 2));
         UIManager.put("MenuBar.selectionArc",         8);
-        UIManager.put("MenuBar.selectionBackground",  new Color(255, 255, 255, 20));
+        UIManager.put("MenuBar.selectionBackground",  componentBg);
+//        // Explicit menu colors so drop-down menus inherit the new background
+        UIManager.put("PopupMenu.background",         componentBg);
+        UIManager.put("Menu.background",              componentBg);
+        UIManager.put("MenuItem.background",          componentBg);
+//        UIManager.put("MenuItem.selectionBackground", new Color(0x4A8CC8));
+//
+//        // Buttons — flat resting state, visible hover/active using accent tint
+//        UIManager.put("Button.background",                new Color(0x222222));
+//        UIManager.put("Button.hoverBackground",           new Color(0x2E2E2E));
+//        UIManager.put("Button.pressedBackground",         new Color(0x3A3A3A));
+//        UIManager.put("ToggleButton.background",          new Color(0x222222));
+//        UIManager.put("ToggleButton.hoverBackground",     new Color(0x2E2E2E));
+//        UIManager.put("ToggleButton.selectedBackground",  new Color(0x2B3A4E));  // accent tint
+//        UIManager.put("Component.borderColor",            new Color(0x2E2E2E));
+//        UIManager.put("Component.disabledBorderColor",    new Color(0x242424));
+//        UIManager.put("Component.focusColor",             new Color(0x4A8CC8));
+//        // Table header — match chrome background
+//        UIManager.put("TableHeader.background",           new Color(0x1C1C1C));
+//        UIManager.put("TableHeader.separatorColor",       new Color(0x2E2E2E));
+//        UIManager.put("TableHeader.bottomSeparatorColor", new Color(0x2E2E2E));
 
 
         SwingUtilities.invokeLater(() -> {
