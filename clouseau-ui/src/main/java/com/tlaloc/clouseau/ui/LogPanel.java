@@ -46,6 +46,7 @@ public final class LogPanel extends JPanel {
     private boolean tableColumnsManaged = false;
     private int fittedColumnsWidth = 0;
     private volatile SwingWorker<?, ?> currentWorker;
+    private Path currentFile;
     private boolean follow = false;
 
     public LogPanel(List<LogParser> parsers) {
@@ -94,7 +95,10 @@ public final class LogPanel extends JPanel {
 
     // ── File loading ─────────────────────────────────────────────────────────
 
+    public Path getFile() { return currentFile; }
+
     public void load(Path file, Optional<LogParser> parser) {
+        currentFile = file.toAbsolutePath();
         SwingWorker<?, ?> old = currentWorker;
         if (old != null) old.cancel(true);
         logIndex.clear();

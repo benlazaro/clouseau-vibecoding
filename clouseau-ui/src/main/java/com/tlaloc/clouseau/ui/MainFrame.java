@@ -37,6 +37,7 @@ public final class MainFrame extends JFrame {
     private int lastParserIndex = 0;
     private JMenuItem closeTabItem;
     private JToggleButton followBtn;
+    private JMenu recentMenu;
 
     private static final String CARD_WELCOME = "welcome";
     private static final String CARD_TABS    = "tabs";
@@ -107,6 +108,13 @@ public final class MainFrame extends JFrame {
         openItem.addActionListener(e -> openFile());
         fileMenu.add(openItem);
 
+        recentMenu = new JMenu(Messages.get("menu.file.recent"));
+        Insets menuDefaults = UIManager.getInsets("Menu.margin");
+        int mh = menuDefaults != null ? menuDefaults.left : 0;
+        recentMenu.setMargin(new Insets(7, mh, 7, mh));
+        fileMenu.add(recentMenu);
+        refreshRecentMenu();
+
         closeTabItem = menuItem(Messages.get("menu.file.close.tab"));
         closeTabItem.setEnabled(false);
         closeTabItem.setAccelerator(KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_W,
@@ -171,7 +179,25 @@ public final class MainFrame extends JFrame {
     }
 
     private void openSettings() {
-        new SettingsDialog(this, activeLogPanel()).setVisible(true);
+        new SettingsDialog(this, activeLogPanel(), this::refreshRecentMenu).setVisible(true);
+    }
+
+    private void refreshRecentMenu() {
+        recentMenu.removeAll();
+        java.util.List<java.nio.file.Path> recents = AppPrefs.getRecentFiles();
+        recentMenu.setEnabled(!recents.isEmpty());
+        for (java.nio.file.Path p : recents) {
+            JMenuItem item = menuItem(p.getFileName().toString());
+            item.setToolTipText(p.toAbsolutePath().toString());
+            item.addActionListener(e -> openFile(p));
+            recentMenu.add(item);
+        }
+        if (!recents.isEmpty()) {
+            recentMenu.addSeparator();
+            JMenuItem clear = menuItem(Messages.get("menu.file.recent.clear"));
+            clear.addActionListener(e -> { AppPrefs.clearRecentFiles(); refreshRecentMenu(); });
+            recentMenu.add(clear);
+        }
     }
 
     // ── Toolbar ───────────────────────────────────────────────────────────────
@@ -239,6 +265,15 @@ public final class MainFrame extends JFrame {
     }
 
     private void openFile(Path file, Optional<LogParser> parser) {
+        Path abs = file.toAbsolutePath();
+        for (int i = 0; i < tabbedPane.getTabCount(); i++) {
+            if (tabbedPane.getComponentAt(i) instanceof LogPanel lp && abs.equals(lp.getFile())) {
+                tabbedPane.setSelectedIndex(i);
+                return;
+            }
+        }
+        AppPrefs.addRecentFile(file);
+        refreshRecentMenu();
         LogPanel panel = new LogPanel(parsers);
         addLogTab(file.getFileName().toString(), panel);
         panel.load(file, parser);

@@ -66,10 +66,10 @@ public final class ClouseauApp {
         UIManager.put("defaultFont",                  new javax.swing.plaf.FontUIResource(new Font(Font.SANS_SERIF, Font.PLAIN, 13)));
         UIManager.put("TabbedPane.showTabSeparators", true);
         UIManager.put("ScrollBar.thumbArc",           999);
-        UIManager.put("Component.focusWidth",         1);
+        UIManager.put("Component.focusWidth",         0.5);
         // Menu-bar item padding and hover-highlight style (FlatLaf-specific properties).
-        UIManager.put("MenuBar.itemMargins",          new Insets(2, 12, 2, 12));
-        UIManager.put("MenuBar.selectionInsets",      new Insets(0, 2, 0, 2));
+        UIManager.put("MenuBar.itemMargins",          new Insets(0, 8, 0, 8));
+//        UIManager.put("MenuBar.selectionInsets",      new Insets(0, 2, 0, 2));
         UIManager.put("MenuBar.selectionArc",         8);
         UIManager.put("MenuBar.selectionBackground",  componentBg);
 //        // Explicit menu colors so drop-down menus inherit the new background
