@@ -19,9 +19,13 @@ import javax.swing.text.StyledDocument;
 import java.awt.*;
 import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.io.RandomAccessFile;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.zip.GZIPInputStream;
+import java.util.zip.ZipInputStream;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -142,7 +146,7 @@ public final class LogPanel extends JPanel {
             @Override
             protected ArrayList<LogEntry> doInBackground() throws Exception {
                 ArrayList<LogEntry> result = new ArrayList<>();
-                try (BufferedReader reader = Files.newBufferedReader(file)) {
+                try (BufferedReader reader = openReader(file)) {
                     String line;
                     while ((line = reader.readLine()) != null && !isCancelled()) {
                         if (line.isBlank()) continue;
@@ -196,9 +200,28 @@ public final class LogPanel extends JPanel {
         if (w != null) w.cancel(true);
     }
 
+    private static boolean isCompressed(Path file) {
+        String name = file.getFileName().toString().toLowerCase();
+        return name.endsWith(".gz") || name.endsWith(".zip");
+    }
+
+    static BufferedReader openReader(Path file) throws IOException {
+        String name = file.getFileName().toString().toLowerCase();
+        if (name.endsWith(".gz")) {
+            return new BufferedReader(new InputStreamReader(
+                    new GZIPInputStream(Files.newInputStream(file)), StandardCharsets.UTF_8));
+        }
+        if (name.endsWith(".zip")) {
+            ZipInputStream zis = new ZipInputStream(Files.newInputStream(file));
+            zis.getNextEntry();
+            return new BufferedReader(new InputStreamReader(zis, StandardCharsets.UTF_8));
+        }
+        return Files.newBufferedReader(file, StandardCharsets.UTF_8);
+    }
+
     private void startTailing() {
         stopTailing();
-        if (currentFile == null) return;
+        if (currentFile == null || isCompressed(currentFile)) return;
         final Optional<LogParser> parser = currentParser;
         tailWorker = new SwingWorker<>() {
             @Override

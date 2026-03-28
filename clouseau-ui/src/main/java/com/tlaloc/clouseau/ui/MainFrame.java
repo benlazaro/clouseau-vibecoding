@@ -241,7 +241,7 @@ public final class MainFrame extends JFrame {
         };
         chooser.setDialogTitle(Messages.get("filechooser.title"));
         chooser.setFileFilter(new FileNameExtensionFilter(
-                Messages.get("filechooser.filter.desc"), "log", "txt", "out", "gz"));
+                Messages.get("filechooser.filter.desc"), "log", "txt", "out", "gz", "zip"));
         chooser.setAcceptAllFileFilterUsed(true);
         chooser.setAccessory(buildParserAccessory(chooser));
         File lastDir = AppPrefs.getLastOpenDir();
@@ -424,7 +424,7 @@ public final class MainFrame extends JFrame {
     // ── Parser detection + file-chooser accessory ────────────────────────────
 
     private Optional<LogParser> detectParser(Path file, Optional<LogParser> chosen) {
-        try (BufferedReader reader = Files.newBufferedReader(file)) {
+        try (BufferedReader reader = LogPanel.openReader(file)) {
             String line;
             int checked = 0;
             while ((line = reader.readLine()) != null && checked < 50) {
