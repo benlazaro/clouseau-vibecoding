@@ -65,7 +65,7 @@ public final class ClouseauPluginManager {
 
     private static String friendlyState(PluginWrapper pw) {
         return switch (pw.getPluginState()) {
-            case STARTED  -> "Running";
+            case STARTED  -> "Enabled";
             case STOPPED  -> "Stopped";
             case DISABLED -> "Disabled";
             case FAILED   -> "Failed";

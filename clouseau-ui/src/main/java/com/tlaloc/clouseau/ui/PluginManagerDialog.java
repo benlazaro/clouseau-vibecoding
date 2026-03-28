@@ -12,7 +12,9 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
+import java.util.stream.Collectors;
 
 public final class PluginManagerDialog extends JDialog {
 
@@ -106,8 +108,9 @@ public final class PluginManagerDialog extends JDialog {
     // ── Status cell renderer ──────────────────────────────────────────────────
 
     private static final class StatusCellRenderer extends DefaultTableCellRenderer {
-        private static final Color COLOR_RUNNING  = new Color(0x66BB6A);
+        private static final Color COLOR_ENABLED  = new Color(0x66BB6A);
         private static final Color COLOR_DISABLED = new Color(0xFFA726);
+        private static final Color COLOR_FAILED   = new Color(0xEF5350);
 
         StatusCellRenderer() {
             setHorizontalAlignment(SwingConstants.CENTER);
@@ -119,10 +122,12 @@ public final class PluginManagerDialog extends JDialog {
             super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
             if (!isSelected) {
                 String state = value == null ? "" : value.toString();
-                if ("Running".equals(state)) {
-                    setForeground(COLOR_RUNNING);
-                } else if ("Disabled".equals(state)) {
+                if (state.equals(Messages.get("plugins.state.enabled"))) {
+                    setForeground(COLOR_ENABLED);
+                } else if (state.equals(Messages.get("plugins.state.disabled"))) {
                     setForeground(COLOR_DISABLED);
+                } else if (state.equals(Messages.get("plugins.state.failed"))) {
+                    setForeground(COLOR_FAILED);
                 } else {
                     setForeground(table.getForeground());
                 }
@@ -179,11 +184,32 @@ public final class PluginManagerDialog extends JDialog {
             return switch (col) {
                 case 0 -> p.enabled();
                 case 1 -> p.id();
-                case 2 -> p.types();
+                case 2 -> translateTypes(p.types());
                 case 3 -> p.version();
-                case 4 -> p.state();
+                case 4 -> translateState(p.state());
                 default -> null;
             };
+        }
+
+        private static String translateState(String state) {
+            return switch (state) {
+                case "Enabled"  -> Messages.get("plugins.state.enabled");
+                case "Stopped"  -> Messages.get("plugins.state.stopped");
+                case "Disabled" -> Messages.get("plugins.state.disabled");
+                case "Failed"   -> Messages.get("plugins.state.failed");
+                default         -> state;
+            };
+        }
+
+        private static String translateTypes(String types) {
+            if ("\u2014".equals(types) || types.isBlank()) return types;
+            return Arrays.stream(types.split(", "))
+                    .map(t -> switch (t) {
+                        case "Parser"    -> Messages.get("plugins.type.parser");
+                        case "Formatter" -> Messages.get("plugins.type.formatter");
+                        default          -> t;
+                    })
+                    .collect(Collectors.joining(", "));
         }
 
         @Override

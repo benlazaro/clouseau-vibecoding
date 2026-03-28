@@ -51,9 +51,11 @@ public final class LogPanel extends JPanel {
     private JPanel centerCards;
     private static final String CARD_CONTENT = "content";
     private static final String CARD_LOADING = "loading";
+    private JPanel statusBar;
+    private JLabel statusBarLabel;
 
     public LogPanel(List<LogParser> parsers) {
-        super(new MigLayout("fill, insets 0", "[grow]", "[][grow]"));
+        super(new MigLayout("fill, insets 0, gapy 0", "[grow]", "[][grow][]"));
         this.parsers   = parsers;
         FilterBar[] fbHolder = new FilterBar[1];
         fbHolder[0] = new FilterBar(() -> logTableModel.applyFilter(fbHolder[0].buildPredicate()));
@@ -74,11 +76,15 @@ public final class LogPanel extends JPanel {
         centerCards.add(split, CARD_CONTENT);
         centerCards.add(buildLoadingPanel(), CARD_LOADING);
 
+        statusBar = buildStatusBar();
+
         add(filterBar, "growx, wrap");
-        add(centerCards, "grow");
+        add(centerCards, "grow, wrap");
+        add(statusBar, "growx");
 
         logTableModel.addTableModelListener(e -> {
             if (follow && e.getType() == TableModelEvent.INSERT) scrollToBottom();
+            updateStatusBar();
         });
 
         logTable.getSelectionModel().addListSelectionListener(e -> {
@@ -178,6 +184,30 @@ public final class LogPanel extends JPanel {
         int viewRow = logTable.getSelectedRow();
         int modelRow = viewRow >= 0 ? logTable.convertRowIndexToModel(viewRow) : -1;
         showDetail(modelRow >= 0 ? logTableModel.getEntry(modelRow) : null, modelRow);
+    }
+
+    // ── Status bar ────────────────────────────────────────────────────────────
+
+    private JPanel buildStatusBar() {
+        statusBarLabel = new JLabel(" ");
+        statusBarLabel.setForeground(UIManager.getColor("Button.foreground"));
+        statusBarLabel.setFont(statusBarLabel.getFont().deriveFont(12f));
+        statusBarLabel.setHorizontalAlignment(SwingConstants.RIGHT);
+        statusBarLabel.setBorder(BorderFactory.createEmptyBorder(6, 8, 8, 8));
+
+        JPanel panel = new JPanel(new BorderLayout());
+        panel.setBorder(BorderFactory.createMatteBorder(1, 0, 0, 0, new Color(0x272727)));
+        panel.add(statusBarLabel, BorderLayout.CENTER);
+        return panel;
+    }
+
+    private void updateStatusBar() {
+        int visible = logTableModel.getRowCount();
+        int total   = logTableModel.getTotalCount();
+        String text = (visible == total)
+                ? java.text.MessageFormat.format(Messages.get("status.lines"), total)
+                : java.text.MessageFormat.format(Messages.get("status.lines.filtered"), visible, total);
+        statusBarLabel.setText(text);
     }
 
     // ── Loading overlay ───────────────────────────────────────────────────────
@@ -412,13 +442,9 @@ public final class LogPanel extends JPanel {
             StringBuilder stackTrace = new StringBuilder();
             for (LogEntry c : continuations) stackTrace.append(c.rawLine()).append("\n");
             if (!stackTrace.isEmpty()) {
-                SimpleAttributeSet stackStyle = new SimpleAttributeSet();
-                StyleConstants.setFontFamily(stackStyle, Font.MONOSPACED);
-                StyleConstants.setFontSize(stackStyle, fontSize);
-                StyleConstants.setForeground(stackStyle, FG_DIM);
                 insertText(doc, "\n", val);
                 insertText(doc, Messages.get("detail.stacktrace.label") + "\n", key);
-                insertText(doc, stackTrace.toString().stripTrailing(), stackStyle);
+                insertText(doc, stackTrace.toString().stripTrailing(), val);
             }
         }
 

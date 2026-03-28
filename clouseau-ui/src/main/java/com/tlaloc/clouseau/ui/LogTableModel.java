@@ -121,12 +121,14 @@ public final class LogTableModel extends AbstractTableModel {
         for (int i = allIdx + 1; i < allEntries.size(); i++) {
             LogEntry next = allEntries.get(i);
             boolean isContinuation = next.timestamp() == null
-                    || next.level() == LogEntry.LogLevel.TRACE;
+                    || next.level() == LogEntry.LogLevel.UNKNOWN;
             if (!isContinuation) break;
             result.add(next);
         }
         return result;
     }
+
+    public int getTotalCount() { return allEntries.size(); }
 
     @Override public int getRowCount()    { return rows.size(); }
     @Override public int getColumnCount() { return COLUMN_COUNT; }
