@@ -1,0 +1,108 @@
+
+  .   ____          _            __ _ _
+ /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
+( ( )\___ | '_ | '_| | '_ \/ _` | \ \ \ \
+ \\/  ___)| |_)| | | | | || (_| |  ) ) ) )
+  '  |____| .__|_| |_|_| |_\__, | / / / /
+ =========|_|==============|___/=/_/_/_/
+ :: Clouseau ::                          (v4.7.2)
+
+2026-03-27 08:00:00.001 [main] TRACE com.example.app.Bootstrap - Entering Bootstrap.init(), args=[]
+2026-03-27 08:00:00.012 [main] TRACE com.example.app.Bootstrap - Scanning classpath for @Configuration classes
+2026-03-27 08:00:00.045 [main] DEBUG com.example.app.Bootstrap - Loading configuration from /etc/myapp/config.yml
+2026-03-27 08:00:00.089 [main] DEBUG com.example.db.DataSourceFactory - JDBC URL resolved: jdbc:postgresql://db-primary:5432/myapp?sslmode=require
+2026-03-27 08:00:00.134 [main] DEBUG com.example.db.DataSourceFactory - Connection pool initialised: min=2 max=20 idleTimeout=30000ms
+2026-03-27 08:00:00.201 [main] INFO  com.example.app.Bootstrap - Application starting up — version 4.7.2 (build a3f91c0)
+2026-03-27 08:00:00.215 [main] INFO  com.example.app.Bootstrap - Active profiles: [production, us-east-1]
+2026-03-27 08:00:00.310 [main] INFO  com.example.infra.security.AuthManager - Loaded 3 JWKS public keys from https://auth.example.com/.well-known/jwks.json
+2026-03-27 08:00:00.402 [main] INFO  com.example.infra.cache.RedisConnector - Connected to Redis cluster: redis-01:6379, redis-02:6379, redis-03:6379
+2026-03-27 08:00:00.511 [main] INFO  com.example.app.Bootstrap - Startup complete in 510ms — listening on :8443
+2026-03-27 08:00:01.003 [http-nio-8443-exec-1] TRACE com.example.web.RequestFilter - --> GET /api/v1/health HTTP/1.1 from 10.0.1.45
+2026-03-27 08:00:01.005 [http-nio-8443-exec-1] TRACE com.example.web.RequestFilter - <-- 200 OK in 2ms
+2026-03-27 08:00:03.118 [http-nio-8443-exec-2] DEBUG com.example.web.RequestFilter - --> POST /api/v1/orders HTTP/1.1 from 10.0.2.17, Content-Length: 312
+2026-03-27 08:00:03.121 [http-nio-8443-exec-2] DEBUG com.example.service.OrderService - Parsed order request: {"orderId":"ORD-20260327-00441","customerId":"CUST-8821","items":[{"sku":"WIDGET-PRO-XL","qty":3,"unitPrice":49.99},{"sku":"GADGET-MINI","qty":1,"unitPrice":12.50}],"currency":"USD","total":162.47}
+2026-03-27 08:00:03.145 [http-nio-8443-exec-2] DEBUG com.example.db.OrderRepository - Executing INSERT INTO orders (id, customer_id, total, status, created_at) VALUES (?, ?, ?, ?, ?)
+2026-03-27 08:00:03.201 [http-nio-8443-exec-2] INFO  com.example.service.OrderService - Order ORD-20260327-00441 created for customer CUST-8821, total=$162.47
+2026-03-27 08:00:03.204 [http-nio-8443-exec-2] DEBUG com.example.infra.messaging.EventBus - Published OrderCreatedEvent to topic orders.created, payload: {"eventId":"EVT-9f3a1b","orderId":"ORD-20260327-00441","ts":"2026-03-27T08:00:03.201Z"}
+2026-03-27 08:00:05.330 [http-nio-8443-exec-3] INFO  com.example.service.PaymentService - Processing payment for order ORD-20260327-00441, method=CARD, last4=7731
+2026-03-27 08:00:05.891 [http-nio-8443-exec-3] DEBUG com.example.service.PaymentService - Payment gateway response: {"status":"AUTHORISED","authCode":"A4F92C","gatewayRef":"GW-20260327-7841233","processingTimeMs":561}
+2026-03-27 08:00:05.893 [http-nio-8443-exec-3] INFO  com.example.service.PaymentService - Payment authorised for ORD-20260327-00441, authCode=A4F92C
+2026-03-27 08:00:07.002 [scheduler-1] DEBUG com.example.infra.jobs.MetricsCollector - Collecting JVM metrics snapshot
+2026-03-27 08:00:07.004 [scheduler-1] DEBUG com.example.infra.jobs.MetricsCollector - Heap: used=312MB free=688MB max=1024MB, GC pauses last60s: 3x minor (18ms total)
+2026-03-27 08:00:09.441 [http-nio-8443-exec-4] WARN  com.example.service.InventoryService - Stock level low for SKU WIDGET-PRO-XL: 4 units remaining (threshold=10)
+2026-03-27 08:00:09.442 [http-nio-8443-exec-4] WARN  com.example.service.InventoryService - Triggering restock notification for SKU WIDGET-PRO-XL
+2026-03-27 08:00:11.770 [http-nio-8443-exec-5] WARN  com.example.infra.security.RateLimiter - Rate limit approaching for client 203.0.113.77: 87/100 requests in current window (window resets in 13s)
+2026-03-27 08:00:14.002 [http-nio-8443-exec-6] WARN  com.example.infra.cache.RedisConnector - Redis node redis-02:6379 did not respond within 250ms, retrying (attempt 1/3)
+2026-03-27 08:00:14.262 [http-nio-8443-exec-6] WARN  com.example.infra.cache.RedisConnector - Redis node redis-02:6379 did not respond within 250ms, retrying (attempt 2/3)
+2026-03-27 08:00:14.522 [http-nio-8443-exec-6] WARN  com.example.infra.cache.RedisConnector - Redis node redis-02:6379 did not respond within 250ms, retrying (attempt 3/3)
+2026-03-27 08:00:14.523 [http-nio-8443-exec-6] ERROR com.example.infra.cache.RedisConnector - All retries exhausted for redis-02:6379, failing over to redis-03:6379
+2026-03-27 08:00:17.031 [http-nio-8443-exec-7] DEBUG com.example.web.RequestFilter - --> GET /api/v1/products/search?q=widget&page=2&size=25 HTTP/1.1 from 10.0.3.91
+2026-03-27 08:00:17.199 [http-nio-8443-exec-7] ERROR com.example.db.ProductRepository - Query execution failed after 168ms: SELECT * FROM products WHERE name ILIKE ? ORDER BY relevance DESC LIMIT 25 OFFSET 25
+java.sql.SQLException: ERROR: canceling statement due to conflict with recovery
+	at org.postgresql.jdbc.PgStatement.executeInternal(PgStatement.java:481)
+	at org.postgresql.jdbc.PgStatement.execute(PgStatement.java:401)
+	at org.postgresql.jdbc.PgPreparedStatement.executeWithFlags(PgPreparedStatement.java:190)
+	at org.postgresql.jdbc.PgPreparedStatement.executeQuery(PgPreparedStatement.java:134)
+	at com.zaxxer.hikari.pool.ProxyPreparedStatement.executeQuery(ProxyPreparedStatement.java:52)
+	at com.example.db.ProductRepository.search(ProductRepository.java:88)
+	at com.example.service.ProductService.search(ProductService.java:112)
+	at com.example.web.ProductController.search(ProductController.java:67)
+	at sun.reflect.NativeMethodAccessorImpl.invoke0(Native Method)
+	at sun.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:62)
+	at java.lang.reflect.Method.invoke(Method.java:498)
+2026-03-27 08:00:17.201 [http-nio-8443-exec-7] ERROR com.example.web.ProductController - Request failed: GET /api/v1/products/search — returning 503
+2026-03-27 08:00:19.554 [http-nio-8443-exec-8] DEBUG com.example.infra.security.AuthManager - Validating JWT for sub=user-4492, iss=auth.example.com, exp=2026-03-27T09:00:00Z
+2026-03-27 08:00:19.556 [http-nio-8443-exec-8] DEBUG com.example.infra.security.AuthManager - Token signature verified using key kid=rsa-2048-v3
+2026-03-27 08:00:22.100 [http-nio-8443-exec-9] WARN  com.example.infra.security.AuthManager - JWT signature verification failed for token with kid=rsa-2048-v1 (key rotated 2026-02-01), rejecting request from 198.51.100.44
+2026-03-27 08:00:25.003 [io-worker-2] DEBUG com.example.infra.net.TcpReceiver - Received 128 bytes from peer 10.0.4.22:51234
+2026-03-27 08:00:25.004 [io-worker-2] DEBUG com.example.infra.net.TcpReceiver - Raw packet dump (hex): 48 54 54 50 2F 31 2E 31 20 32 30 30 20 4F 4B 0D 0A 43 6F 6E 74 65 6E 74 2D 54 79 70 65 3A 20 61 70 70 6C 69 63 61 74 69 6F 6E 2F 6A 73 6F 6E 0D 0A 43 6F 6E 74 65 6E 74 2D 4C 65 6E 67 74 68 3A 20 38 37 0D 0A 0D 0A 7B 22 73 74 61 74 75 73 22 3A 22 6F 6B 22 7D
+2026-03-27 08:00:25.006 [io-worker-2] TRACE com.example.infra.net.TcpReceiver - Frame decoded: type=0x02 flags=0x04 streamId=1 payloadLen=87
+2026-03-27 08:00:28.770 [http-nio-8443-exec-10] INFO  com.example.service.ReportService - Generating monthly report for period=2026-02, requestedBy=admin@example.com
+2026-03-27 08:00:28.775 [http-nio-8443-exec-10] DEBUG com.example.service.ReportService - Report config: {"period":"2026-02","format":"PDF","sections":["summary","orders","revenue","refunds"],"timezone":"America/New_York","currency":"USD","includeCharts":true}
+2026-03-27 08:00:31.002 [scheduler-1] DEBUG com.example.infra.jobs.HealthChecker - Upstream dependency check: {"database":{"status":"UP","responseMs":4},"redis":{"status":"DEGRADED","responseMs":312,"note":"redis-02 unreachable"},"authService":{"status":"UP","responseMs":18},"emailGateway":{"status":"UP","responseMs":55}}
+2026-03-27 08:00:31.003 [scheduler-1] WARN  com.example.infra.jobs.HealthChecker - Overall health: DEGRADED (1 of 4 dependencies unhealthy)
+2026-03-27 08:00:33.441 [http-nio-8443-exec-1] DEBUG com.example.infra.net.TcpReceiver - Checksum bytes: 0xDE 0xAD 0xBE 0xEF 0xCA 0xFE 0xBA 0xBE
+2026-03-27 08:00:33.442 [http-nio-8443-exec-1] DEBUG com.example.infra.net.TcpReceiver - Frame header: 0x89 0x50 0x4E 0x47 0x0D 0x0A 0x1A 0x0A (PNG magic bytes detected in payload, logging for protocol audit)
+2026-03-27 08:00:36.881 [http-nio-8443-exec-2] ERROR com.example.service.OrderService - Failed to dispatch shipment for order ORD-20260327-00399: courier API returned HTTP 422
+com.example.client.CourierApiException: Unprocessable Entity (HTTP 422): {"error":"INVALID_ADDRESS","detail":"Postcode 'XY9 9ZZ' not found in coverage area","field":"shippingAddress.postcode"}
+	at com.example.client.CourierClient.checkResponse(CourierClient.java:203)
+	at com.example.client.CourierClient.createShipment(CourierClient.java:177)
+	at com.example.service.ShipmentService.dispatch(ShipmentService.java:94)
+	at com.example.service.OrderService.finaliseOrder(OrderService.java:221)
+	at com.example.web.OrderController.finalise(OrderController.java:148)
+Caused by: com.example.client.HttpResponseException: status=422 body={"error":"INVALID_ADDRESS","detail":"Postcode 'XY9 9ZZ' not found in coverage area","field":"shippingAddress.postcode"}
+	at com.example.client.HttpClient.execute(HttpClient.java:89)
+	... 4 more
+2026-03-27 08:00:38.002 [eviction-thread] DEBUG com.example.infra.cache.LocalCache - Evicting 142 expired entries (policy=LRU, maxSize=10000, currentSize=9998)
+2026-03-27 08:00:40.113 [http-nio-8443-exec-3] INFO  com.example.infra.security.AuditLog - AUDIT user=admin@example.com action=ROLE_CHANGE target=user-7731 change={"from":["USER"],"to":["USER","MANAGER"]} ip=10.0.2.17
+2026-03-27 08:00:44.500 [http-nio-8443-exec-4] ERROR com.example.db.DataSourceFactory - Connection pool exhausted (max=20, waiting=7, timeout=5000ms) — all connections in use for >5s
+2026-03-27 08:00:44.502 [http-nio-8443-exec-4] ERROR com.example.db.DataSourceFactory - Dumping active connection stack traces for diagnostics
+java.lang.Exception: Connection held by thread http-nio-8443-exec-11 since 8031ms
+	at com.example.db.DataSourceFactory.wrapConnection(DataSourceFactory.java:319)
+	at com.example.db.OrderRepository.findByStatus(OrderRepository.java:201)
+	at com.example.service.OrderService.processQueue(OrderService.java:304)
+	at com.example.infra.jobs.OrderQueueJob.run(OrderQueueJob.java:58)
+	at java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1149)
+	at java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:624)
+	at java.lang.Thread.run(Thread.java:748)
+2026-03-27 08:00:47.003 [watchdog] WARN  com.example.app.Watchdog - GC pause detected: 1.4s stop-the-world (G1GC Full GC triggered — heap pressure, old gen=97%)
+2026-03-27 08:00:49.221 [http-nio-8443-exec-5] TRACE com.example.infra.net.TcpReceiver - Binary segment dump: 00 00 00 10 04 00 00 00 00 00 FF FB 01 00 10 00 00 3F FF 00 00 00 00 00 00 10 FF 00 FF 00 1A 2B 3C 4D 5E 6F 70 81 92 A3 B4 C5 D6 E7 F8
+2026-03-27 08:00:51.774 [http-nio-8443-exec-6] FATAL com.example.db.DataSourceFactory - FATAL: database connection subsystem unrecoverable — all 20 connections lost and pool cannot reconnect
+java.sql.SQLNonTransientConnectionException: Connection to db-primary:5432 refused — FATAL: too many connections (max_connections=200, current=201)
+	at org.postgresql.core.v3.ConnectionFactoryImpl.doAuthentication(ConnectionFactoryImpl.java:889)
+	at org.postgresql.core.v3.ConnectionFactoryImpl.tryConnect(ConnectionFactoryImpl.java:398)
+	at org.postgresql.core.v3.ConnectionFactoryImpl.openConnectionImpl(ConnectionFactoryImpl.java:497)
+	at org.postgresql.core.ConnectionFactory.openConnection(ConnectionFactory.java:49)
+	at org.postgresql.jdbc.PgConnection.<init>(PgConnection.java:247)
+	at org.postgresql.Driver.makeConnection(Driver.java:434)
+	at com.zaxxer.hikari.util.DriverDataSource.getConnection(DriverDataSource.java:138)
+	at com.zaxxer.hikari.pool.PoolBase.newConnection(PoolBase.java:358)
+	at com.zaxxer.hikari.pool.PoolBase.newPoolEntry(PoolBase.java:201)
+	at com.zaxxer.hikari.pool.HikariPool.createPoolEntry(HikariPool.java:474)
+	at com.example.db.DataSourceFactory.reconnect(DataSourceFactory.java:387)
+	at com.example.app.Bootstrap.emergencyReconnect(Bootstrap.java:512)
+2026-03-27 08:00:51.776 [http-nio-8443-exec-6] FATAL com.example.app.Bootstrap - Cannot recover database connectivity — initiating graceful shutdown
+2026-03-27 08:00:51.777 [shutdown-hook] INFO  com.example.app.Bootstrap - Shutdown hook triggered — draining in-flight requests (timeout=10s)
+2026-03-27 08:00:51.802 [shutdown-hook] INFO  com.example.infra.messaging.EventBus - Flushing 14 pending events before shutdown
+2026-03-27 08:00:52.103 [shutdown-hook] INFO  com.example.infra.cache.RedisConnector - Closing Redis connections
+2026-03-27 08:00:52.201 [shutdown-hook] INFO  com.example.app.Bootstrap - Shutdown complete

@@ -35,16 +35,27 @@ final class FilterBar extends JPanel {
     };
 
     private static final Map<LogLevel, Color> LEVEL_COLORS;
+    private static final Map<LogLevel, Color> LEVEL_BG_COLORS;
     static {
         Map<LogLevel, Color> m = new EnumMap<>(LogLevel.class);
         m.put(LogLevel.TRACE,   new Color(0x9E9E9E));
-        m.put(LogLevel.DEBUG,   new Color(0x29B6F6));
-        m.put(LogLevel.INFO,    new Color(0x66BB6A));
+        m.put(LogLevel.DEBUG,   new Color(0x66BB6A));
+        m.put(LogLevel.INFO,    new Color(0x29B6F6));
         m.put(LogLevel.WARN,    new Color(0xFFA726));
         m.put(LogLevel.ERROR,   new Color(0xEF5350));
-        m.put(LogLevel.FATAL,   new Color(0xF44336));
+        m.put(LogLevel.FATAL,   new Color(0xFF4081));
         m.put(LogLevel.UNKNOWN, new Color(0x9E9E9E));
         LEVEL_COLORS = Collections.unmodifiableMap(m);
+
+        Map<LogLevel, Color> bg = new EnumMap<>(LogLevel.class);
+        bg.put(LogLevel.TRACE,   new Color(0x1E1E1E));
+        bg.put(LogLevel.DEBUG,   new Color(0x1A2E1A));
+        bg.put(LogLevel.INFO,    new Color(0x0D2233));
+        bg.put(LogLevel.WARN,    new Color(0x2E1F0A));
+        bg.put(LogLevel.ERROR,   new Color(0x2E0F0F));
+        bg.put(LogLevel.FATAL,   new Color(0x3A1A2A));
+        bg.put(LogLevel.UNKNOWN, new Color(0x1E1E1E));
+        LEVEL_BG_COLORS = Collections.unmodifiableMap(bg);
     }
 
     private static final List<DateTimeFormatter> TS_FORMATS = List.of(
@@ -75,13 +86,14 @@ final class FilterBar extends JPanel {
         // ── Level toggle buttons ───────────────────────────────────────────────
         for (LogLevel level : LEVELS) {
             JToggleButton btn = new JToggleButton(level.name());
-            btn.setSelected(true);
+            btn.setSelected(level != LogLevel.UNKNOWN);
             btn.setFocusPainted(false);
             btn.setMargin(new Insets(2, 5, 2, 5));
             btn.setFont(btn.getFont().deriveFont(11f));
+            btn.setBackground(LEVEL_BG_COLORS.get(level));
             Color onColor  = LEVEL_COLORS.get(level);
             Color offColor = UIManager.getColor("Label.disabledForeground");
-            btn.setForeground(onColor);
+            btn.setForeground(btn.isSelected() ? onColor : offColor);
             btn.addItemListener(e -> {
                 btn.setForeground(btn.isSelected() ? onColor : offColor);
                 onChanged.run();
@@ -229,10 +241,13 @@ final class FilterBar extends JPanel {
         tree.setCellRenderer((TreeCellRenderer) (t, value, selected, expanded, leaf, row, hasFocus) -> {
             if (!(((DefaultMutableTreeNode) value).getUserObject() instanceof LoggerNode ln))
                 return new JLabel();
-            CheckState state = getCheckState((DefaultMutableTreeNode) value);
+            DefaultMutableTreeNode node = (DefaultMutableTreeNode) value;
+            CheckState state = getCheckState(node);
             rendererCb.setText(ln.segment());
             rendererCb.setSelected(state != CheckState.UNCHECKED);
             rendererCb.putClientProperty("JCheckBox.indeterminate", state == CheckState.INDETERMINATE);
+            int depth = Math.min(node.getLevel(), DEPTH_COLORS.length) - 1;
+            rendererCb.setForeground(DEPTH_COLORS[Math.max(depth, 0)]);
             return rendererCb;
         });
 
@@ -333,6 +348,15 @@ final class FilterBar extends JPanel {
 
     private record LoggerNode(String segment, String fullPath) {}
     private enum CheckState { CHECKED, UNCHECKED, INDETERMINATE }
+
+    // Colors per tree depth (depth 1 = top-level visible node, clamped at last entry)
+    private static final Color[] DEPTH_COLORS = {
+        new Color(0xB0B7C3),  // depth 1
+        new Color(0x82AAFF),  // depth 2
+        new Color(0xC3E88D),  // depth 3
+        new Color(0xFFCB6B),  // depth 4
+        new Color(0xFF9580),  // depth 5+
+    };
 
     // ── Helpers ───────────────────────────────────────────────────────────────
 

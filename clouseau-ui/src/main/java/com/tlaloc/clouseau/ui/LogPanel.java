@@ -55,6 +55,7 @@ public final class LogPanel extends JPanel {
         FilterBar[] fbHolder = new FilterBar[1];
         fbHolder[0] = new FilterBar(() -> logTableModel.applyFilter(fbHolder[0].buildPredicate()));
         this.filterBar = fbHolder[0];
+        logTableModel.applyFilter(filterBar.buildPredicate());
 
         JSplitPane split = new JSplitPane(JSplitPane.VERTICAL_SPLIT, buildLogTable(), buildDetail());
         split.setResizeWeight(0.70);
@@ -76,7 +77,7 @@ public final class LogPanel extends JPanel {
             if (!e.getValueIsAdjusting()) {
                 int viewRow = logTable.getSelectedRow();
                 int modelRow = viewRow >= 0 ? logTable.convertRowIndexToModel(viewRow) : -1;
-                showDetail(modelRow >= 0 ? logTableModel.getEntry(modelRow) : null);
+                showDetail(modelRow >= 0 ? logTableModel.getEntry(modelRow) : null, modelRow);
             }
         });
     }
@@ -113,12 +114,16 @@ public final class LogPanel extends JPanel {
                     while ((line = reader.readLine()) != null && !isCancelled()) {
                         if (line.isBlank()) continue;
                         final String candidate = line;
-                        parser.map(Stream::of)
+                        LogEntry entry = parser.map(Stream::of)
                               .orElseGet(parsers::stream)
                               .filter(p -> p.canParse(candidate))
                               .findFirst()
                               .map(p -> p.parse(candidate))
-                              .ifPresent(result::add);
+                              .orElseGet(() -> new LogEntry(
+                                      null, LogEntry.LogLevel.UNKNOWN,
+                                      null, null,
+                                      candidate, candidate, Map.of()));
+                        result.add(entry);
                     }
                 }
                 return result;
@@ -161,7 +166,7 @@ public final class LogPanel extends JPanel {
     public void applyDetailFontSize(int size) {
         int viewRow = logTable.getSelectedRow();
         int modelRow = viewRow >= 0 ? logTable.convertRowIndexToModel(viewRow) : -1;
-        showDetail(modelRow >= 0 ? logTableModel.getEntry(modelRow) : null);
+        showDetail(modelRow >= 0 ? logTableModel.getEntry(modelRow) : null, modelRow);
     }
 
     // ── Log table ────────────────────────────────────────────────────────────
@@ -290,11 +295,11 @@ public final class LogPanel extends JPanel {
     static {
         Map<LogEntry.LogLevel, Color> m = new EnumMap<>(LogEntry.LogLevel.class);
         m.put(LogEntry.LogLevel.TRACE,   new Color(0x9E9E9E));
-        m.put(LogEntry.LogLevel.DEBUG,   new Color(0x29B6F6));
-        m.put(LogEntry.LogLevel.INFO,    new Color(0x66BB6A));
+        m.put(LogEntry.LogLevel.DEBUG,   new Color(0x66BB6A));
+        m.put(LogEntry.LogLevel.INFO,    new Color(0x29B6F6));
         m.put(LogEntry.LogLevel.WARN,    new Color(0xFFA726));
         m.put(LogEntry.LogLevel.ERROR,   new Color(0xEF5350));
-        m.put(LogEntry.LogLevel.FATAL,   new Color(0xF44336));
+        m.put(LogEntry.LogLevel.FATAL,   new Color(0xFF4081));
         m.put(LogEntry.LogLevel.UNKNOWN, new Color(0x9E9E9E));
         LEVEL_COLORS = Collections.unmodifiableMap(m);
     }
@@ -309,7 +314,7 @@ public final class LogPanel extends JPanel {
         detailArea.setBackground(new Color(0x191919));
         detailArea.setForeground(FG_DEFAULT);
         detailArea.setBorder(BorderFactory.createEmptyBorder(8, 10, 8, 10));
-        showDetail(null);
+        showDetail(null, -1);
         JScrollPane scroll = new JScrollPane(detailArea);
 //        scroll.getViewport().setBackground(new Color(0x191919));
         return scroll;
@@ -318,7 +323,7 @@ public final class LogPanel extends JPanel {
     private static final DateTimeFormatter DETAIL_TS_FMT =
             DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS").withZone(ZoneId.systemDefault());
 
-    private void showDetail(LogEntry entry) {
+    private void showDetail(LogEntry entry, int modelRow) {
         StyledDocument doc = detailArea.getStyledDocument();
         try { doc.remove(0, doc.getLength()); } catch (BadLocationException ignored) {}
 
@@ -328,7 +333,7 @@ public final class LogPanel extends JPanel {
         StyleConstants.setFontFamily(key, Font.MONOSPACED);
         StyleConstants.setFontSize(key, fontSize);
         StyleConstants.setBold(key, true);
-        StyleConstants.setForeground(key, FG_DIM);
+        StyleConstants.setForeground(key, new Color(0x6B9FD4));
 
         SimpleAttributeSet val = new SimpleAttributeSet();
         StyleConstants.setFontFamily(val, Font.MONOSPACED);
@@ -363,6 +368,22 @@ public final class LogPanel extends JPanel {
 
         appendField(doc, key, msgVal, Messages.get("table.col.message"),
                 entry.message() != null ? entry.message() : "");
+
+        // Collect consecutive continuation lines (null timestamp = stack trace / wrapped lines)
+        if (modelRow >= 0) {
+            List<LogEntry> continuations = logTableModel.getContinuationLines(modelRow);
+            StringBuilder stackTrace = new StringBuilder();
+            for (LogEntry c : continuations) stackTrace.append(c.rawLine()).append("\n");
+            if (!stackTrace.isEmpty()) {
+                SimpleAttributeSet stackStyle = new SimpleAttributeSet();
+                StyleConstants.setFontFamily(stackStyle, Font.MONOSPACED);
+                StyleConstants.setFontSize(stackStyle, fontSize);
+                StyleConstants.setForeground(stackStyle, FG_DIM);
+                insertText(doc, "\n", val);
+                insertText(doc, Messages.get("detail.stacktrace.label") + "\n", key);
+                insertText(doc, stackTrace.toString().stripTrailing(), stackStyle);
+            }
+        }
 
 //        if (entry.rawLine() != null) {
 //            insertText(doc, "\n" + "─".repeat(60) + "\n", val);

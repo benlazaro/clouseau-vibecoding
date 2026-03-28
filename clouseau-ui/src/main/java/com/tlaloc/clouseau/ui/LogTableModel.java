@@ -97,10 +97,35 @@ public final class LogTableModel extends AbstractTableModel {
         fireTableDataChanged();
     }
 
-    /** Returns the LogEntry at the given view row, or null if out of range. */
+    /** Returns the LogEntry at the given model row, or null if out of range. */
     public LogEntry getEntry(int row) {
         if (row < 0 || row >= rows.size()) return null;
         return rows.get(row);
+    }
+
+    /**
+     * Returns the consecutive continuation lines (null timestamp) that follow the entry
+     * at the given model row in the unfiltered entry list. Used to show stack traces in
+     * the detail panel even when UNKNOWN entries are filtered out of the table.
+     */
+    public List<LogEntry> getContinuationLines(int modelRow) {
+        if (modelRow < 0 || modelRow >= rows.size()) return List.of();
+        LogEntry anchor = rows.get(modelRow);
+        // Locate anchor in allEntries by identity (filter may have reordered rows)
+        int allIdx = -1;
+        for (int i = 0; i < allEntries.size(); i++) {
+            if (allEntries.get(i) == anchor) { allIdx = i; break; }
+        }
+        if (allIdx < 0) return List.of();
+        List<LogEntry> result = new ArrayList<>();
+        for (int i = allIdx + 1; i < allEntries.size(); i++) {
+            LogEntry next = allEntries.get(i);
+            boolean isContinuation = next.timestamp() == null
+                    || next.level() == LogEntry.LogLevel.TRACE;
+            if (!isContinuation) break;
+            result.add(next);
+        }
+        return result;
     }
 
     @Override public int getRowCount()    { return rows.size(); }

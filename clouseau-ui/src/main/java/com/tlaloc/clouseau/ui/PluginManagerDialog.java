@@ -6,6 +6,7 @@ import net.miginfocom.swing.MigLayout;
 
 import javax.swing.*;
 import javax.swing.table.AbstractTableModel;
+import javax.swing.table.DefaultTableCellRenderer;
 import java.awt.*;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -64,6 +65,13 @@ public final class PluginManagerDialog extends JDialog {
         table.getColumnModel().getColumn(4).setMinWidth(80);
         table.getColumnModel().getColumn(4).setMaxWidth(80);
 
+        // Center-align Type, Version, Status columns
+        DefaultTableCellRenderer centerRenderer = new DefaultTableCellRenderer();
+        centerRenderer.setHorizontalAlignment(SwingConstants.CENTER);
+        table.getColumnModel().getColumn(2).setCellRenderer(centerRenderer);
+        table.getColumnModel().getColumn(3).setCellRenderer(centerRenderer);
+        table.getColumnModel().getColumn(4).setCellRenderer(new StatusCellRenderer());
+
         add(new JScrollPane(table), "grow, wrap");
 
         // ── Buttons ───────────────────────────────────────────────────────────
@@ -92,6 +100,34 @@ public final class PluginManagerDialog extends JDialog {
                     Messages.get("plugins.dialog.open.folder.error").formatted(path),
                     Messages.get("plugins.dialog.open.folder.error.title"),
                     JOptionPane.WARNING_MESSAGE);
+        }
+    }
+
+    // ── Status cell renderer ──────────────────────────────────────────────────
+
+    private static final class StatusCellRenderer extends DefaultTableCellRenderer {
+        private static final Color COLOR_RUNNING  = new Color(0x66BB6A);
+        private static final Color COLOR_DISABLED = new Color(0xFFA726);
+
+        StatusCellRenderer() {
+            setHorizontalAlignment(SwingConstants.CENTER);
+        }
+
+        @Override
+        public Component getTableCellRendererComponent(JTable table, Object value,
+                boolean isSelected, boolean hasFocus, int row, int column) {
+            super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
+            if (!isSelected) {
+                String state = value == null ? "" : value.toString();
+                if ("Running".equals(state)) {
+                    setForeground(COLOR_RUNNING);
+                } else if ("Disabled".equals(state)) {
+                    setForeground(COLOR_DISABLED);
+                } else {
+                    setForeground(table.getForeground());
+                }
+            }
+            return this;
         }
     }
 
