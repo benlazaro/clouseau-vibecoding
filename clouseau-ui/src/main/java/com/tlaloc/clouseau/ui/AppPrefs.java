@@ -16,6 +16,7 @@ public final class AppPrefs {
     private static final Preferences PREFS = Preferences.userRoot().node("com/tlaloc");
 
     private static final String KEY_TAB_CLOSE_CONFIRM = "tab.close.confirm";
+    private static final String KEY_FOLLOW_BY_DEFAULT  = "follow.by.default";
     private static final String KEY_DETAIL_FONT_SIZE  = "detail.font.size";
     private static final String KEY_LAST_OPEN_DIR     = "last.open.dir";
     private static final String KEY_RECENT_FILES      = "recent.files";
@@ -24,6 +25,14 @@ public final class AppPrefs {
     private static final String RECENT_SEP            = "\n";
 
     private AppPrefs() {}
+
+    public static boolean isFollowByDefault() {
+        return PREFS.getBoolean(KEY_FOLLOW_BY_DEFAULT, true);
+    }
+
+    public static void setFollowByDefault(boolean value) {
+        PREFS.putBoolean(KEY_FOLLOW_BY_DEFAULT, value);
+    }
 
     public static boolean isTabCloseConfirm() {
         return PREFS.getBoolean(KEY_TAB_CLOSE_CONFIRM, true);

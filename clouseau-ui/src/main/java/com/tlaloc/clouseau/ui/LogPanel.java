@@ -18,6 +18,8 @@ import javax.swing.text.StyleConstants;
 import javax.swing.text.StyledDocument;
 import java.awt.*;
 import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.RandomAccessFile;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.ZoneId;
@@ -46,8 +48,11 @@ public final class LogPanel extends JPanel {
     private boolean tableColumnsManaged = false;
     private int fittedColumnsWidth = 0;
     private volatile SwingWorker<?, ?> currentWorker;
+    private volatile SwingWorker<Void, LogEntry> tailWorker;
     private Path currentFile;
-    private boolean follow = false;
+    private Optional<LogParser> currentParser = Optional.empty();
+    private volatile long tailPosition = 0;
+    private boolean follow = AppPrefs.isFollowByDefault();
     private JPanel centerCards;
     private static final String CARD_CONTENT = "content";
     private static final String CARD_LOADING = "loading";
@@ -83,7 +88,8 @@ public final class LogPanel extends JPanel {
         add(statusBar, "growx");
 
         logTableModel.addTableModelListener(e -> {
-            if (follow && e.getType() == TableModelEvent.INSERT) scrollToBottom();
+            if (follow && e.getType() == TableModelEvent.INSERT)
+                SwingUtilities.invokeLater(this::scrollToBottom);
             updateStatusBar();
         });
 
@@ -100,7 +106,12 @@ public final class LogPanel extends JPanel {
 
     public void setFollow(boolean follow) {
         this.follow = follow;
-        if (follow) scrollToBottom();
+        if (follow) {
+            scrollToBottom();
+            startTailing();
+        } else {
+            stopTailing();
+        }
     }
 
     private void scrollToBottom() {
@@ -114,6 +125,8 @@ public final class LogPanel extends JPanel {
 
     public void load(Path file, Optional<LogParser> parser) {
         currentFile = file.toAbsolutePath();
+        currentParser = parser;
+        stopTailing();
         SwingWorker<?, ?> old = currentWorker;
         if (old != null) old.cancel(true);
         logIndex.clear();
@@ -155,6 +168,9 @@ public final class LogPanel extends JPanel {
                     filterBar.updateLoggers(entries);
                     logTableModel.load(entries);
                     autoResizeColumns();
+                    SwingUtilities.invokeLater(LogPanel.this::scrollToBottom);
+                    try { tailPosition = Files.size(currentFile); } catch (IOException ignored) {}
+                    if (follow) startTailing();
                 } catch (Exception ex) {
                     log.error("Failed to load {}", file, ex);
                     JOptionPane.showMessageDialog(LogPanel.this,
@@ -169,8 +185,59 @@ public final class LogPanel extends JPanel {
     }
 
     public void cancelLoad() {
+        stopTailing();
         SwingWorker<?, ?> w = currentWorker;
         if (w != null) w.cancel(true);
+    }
+
+    private void startTailing() {
+        stopTailing();
+        if (currentFile == null) return;
+        final Optional<LogParser> parser = currentParser;
+        tailWorker = new SwingWorker<>() {
+            @Override
+            protected Void doInBackground() throws Exception {
+                while (!isCancelled()) {
+                    try {
+                        if (Files.size(currentFile) > tailPosition) {
+                            try (RandomAccessFile raf = new RandomAccessFile(currentFile.toFile(), "r")) {
+                                raf.seek(tailPosition);
+                                String line;
+                                while ((line = raf.readLine()) != null && !isCancelled()) {
+                                    if (!line.isBlank()) {
+                                        final String candidate = line;
+                                        LogEntry entry = parser.map(Stream::of)
+                                                .orElseGet(parsers::stream)
+                                                .filter(p -> p.canParse(candidate))
+                                                .findFirst()
+                                                .map(p -> p.parse(candidate))
+                                                .orElseGet(() -> new LogEntry(
+                                                        null, LogEntry.LogLevel.UNKNOWN,
+                                                        null, null,
+                                                        candidate, candidate, Map.of()));
+                                        publish(entry);
+                                    }
+                                }
+                                tailPosition = raf.getFilePointer();
+                            }
+                        }
+                    } catch (IOException ignored) {}
+                    Thread.sleep(500);
+                }
+                return null;
+            }
+
+            @Override
+            protected void process(List<LogEntry> entries) {
+                for (LogEntry entry : entries) logTableModel.append(entry);
+            }
+        };
+        tailWorker.execute();
+    }
+
+    private void stopTailing() {
+        SwingWorker<?, ?> w = tailWorker;
+        if (w != null) { w.cancel(true); tailWorker = null; }
     }
 
     public void dispose() {

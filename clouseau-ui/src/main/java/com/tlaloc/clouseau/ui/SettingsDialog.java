@@ -22,6 +22,7 @@ final class SettingsDialog extends JDialog {
 
     // Tab settings
     private final JCheckBox confirmCloseCheckBox;
+    private final JCheckBox followByDefaultCheckBox;
 
     // Files settings
     private final JSpinner recentMaxSpinner;
@@ -37,6 +38,7 @@ final class SettingsDialog extends JDialog {
         detailFontSizeSpinner  = new JSpinner(new SpinnerNumberModel(AppPrefs.getDetailFontSize(), 8, 36, 1));
         wrapLinesCheckBox      = new JCheckBox(Messages.get("settings.detail.wrap"), true);
         confirmCloseCheckBox   = new JCheckBox(Messages.get("settings.tab.confirm.close"), AppPrefs.isTabCloseConfirm());
+        followByDefaultCheckBox = new JCheckBox(Messages.get("settings.follow.by.default"), AppPrefs.isFollowByDefault());
         recentMaxSpinner       = new JSpinner(new SpinnerNumberModel(AppPrefs.getRecentFilesMax(), 1, 10, 1));
 
         JPanel content = new JPanel(new MigLayout("insets 16, wrap 2, gapy 6", "[grow,fill][120px!]"));
@@ -55,6 +57,7 @@ final class SettingsDialog extends JDialog {
         // ── Tabs section ──────────────────────────────────────────────────
         content.add(sectionLabel(Messages.get("settings.section.tabs")), "span 2, gaptop 12, gapbottom 4");
         content.add(confirmCloseCheckBox, "span 2");
+        content.add(followByDefaultCheckBox, "span 2");
 
         // ── Files section ─────────────────────────────────────────────────
         content.add(sectionLabel(Messages.get("settings.section.files")), "span 2, gaptop 12, gapbottom 4");
@@ -91,6 +94,7 @@ final class SettingsDialog extends JDialog {
         AppPrefs.setDetailFontSize(fontSize);
         if (logPanel != null) logPanel.applyDetailFontSize(fontSize);
         AppPrefs.setTabCloseConfirm(confirmCloseCheckBox.isSelected());
+        AppPrefs.setFollowByDefault(followByDefaultCheckBox.isSelected());
         AppPrefs.setRecentFilesMax((int) recentMaxSpinner.getValue());
         if (onApply != null) onApply.run();
     }

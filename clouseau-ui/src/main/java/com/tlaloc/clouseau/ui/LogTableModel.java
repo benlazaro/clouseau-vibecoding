@@ -78,6 +78,16 @@ public final class LogTableModel extends AbstractTableModel {
         else SwingUtilities.invokeLater(doClear);
     }
 
+    /** Appends a single entry from file tailing. Must be called on the EDT. */
+    public void append(LogEntry entry) {
+        allEntries.add(entry);
+        if (activeFilter.test(entry)) {
+            int idx = rows.size();
+            rows.add(entry);
+            fireTableRowsInserted(idx, idx);
+        }
+    }
+
     /** Replaces all entries and reapplies the active filter. Must be called on the EDT. */
     public void load(List<LogEntry> newEntries) {
         allEntries.clear();
