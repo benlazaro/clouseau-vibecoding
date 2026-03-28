@@ -48,6 +48,9 @@ public final class LogPanel extends JPanel {
     private volatile SwingWorker<?, ?> currentWorker;
     private Path currentFile;
     private boolean follow = false;
+    private JPanel centerCards;
+    private static final String CARD_CONTENT = "content";
+    private static final String CARD_LOADING = "loading";
 
     public LogPanel(List<LogParser> parsers) {
         super(new MigLayout("fill, insets 0", "[grow]", "[][grow]"));
@@ -66,8 +69,13 @@ public final class LogPanel extends JPanel {
                 split.setDividerLocation(0.70);
             }
         });
+
+        centerCards = new JPanel(new CardLayout());
+        centerCards.add(split, CARD_CONTENT);
+        centerCards.add(buildLoadingPanel(), CARD_LOADING);
+
         add(filterBar, "growx, wrap");
-        add(split, "grow");
+        add(centerCards, "grow");
 
         logTableModel.addTableModelListener(e -> {
             if (follow && e.getType() == TableModelEvent.INSERT) scrollToBottom();
@@ -105,6 +113,8 @@ public final class LogPanel extends JPanel {
         logIndex.clear();
         logTableModel.clear();
 
+        ((CardLayout) centerCards.getLayout()).show(centerCards, CARD_LOADING);
+
         SwingWorker<ArrayList<LogEntry>, Void> worker = new SwingWorker<>() {
             @Override
             protected ArrayList<LogEntry> doInBackground() throws Exception {
@@ -131,6 +141,7 @@ public final class LogPanel extends JPanel {
 
             @Override
             protected void done() {
+                ((CardLayout) centerCards.getLayout()).show(centerCards, CARD_CONTENT);
                 if (isCancelled()) return;
                 try {
                     ArrayList<LogEntry> entries = get();
@@ -167,6 +178,32 @@ public final class LogPanel extends JPanel {
         int viewRow = logTable.getSelectedRow();
         int modelRow = viewRow >= 0 ? logTable.convertRowIndexToModel(viewRow) : -1;
         showDetail(modelRow >= 0 ? logTableModel.getEntry(modelRow) : null, modelRow);
+    }
+
+    // ── Loading overlay ───────────────────────────────────────────────────────
+
+    private JPanel buildLoadingPanel() {
+        JPanel panel = new JPanel(new BorderLayout());
+        panel.setBackground(new Color(0x181818));
+
+        JProgressBar bar = new JProgressBar();
+        bar.setIndeterminate(true);
+        bar.setBorderPainted(false);
+        bar.setForeground(new Color(0x29B6F6));
+        bar.setBackground(new Color(0x272727));
+        bar.setPreferredSize(new Dimension(280, 4));
+
+        JLabel label = new JLabel(Messages.get("loading.message"), SwingConstants.CENTER);
+        label.setForeground(new Color(0x6B7280));
+        label.setFont(label.getFont().deriveFont(13f));
+
+        JPanel inner = new JPanel(new MigLayout("insets 0", "[280!]", "[]10[]"));
+        inner.setOpaque(false);
+        inner.add(bar,   "wrap, h 4!");
+        inner.add(label, "growx");
+
+        panel.add(inner, BorderLayout.CENTER);
+        return panel;
     }
 
     // ── Log table ────────────────────────────────────────────────────────────
