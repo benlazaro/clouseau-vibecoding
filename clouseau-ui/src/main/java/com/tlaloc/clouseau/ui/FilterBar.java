@@ -174,7 +174,7 @@ final class FilterBar extends JPanel {
 
     /** Resets all filters to their default (pass-through) state. */
     void clear() {
-        levelButtons.values().forEach(b -> b.setSelected(true));
+        levelButtons.forEach((level, btn) -> btn.setSelected(level != LogLevel.UNKNOWN));
         excludedLoggers.clear();
         updateLoggerButtonLabel();
         fromField.setText("");
