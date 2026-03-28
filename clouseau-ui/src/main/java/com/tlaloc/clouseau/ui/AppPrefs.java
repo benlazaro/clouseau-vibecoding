@@ -92,6 +92,14 @@ public final class AppPrefs {
         PREFS.put(KEY_RECENT_FILES, String.join(RECENT_SEP, list));
     }
 
+    public static void removeRecentFile(Path path) {
+        String abs = path.toAbsolutePath().toString();
+        List<String> list = new ArrayList<>(
+                Arrays.asList(PREFS.get(KEY_RECENT_FILES, "").split(RECENT_SEP)));
+        list.removeIf(s -> s.isBlank() || s.equals(abs));
+        PREFS.put(KEY_RECENT_FILES, String.join(RECENT_SEP, list));
+    }
+
     public static void clearRecentFiles() {
         PREFS.remove(KEY_RECENT_FILES);
     }

@@ -124,6 +124,10 @@ public final class LogPanel extends JPanel {
     public Path getFile() { return currentFile; }
 
     public void load(Path file, Optional<LogParser> parser) {
+        load(file, parser, () -> {});
+    }
+
+    public void load(Path file, Optional<LogParser> parser, Runnable onError) {
         currentFile = file.toAbsolutePath();
         currentParser = parser;
         stopTailing();
@@ -173,7 +177,9 @@ public final class LogPanel extends JPanel {
                     if (follow) startTailing();
                 } catch (Exception ex) {
                     log.error("Failed to load {}", file, ex);
-                    JOptionPane.showMessageDialog(LogPanel.this,
+                    onError.run();
+                    JOptionPane.showMessageDialog(
+                            SwingUtilities.getWindowAncestor(LogPanel.this),
                             ex.getMessage(),
                             Messages.get("filechooser.error.title"),
                             JOptionPane.ERROR_MESSAGE);

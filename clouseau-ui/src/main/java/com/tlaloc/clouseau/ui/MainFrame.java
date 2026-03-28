@@ -276,7 +276,16 @@ public final class MainFrame extends JFrame {
         refreshRecentMenu();
         LogPanel panel = new LogPanel(parsers);
         addLogTab(file.getFileName().toString(), panel);
-        panel.load(file, parser);
+        panel.load(file, parser, () -> {
+            AppPrefs.removeRecentFile(file);
+            refreshRecentMenu();
+            int idx = tabbedPane.indexOfComponent(panel);
+            if (idx >= 0) {
+                panel.dispose();
+                tabbedPane.removeTabAt(idx);
+                updateCard();
+            }
+        });
     }
 
     // ── Tab management ────────────────────────────────────────────────────────
