@@ -7,10 +7,13 @@ import com.google.common.eventbus.Subscribe;
 
 import javax.swing.*;
 import javax.swing.table.AbstractTableModel;
+import java.awt.Color;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.IdentityHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.function.Predicate;
 
 /**
@@ -27,9 +30,10 @@ public final class LogTableModel extends AbstractTableModel {
     private static final DateTimeFormatter TS_FMT =
         DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS").withZone(ZoneId.systemDefault());
 
-    private final List<LogEntry> allEntries = new ArrayList<>();
-    private final List<LogEntry> rows       = new ArrayList<>();
-    private Predicate<LogEntry>  activeFilter = e -> true;
+    private final List<LogEntry>         allEntries = new ArrayList<>();
+    private final List<LogEntry>         rows       = new ArrayList<>();
+    private final Map<LogEntry, Color>   highlights = new IdentityHashMap<>();
+    private Predicate<LogEntry>          activeFilter = e -> true;
 
     public LogTableModel() {
         ClouseauEventBus.registerAsync(this);
@@ -66,9 +70,32 @@ public final class LogTableModel extends AbstractTableModel {
         });
     }
 
+    public Color getHighlight(LogEntry entry) {
+        return entry != null ? highlights.get(entry) : null;
+    }
+
+    public void setHighlight(LogEntry entry, Color color) {
+        if (color == null) highlights.remove(entry);
+        else highlights.put(entry, color);
+        for (int i = 0; i < rows.size(); i++) {
+            if (rows.get(i) == entry) { fireTableRowsUpdated(i, i); return; }
+        }
+    }
+
+    public void clearAllHighlights() {
+        if (highlights.isEmpty()) return;
+        highlights.clear();
+        if (!rows.isEmpty()) fireTableRowsUpdated(0, rows.size() - 1);
+    }
+
+    public boolean hasHighlights() {
+        return !highlights.isEmpty();
+    }
+
     public void clear() {
         Runnable doClear = () -> {
             allEntries.clear();
+            highlights.clear();
             int last = rows.size() - 1;
             if (last < 0) return;
             rows.clear();

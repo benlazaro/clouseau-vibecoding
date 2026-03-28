@@ -92,7 +92,9 @@ final class FilterBar extends JPanel {
             btn.setFont(btn.getFont().deriveFont(11f));
             btn.setBackground(LEVEL_BG_COLORS.get(level));
             Color onColor  = LEVEL_COLORS.get(level);
-            Color offColor = UIManager.getColor("Label.disabledForeground");
+            Color offColor = level == LogLevel.UNKNOWN
+                    ? new Color(0x4A4A4A)
+                    : UIManager.getColor("Label.disabledForeground");
             btn.setForeground(btn.isSelected() ? onColor : offColor);
             btn.addItemListener(e -> {
                 btn.setForeground(btn.isSelected() ? onColor : offColor);

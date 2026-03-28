@@ -17,6 +17,8 @@ import javax.swing.text.SimpleAttributeSet;
 import javax.swing.text.StyleConstants;
 import javax.swing.text.StyledDocument;
 import java.awt.*;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -360,8 +362,10 @@ public final class LogPanel extends JPanel {
                     JTable t, Object v, boolean sel, boolean foc, int r, int c) {
                 super.getTableCellRendererComponent(t, v, sel, foc, r, c);
                 setBorder(cellPad);
+                LogEntry entry = logTableModel.getEntry(logTable.convertRowIndexToModel(r));
                 if (!sel) {
-                    LogEntry entry = logTableModel.getEntry(logTable.convertRowIndexToModel(r));
+                    Color hl = logTableModel.getHighlight(entry);
+                    setBackground(hl != null ? hl : t.getBackground());
                     LogEntry.LogLevel level = entry != null ? entry.level() : null;
                     Color levelColor = level != null
                             ? LEVEL_COLORS.getOrDefault(level, FG_DEFAULT)
@@ -410,6 +414,22 @@ public final class LogPanel extends JPanel {
                 if (tableColumnsManaged) stretchMessageColumn();
             }
         });
+        logTable.addMouseListener(new MouseAdapter() {
+            @Override public void mousePressed(MouseEvent e)  { maybeShowHighlightMenu(e); }
+            @Override public void mouseReleased(MouseEvent e) { maybeShowHighlightMenu(e); }
+            private void maybeShowHighlightMenu(MouseEvent e) {
+                if (!e.isPopupTrigger()) return;
+                int viewRow = logTable.rowAtPoint(e.getPoint());
+                if (viewRow < 0) return;
+                if (!logTable.isRowSelected(viewRow)) logTable.setRowSelectionInterval(viewRow, viewRow);
+                List<LogEntry> entries = new ArrayList<>();
+                for (int vr : logTable.getSelectedRows()) {
+                    LogEntry entry = logTableModel.getEntry(logTable.convertRowIndexToModel(vr));
+                    if (entry != null) entries.add(entry);
+                }
+                showHighlightMenu(entries, e.getX(), e.getY());
+            }
+        });
 
         JScrollPane scrollPane = new JScrollPane(logTable);
         scrollPane.getViewport().setBackground(new Color(0x181818));
@@ -452,6 +472,81 @@ public final class LogPanel extends JPanel {
         logTable.getColumnModel().getColumn(lastCol).setWidth(msgWidth);
     }
 
+    // ── Highlight menu ────────────────────────────────────────────────────────
+
+    private void showHighlightMenu(List<LogEntry> entries, int x, int y) {
+        if (entries.isEmpty()) return;
+        boolean anyHighlighted = entries.stream().anyMatch(e -> logTableModel.getHighlight(e) != null);
+
+        JPopupMenu menu = new JPopupMenu();
+
+        JPanel swatches = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 4));
+        swatches.setOpaque(false);
+        for (Color color : HIGHLIGHT_COLORS) {
+            boolean allMatch = entries.stream().allMatch(e -> color.equals(logTableModel.getHighlight(e)));
+            JButton swatch = new JButton() {
+                @Override protected void paintComponent(Graphics g) {
+                    Graphics2D g2 = (Graphics2D) g.create();
+                    g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                    g2.setColor(color);
+                    g2.fillRoundRect(0, 0, getWidth(), getHeight(), 6, 6);
+                    if (allMatch) {
+                        g2.setColor(Color.WHITE);
+                        g2.setStroke(new BasicStroke(2f));
+                        g2.drawRoundRect(1, 1, getWidth() - 3, getHeight() - 3, 5, 5);
+                    }
+                    g2.dispose();
+                }
+            };
+            swatch.setPreferredSize(new Dimension(22, 22));
+            swatch.setBorderPainted(false);
+            swatch.setContentAreaFilled(false);
+            swatch.setFocusPainted(false);
+            swatch.addActionListener(e -> {
+                entries.forEach(entry -> logTableModel.setHighlight(entry, color));
+                menu.setVisible(false);
+                refreshDetailAfterHighlight();
+            });
+            swatches.add(swatch);
+        }
+        menu.add(swatches);
+        menu.addSeparator();
+
+        final boolean hasHL = logTableModel.hasHighlights();
+
+        JMenuItem clearItem = new JMenuItem(Messages.get("highlight.clear"));
+        if (anyHighlighted) {
+            clearItem.addActionListener(e -> {
+                entries.forEach(entry -> logTableModel.setHighlight(entry, null));
+                refreshDetailAfterHighlight();
+            });
+        } else {
+            clearItem.putClientProperty("FlatLaf.style", "disabledForeground: #3C3C3C");
+            clearItem.setEnabled(false);
+        }
+        menu.add(clearItem);
+
+        JMenuItem clearAllItem = new JMenuItem(Messages.get("highlight.clear.all"));
+        if (hasHL) {
+            clearAllItem.addActionListener(e -> {
+                logTableModel.clearAllHighlights();
+                refreshDetailAfterHighlight();
+            });
+        } else {
+            clearAllItem.putClientProperty("FlatLaf.style", "disabledForeground: #3C3C3C");
+            clearAllItem.setEnabled(false);
+        }
+        menu.add(clearAllItem);
+
+        menu.show(logTable, x, y);
+    }
+
+    private void refreshDetailAfterHighlight() {
+        int viewRow = logTable.getSelectedRow();
+        int modelRow = viewRow >= 0 ? logTable.convertRowIndexToModel(viewRow) : -1;
+        showDetail(modelRow >= 0 ? logTableModel.getEntry(modelRow) : null, modelRow);
+    }
+
     // ── Level color palette ───────────────────────────────────────────────────
 
     private static final Map<LogEntry.LogLevel, Color> LEVEL_COLORS;
@@ -468,6 +563,20 @@ public final class LogPanel extends JPanel {
     }
     private static final Color FG_DEFAULT = new Color(0xB0B7C3);
     private static final Color FG_DIM     = new Color(0x6B7280);
+
+    // ── Highlight palette ─────────────────────────────────────────────────────
+    static final Color[] HIGHLIGHT_COLORS = {
+        new Color(0x6B2020), // Red
+        new Color(0x6B4A20), // Orange
+        new Color(0x5C5C1A), // Yellow
+        new Color(0x1A5C1A), // Green
+        new Color(0x1A5C5C), // Teal
+        new Color(0x1A2E6B), // Blue
+        new Color(0x3D1A6B), // Purple
+        new Color(0x6B1A4A), // Pink
+        new Color(0x4A3010), // Brown
+        new Color(0x3D3D3D), // Gray
+    };
 
     // ── Detail panel ─────────────────────────────────────────────────────────
 
@@ -519,6 +628,15 @@ public final class LogPanel extends JPanel {
         String level  = entry.level()     != null ? entry.level().name()  : "";
         String thread = entry.thread()    != null ? entry.thread()        : "";
         String logger = entry.logger()    != null ? entry.logger()        : "";
+
+        Color hl = logTableModel.getHighlight(entry);
+        if (hl != null) {
+            SimpleAttributeSet swatchStyle = new SimpleAttributeSet();
+            StyleConstants.setFontFamily(swatchStyle, Font.MONOSPACED);
+            StyleConstants.setFontSize(swatchStyle, fontSize);
+            StyleConstants.setForeground(swatchStyle, hl);
+            appendField(doc, key, swatchStyle, Messages.get("detail.highlight.label"), "\u2588\u2588\u2588\u2588\u2588\u2588");
+        }
 
         appendField(doc, key, val,    Messages.get("table.col.timestamp"), ts);
         appendField(doc, key, msgVal, Messages.get("table.col.level"),     level);
