@@ -75,6 +75,7 @@ public final class LogPanel extends JPanel {
         FilterBar[] fbHolder = new FilterBar[1];
         fbHolder[0] = new FilterBar(() -> logTableModel.applyFilter(fbHolder[0].buildPredicate()));
         this.filterBar = fbHolder[0];
+        filterBar.initFollow(follow, this::setFollow);
         logTableModel.applyFilter(filterBar.buildPredicate());
 
         JSplitPane split = new JSplitPane(JSplitPane.VERTICAL_SPLIT, buildLogTable(), buildDetail());
@@ -117,6 +118,7 @@ public final class LogPanel extends JPanel {
 
     public void setFollow(boolean follow) {
         this.follow = follow;
+        filterBar.setFollowSelected(follow);
         if (follow) {
             scrollToBottom();
             startTailing();

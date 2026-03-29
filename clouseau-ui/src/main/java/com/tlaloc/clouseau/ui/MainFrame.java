@@ -36,7 +36,6 @@ public final class MainFrame extends JFrame {
     private final JPanel contentArea     = new JPanel(cardLayout);
     private int lastParserIndex = 0;
     private JMenuItem closeTabItem;
-    private JToggleButton followBtn;
     private JMenu recentMenu;
 
     private static final String CARD_WELCOME = "welcome";
@@ -56,15 +55,9 @@ public final class MainFrame extends JFrame {
         contentArea.add(buildWelcomePanel(), CARD_WELCOME);
         contentArea.add(tabbedPane,          CARD_TABS);
 
-        tabbedPane.addChangeListener(e -> {
-            LogPanel lp = activeLogPanel();
-            followBtn.setSelected(lp != null && lp.isFollow());
-        });
-
-        setLayout(new MigLayout("fill, insets 0", "[grow]", "[36!][grow]"));
+        setLayout(new MigLayout("fill, insets 0", "[grow]", "[grow]"));
         setJMenuBar(buildMenuBar());
-        add(buildToolbar(), "growx, wrap");
-        add(contentArea,    "grow");
+        add(contentArea, "grow");
 
         // VK-based binding drives the actual Ctrl+, shortcut.
         // The menu item uses a char-based KeyStroke so it renders "," not "Comma".
@@ -143,6 +136,14 @@ public final class MainFrame extends JFrame {
 
         menuBar.add(fileMenu);
 
+        JMenu toolsMenu = new JMenu(Messages.get("menu.tools"));
+        JMenuItem pluginsItem = menuItem(Messages.get("menu.tools.plugins"));
+        pluginsItem.setToolTipText(Messages.get("toolbar.plugins.tooltip"));
+        pluginsItem.addActionListener(e ->
+                new PluginManagerDialog(this, pluginManager, this::rebuildParsers).setVisible(true));
+        toolsMenu.add(pluginsItem);
+        menuBar.add(toolsMenu);
+
         JMenu helpMenu = new JMenu(Messages.get("menu.help"));
 
         JMenuItem docsItem = menuItem(Messages.get("menu.help.docs"));
@@ -198,29 +199,6 @@ public final class MainFrame extends JFrame {
             clear.addActionListener(e -> { AppPrefs.clearRecentFiles(); refreshRecentMenu(); });
             recentMenu.add(clear);
         }
-    }
-
-    // ── Toolbar ───────────────────────────────────────────────────────────────
-
-    private JPanel buildToolbar() {
-        JPanel bar = new JPanel(new MigLayout("insets 4 8 4 8, gap 6", "[]push[]"));
-
-        followBtn = new JToggleButton(Messages.get("toolbar.follow"));
-        followBtn.setToolTipText(Messages.get("toolbar.follow.tooltip"));
-        followBtn.setEnabled(false);
-        followBtn.addActionListener(e -> {
-            LogPanel lp = activeLogPanel();
-            if (lp != null) lp.setFollow(followBtn.isSelected());
-        });
-
-        JButton plugins = new JButton(Messages.get("toolbar.plugins"));
-        plugins.setToolTipText(Messages.get("toolbar.plugins.tooltip"));
-        plugins.addActionListener(e ->
-                new PluginManagerDialog(this, pluginManager, this::rebuildParsers).setVisible(true));
-
-        bar.add(followBtn);
-        bar.add(plugins);
-        return bar;
     }
 
     // ── File opening ──────────────────────────────────────────────────────────
@@ -340,10 +318,6 @@ public final class MainFrame extends JFrame {
         boolean hasTabs = tabbedPane.getTabCount() > 0;
         cardLayout.show(contentArea, hasTabs ? CARD_TABS : CARD_WELCOME);
         if (closeTabItem != null) closeTabItem.setEnabled(hasTabs);
-        if (followBtn != null) {
-            followBtn.setEnabled(hasTabs);
-            if (!hasTabs) followBtn.setSelected(false);
-        }
     }
 
     private LogPanel activeLogPanel() {

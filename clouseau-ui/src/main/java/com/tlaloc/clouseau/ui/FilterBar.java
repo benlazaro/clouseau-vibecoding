@@ -66,11 +66,12 @@ final class FilterBar extends JPanel {
     );
 
     private final Map<LogLevel, JToggleButton> levelButtons = new EnumMap<>(LogLevel.class);
-    private final JButton     loggerButton;
-    private final JTextField  fromField    = new JTextField(9);
-    private final JTextField  toField      = new JTextField(9);
-    private final JTextField  searchField  = new JTextField(16);
-    private final Runnable    onChanged;
+    private final JButton        loggerButton;
+    private final JTextField     fromField   = new JTextField(9);
+    private final JTextField     toField     = new JTextField(9);
+    private final JTextField     searchField = new JTextField(16);
+    private final Runnable       onChanged;
+    private JToggleButton        followBtn;
 
     // Logger picker state
     private List<String>     allLoggers      = List.of();
@@ -141,6 +142,31 @@ final class FilterBar extends JPanel {
         JButton clearBtn = new JButton(Messages.get("filter.clear"));
         clearBtn.addActionListener(e -> clear());
         add(clearBtn);
+
+        add(new JSeparator(JSeparator.VERTICAL), "growy, gapx 4, pushx");
+
+        // ── Follow toggle ─────────────────────────────────────────────────────
+        Color followOn  = new Color(0x9E9E9E);
+        Color followOff = new Color(0x4A4A4A);
+        followBtn = new JToggleButton(Messages.get("toolbar.follow"));
+        followBtn.setFocusPainted(false);
+        followBtn.setMargin(new Insets(2, 5, 2, 5));
+        followBtn.setFont(followBtn.getFont().deriveFont(11f));
+        followBtn.setBackground(new Color(0x1E1E1E));
+        followBtn.setForeground(followOff);
+        followBtn.setToolTipText(Messages.get("toolbar.follow.tooltip"));
+        followBtn.addItemListener(e -> followBtn.setForeground(followBtn.isSelected() ? followOn : followOff));
+        add(followBtn);
+    }
+
+    void initFollow(boolean initial, java.util.function.Consumer<Boolean> onToggle) {
+        followBtn.setSelected(initial);
+        followBtn.setForeground(initial ? new Color(0x9E9E9E) : new Color(0x4A4A4A));
+        followBtn.addActionListener(e -> onToggle.accept(followBtn.isSelected()));
+    }
+
+    void setFollowSelected(boolean selected) {
+        followBtn.setSelected(selected);
     }
 
     // ── Public API ────────────────────────────────────────────────────────────
