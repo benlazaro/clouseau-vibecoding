@@ -44,7 +44,52 @@ cd clouseau
 
 ## Usage
 
-**Open a file** — `File → Open` or `Ctrl+O`. Clouseau auto-detects the format; you can also pick a parser manually from the file chooser.
+**Open a file** — `File → Open` or `Ctrl+O`. Clouseau auto-detects the format from the first lines of the file; you can also pick a parser manually from the file chooser.
+
+### Built-in parsers
+
+#### Log4j Pattern
+
+Pattern: `%d{yyyy-MM-dd HH:mm:ss.SSS} [%t] %-5level %logger - %msg`
+
+```
+{date} [{thread}] {level} {logger} - {message}
+```
+
+Supports space or `T` as the date/time separator, and `.` or `,` as the millisecond separator.
+
+```
+2024-01-15 10:30:45.123 [main] INFO  com.example.App - Application started
+2024-01-15 10:30:45,456 [http-nio-8080-exec-1] ERROR com.example.OrderService - Order not found
+2024-01-15T10:30:46.001 [scheduler-1] WARN  com.example.Cache - Cache miss rate high
+```
+
+#### Spring Boot
+
+Default Logback console format. Two variants are supported:
+
+**Pre-3.4** — `%d{yyyy-MM-dd'T'HH:mm:ss.SSSXXX} %5p ${PID} --- [%t] %-40.40logger{39} : %m`
+
+```
+{date+tz}  {level} {pid} --- [{thread}] {logger} : {message}
+```
+
+```
+2024-01-15T10:30:45.123+01:00  INFO 12345 --- [           main] com.example.App           : Started App in 2.3s
+2024-01-15T10:30:46.007+01:00  WARN 12345 --- [pool-1-thread-2] com.example.Cache         : Eviction rate above threshold
+2024-01-15T10:30:47.512+01:00  ERROR 12345 --- [http-nio-8080-exec-3] com.example.OrderService  : Order not found
+```
+
+**3.4+** — adds an `[appName]` group between `---` and the thread:
+
+```
+{date+tz}  {level} {pid} --- [{appName}] [{thread}] {logger} : {message}
+```
+
+```
+2025-06-10T23:43:06.269-05:00  INFO 31280 --- [demo] [  restartedMain] com.example.App           : Started App in 1.8s
+2025-06-10T23:43:07.001-05:00  ERROR 31280 --- [demo] [http-nio-8080-exec-1] com.example.OrderService  : Order #4291 not found
+```
 
 **Highlight rows** — right-click one or more rows and choose a colour. Use the highlight nav bar at the top to jump between highlighted rows, filtered by colour.
 
