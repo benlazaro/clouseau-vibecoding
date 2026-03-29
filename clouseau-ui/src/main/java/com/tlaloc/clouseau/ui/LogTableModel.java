@@ -12,8 +12,10 @@ import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.IdentityHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Predicate;
 
 /**
@@ -90,6 +92,23 @@ public final class LogTableModel extends AbstractTableModel {
 
     public boolean hasHighlights() {
         return !highlights.isEmpty();
+    }
+
+    /** Returns model row indices of visible entries highlighted with the given color (null = any color). */
+    public List<Integer> getHighlightedModelRows(Color filter) {
+        List<Integer> result = new ArrayList<>();
+        for (int i = 0; i < rows.size(); i++) {
+            Color c = highlights.get(rows.get(i));
+            if (c != null && (filter == null || filter.equals(c))) result.add(i);
+        }
+        return result;
+    }
+
+    /** Returns the set of colors currently in use, in row order. */
+    public Set<Color> getActiveHighlightColors() {
+        Set<Color> set = new LinkedHashSet<>();
+        for (LogEntry e : rows) { Color c = highlights.get(e); if (c != null) set.add(c); }
+        return set;
     }
 
     public void clear() {

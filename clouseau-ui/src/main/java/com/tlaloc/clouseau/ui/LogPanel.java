@@ -64,9 +64,13 @@ public final class LogPanel extends JPanel {
     private static final String CARD_LOADING = "loading";
     private JPanel statusBar;
     private JLabel statusBarLabel;
+    private JPanel highlightNavBar;
+    private JPanel highlightNavSwatches;
+    private JLabel highlightNavPosition;
+    private Color  highlightNavColor = null;
 
     public LogPanel(List<LogParser> parsers) {
-        super(new MigLayout("fill, insets 0, gapy 0", "[grow]", "[][grow][]"));
+        super(new MigLayout("fill, insets 0, gapy 0", "[grow]", ""));
         this.parsers   = parsers;
         FilterBar[] fbHolder = new FilterBar[1];
         fbHolder[0] = new FilterBar(() -> logTableModel.applyFilter(fbHolder[0].buildPredicate()));
@@ -75,7 +79,6 @@ public final class LogPanel extends JPanel {
 
         JSplitPane split = new JSplitPane(JSplitPane.VERTICAL_SPLIT, buildLogTable(), buildDetail());
         split.setResizeWeight(0.70);
-        split.setOneTouchExpandable(true);
         split.addComponentListener(new java.awt.event.ComponentAdapter() {
             @Override public void componentResized(java.awt.event.ComponentEvent e) {
                 split.removeComponentListener(this);
@@ -90,7 +93,8 @@ public final class LogPanel extends JPanel {
         statusBar = buildStatusBar();
 
         add(filterBar, "growx, wrap");
-        add(centerCards, "grow, wrap");
+        add(buildHighlightNavBar(), "growx, wrap, hidemode 3");
+        add(centerCards, "grow, pushy, wrap");
         add(statusBar, "growx");
 
         logTableModel.addTableModelListener(e -> {
@@ -104,6 +108,7 @@ public final class LogPanel extends JPanel {
                 int viewRow = logTable.getSelectedRow();
                 int modelRow = viewRow >= 0 ? logTable.convertRowIndexToModel(viewRow) : -1;
                 showDetail(modelRow >= 0 ? logTableModel.getEntry(modelRow) : null, modelRow);
+                updateHighlightNavPosition();
             }
         });
     }
@@ -361,11 +366,34 @@ public final class LogPanel extends JPanel {
             public Component getTableCellRendererComponent(
                     JTable t, Object v, boolean sel, boolean foc, int r, int c) {
                 super.getTableCellRendererComponent(t, v, sel, foc, r, c);
-                setBorder(cellPad);
                 LogEntry entry = logTableModel.getEntry(logTable.convertRowIndexToModel(r));
-                if (!sel) {
-                    Color hl = logTableModel.getHighlight(entry);
-                    setBackground(hl != null ? hl : t.getBackground());
+                Color hl = logTableModel.getHighlight(entry);
+                boolean hlSel = hl != null && sel;
+
+                // Background
+                if (hl != null) {
+                    setBackground(sel ? blend(hl, t.getSelectionBackground(), 0.55f) : hl);
+                } else if (sel) {
+                    setBackground(SEL_BG);
+                } else {
+                    setBackground(t.getBackground());
+                }
+
+                // Ring border on any selected row
+                if (sel) {
+                    Color ring = hl != null ? hl.brighter().brighter() : SEL_BG.brighter();
+                    int lastCol = t.getColumnCount() - 1;
+                    setBorder(BorderFactory.createCompoundBorder(
+                            BorderFactory.createMatteBorder(2, c == 0 ? 2 : 0, 2, c == lastCol ? 2 : 0, ring),
+                            cellPad));
+                } else {
+                    setBorder(cellPad);
+                }
+
+                // Foreground + font
+                if (sel && hl == null) {
+                    setForeground(Color.BLACK);
+                } else if (!sel) {
                     LogEntry.LogLevel level = entry != null ? entry.level() : null;
                     Color levelColor = level != null
                             ? LEVEL_COLORS.getOrDefault(level, FG_DEFAULT)
@@ -376,6 +404,7 @@ public final class LogPanel extends JPanel {
                         default   -> FG_DEFAULT;   // #, Timestamp
                     });
                 }
+                setFont(getFont().deriveFont(sel ? Font.BOLD : Font.PLAIN));
                 return this;
             }
         };
@@ -545,6 +574,161 @@ public final class LogPanel extends JPanel {
         int viewRow = logTable.getSelectedRow();
         int modelRow = viewRow >= 0 ? logTable.convertRowIndexToModel(viewRow) : -1;
         showDetail(modelRow >= 0 ? logTableModel.getEntry(modelRow) : null, modelRow);
+        refreshHighlightNav();
+    }
+
+    // ── Highlight navigation ──────────────────────────────────────────────────
+
+    private JPanel buildHighlightNavBar() {
+        highlightNavBar = new JPanel(new MigLayout("insets 3 8 3 8, gapy 0", "[][grow][]", "[]"));
+        highlightNavBar.setBorder(BorderFactory.createMatteBorder(0, 0, 1, 0, new Color(0x272727)));
+        highlightNavBar.setVisible(false);
+
+        JLabel label = new JLabel(Messages.get("highlight.nav.label"));
+        label.setForeground(FG_DIM);
+        label.setFont(label.getFont().deriveFont(12f));
+
+        highlightNavSwatches = new JPanel(new FlowLayout(FlowLayout.LEFT, 3, 0));
+        highlightNavSwatches.setOpaque(false);
+
+        highlightNavPosition = new JLabel("0 / 0");
+        highlightNavPosition.setForeground(FG_DIM);
+        highlightNavPosition.setFont(highlightNavPosition.getFont().deriveFont(12f));
+
+        JButton prevBtn = makeNavArrowButton("↑");
+        JButton nextBtn = makeNavArrowButton("↓");
+        prevBtn.setToolTipText(Messages.get("highlight.nav.prev.tooltip"));
+        nextBtn.setToolTipText(Messages.get("highlight.nav.next.tooltip"));
+        prevBtn.addActionListener(e -> navigateHighlight(-1));
+        nextBtn.addActionListener(e -> navigateHighlight(+1));
+
+        JPanel rightPanel = new JPanel(new MigLayout("insets 0", "[]6[]4[]", "[]"));
+        rightPanel.setOpaque(false);
+        rightPanel.add(highlightNavPosition);
+        rightPanel.add(prevBtn);
+        rightPanel.add(nextBtn);
+
+        highlightNavBar.add(label);
+        highlightNavBar.add(highlightNavSwatches, "grow");
+        highlightNavBar.add(rightPanel);
+        return highlightNavBar;
+    }
+
+    private JButton makeNavArrowButton(String text) {
+        JButton btn = new JButton(text);
+        btn.setFont(btn.getFont().deriveFont(11f));
+        btn.setPreferredSize(new Dimension(22, 18));
+        btn.setMargin(new Insets(0, 2, 0, 2));
+        return btn;
+    }
+
+    private void refreshHighlightNav() {
+        java.util.Set<Color> activeColors = logTableModel.getActiveHighlightColors();
+        if (activeColors.isEmpty()) {
+            highlightNavBar.setVisible(false);
+            highlightNavColor = null;
+            return;
+        }
+        // If selected color was removed, fall back to "All"
+        if (highlightNavColor != null && !activeColors.contains(highlightNavColor)) {
+            highlightNavColor = null;
+        }
+        highlightNavBar.setVisible(true);
+        highlightNavSwatches.removeAll();
+
+        // "All" button
+        final Color navColorSnap = highlightNavColor;
+        JButton allBtn = new JButton(Messages.get("highlight.nav.all")) {
+            @Override protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                g2.setColor(navColorSnap == null ? new Color(0x4A4A4A) : new Color(0x2A2A2A));
+                g2.fillRoundRect(0, 0, getWidth(), getHeight(), 5, 5);
+                g2.setColor(navColorSnap == null ? Color.WHITE : new Color(0x6B7280));
+                FontMetrics fm = g2.getFontMetrics();
+                int x = (getWidth() - fm.stringWidth(getText())) / 2;
+                int y = (getHeight() + fm.getAscent() - fm.getDescent()) / 2;
+                g2.drawString(getText(), x, y);
+                g2.dispose();
+            }
+        };
+        allBtn.setPreferredSize(new Dimension(30, 16));
+        allBtn.setBorderPainted(false);
+        allBtn.setContentAreaFilled(false);
+        allBtn.setFocusPainted(false);
+        allBtn.setFont(allBtn.getFont().deriveFont(11f));
+        allBtn.addActionListener(e -> { highlightNavColor = null; refreshHighlightNav(); });
+        highlightNavSwatches.add(allBtn);
+
+        // Color swatches in HIGHLIGHT_COLORS palette order
+        for (Color palette : HIGHLIGHT_COLORS) {
+            if (!activeColors.contains(palette)) continue;
+            final Color c = palette;
+            final boolean selected = c.equals(highlightNavColor);
+            JButton swatch = new JButton() {
+                @Override protected void paintComponent(Graphics g) {
+                    Graphics2D g2 = (Graphics2D) g.create();
+                    g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                    g2.setColor(c);
+                    g2.fillRoundRect(0, 0, getWidth(), getHeight(), 5, 5);
+                    if (selected) {
+                        g2.setColor(Color.WHITE);
+                        g2.setStroke(new BasicStroke(1.5f));
+                        g2.drawRoundRect(1, 1, getWidth() - 3, getHeight() - 3, 4, 4);
+                    }
+                    g2.dispose();
+                }
+            };
+            swatch.setPreferredSize(new Dimension(16, 16));
+            swatch.setBorderPainted(false);
+            swatch.setContentAreaFilled(false);
+            swatch.setFocusPainted(false);
+            swatch.addActionListener(e -> { highlightNavColor = c; refreshHighlightNav(); });
+            highlightNavSwatches.add(swatch);
+        }
+
+        highlightNavSwatches.revalidate();
+        highlightNavSwatches.repaint();
+        updateHighlightNavPosition();
+    }
+
+    private void updateHighlightNavPosition() {
+        if (highlightNavBar == null || !highlightNavBar.isVisible()) return;
+        List<Integer> highlighted = logTableModel.getHighlightedModelRows(highlightNavColor);
+        if (highlighted.isEmpty()) { highlightNavPosition.setText("0 / 0"); return; }
+        int currentView  = logTable.getSelectedRow();
+        int currentModel = currentView >= 0 ? logTable.convertRowIndexToModel(currentView) : -1;
+        int pos = 0;
+        for (int i = 0; i < highlighted.size(); i++) {
+            if (highlighted.get(i) <= currentModel) pos = i + 1;
+        }
+        highlightNavPosition.setText(pos + " / " + highlighted.size());
+    }
+
+    private void navigateHighlight(int direction) {
+        List<Integer> highlighted = logTableModel.getHighlightedModelRows(highlightNavColor);
+        if (highlighted.isEmpty()) return;
+        int currentView  = logTable.getSelectedRow();
+        int currentModel = currentView >= 0 ? logTable.convertRowIndexToModel(currentView) : -1;
+        int targetModel;
+        if (direction > 0) {
+            targetModel = highlighted.stream()
+                    .filter(r -> r > currentModel)
+                    .findFirst()
+                    .orElse(highlighted.get(0));
+        } else {
+            targetModel = highlighted.stream()
+                    .filter(r -> r < currentModel)
+                    .reduce((a, b) -> b)
+                    .orElse(highlighted.get(highlighted.size() - 1));
+        }
+        int viewRow = logTable.convertRowIndexToView(targetModel);
+        if (viewRow >= 0) {
+            logTable.setRowSelectionInterval(viewRow, viewRow);
+            logTable.scrollRectToVisible(logTable.getCellRect(viewRow, 0, true));
+            logTable.requestFocusInWindow();
+            updateHighlightNavPosition();
+        }
     }
 
     // ── Level color palette ───────────────────────────────────────────────────
@@ -563,6 +747,15 @@ public final class LogPanel extends JPanel {
     }
     private static final Color FG_DEFAULT = new Color(0xB0B7C3);
     private static final Color FG_DIM     = new Color(0x6B7280);
+    private static final Color SEL_BG     = new Color(0xC8D8E8);
+
+    private static Color blend(Color a, Color b, float t) {
+        return new Color(
+                (int)(a.getRed()   * t + b.getRed()   * (1 - t)),
+                (int)(a.getGreen() * t + b.getGreen() * (1 - t)),
+                (int)(a.getBlue()  * t + b.getBlue()  * (1 - t))
+        );
+    }
 
     // ── Highlight palette ─────────────────────────────────────────────────────
     static final Color[] HIGHLIGHT_COLORS = {
@@ -574,8 +767,6 @@ public final class LogPanel extends JPanel {
         new Color(0x1A2E6B), // Blue
         new Color(0x3D1A6B), // Purple
         new Color(0x6B1A4A), // Pink
-        new Color(0x4A3010), // Brown
-        new Color(0x3D3D3D), // Gray
     };
 
     // ── Detail panel ─────────────────────────────────────────────────────────
