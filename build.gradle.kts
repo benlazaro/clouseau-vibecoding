@@ -52,6 +52,7 @@ subprojects {
         testImplementation("org.mockito:mockito-core:$mockitoVersion")
         testAnnotationProcessor("org.projectlombok:lombok:$lombokVersion")
         testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:$junitVersion")
+        testRuntimeOnly("org.junit.platform:junit-platform-launcher")
     }
 
     tasks.withType<Test> { useJUnitPlatform() }

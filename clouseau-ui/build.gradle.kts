@@ -15,6 +15,7 @@ dependencies {
     implementation(project(":clouseau-plugin"))
 
     implementation("com.google.guava:guava:${rootProject.extra["guavaVersion"]}")
+    implementation("com.google.code.gson:gson:2.11.0")
     runtimeOnly("org.slf4j:slf4j-simple:${rootProject.extra["slf4jVersion"]}")
     implementation("com.formdev:flatlaf:${rootProject.extra["flatlafVersion"]}")
     implementation("com.formdev:flatlaf-intellij-themes:${rootProject.extra["flatlafVersion"]}")

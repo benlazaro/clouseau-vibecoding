@@ -185,7 +185,7 @@ public final class LogPanel extends JPanel {
                     filterBar.updateLoggers(entries);
                     logTableModel.load(entries);
                     autoResizeColumns();
-                    SwingUtilities.invokeLater(LogPanel.this::scrollToBottom);
+                    if (follow) SwingUtilities.invokeLater(LogPanel.this::scrollToBottom);
                     try { tailPosition = Files.size(currentFile); } catch (IOException ignored) {}
                     if (follow) startTailing();
                 } catch (Exception ex) {
