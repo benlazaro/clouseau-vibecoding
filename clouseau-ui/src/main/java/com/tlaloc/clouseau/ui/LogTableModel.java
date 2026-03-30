@@ -190,7 +190,9 @@ public final class LogTableModel extends AbstractTableModel {
 
     /** Sets the custom field columns for the currently loaded file. Must be called on the EDT. */
     public void setCustomFields(List<String> fields) {
-        customFields = List.copyOf(fields);
+        List<String> newFields = List.copyOf(fields);
+        if (newFields.equals(customFields)) return;
+        customFields = newFields;
         fireTableStructureChanged();
     }
 

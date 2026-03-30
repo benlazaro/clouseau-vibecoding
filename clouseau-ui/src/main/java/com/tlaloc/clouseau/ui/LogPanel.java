@@ -412,9 +412,8 @@ public final class LogPanel extends JPanel {
             }
         };
         levelRenderer.setHorizontalAlignment(SwingConstants.LEFT);
-        for (int i = 0; i < logTable.getColumnCount(); i++) {
-            logTable.getColumnModel().getColumn(i).setCellRenderer(levelRenderer);
-        }
+        logTable.setDefaultRenderer(String.class,  levelRenderer);
+        logTable.setDefaultRenderer(Integer.class, levelRenderer);
 
         JTableHeader header = logTable.getTableHeader();
         TableCellRenderer origHeaderRenderer = header.getDefaultRenderer();
