@@ -1,0 +1,12 @@
+[
+  {
+    "name": "Spring Boot",
+    "pattern": "(?<timestamp>\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d+(?:[+-]\\d{2}:\\d{2}|Z))\\s+(?<level>TRACE|DEBUG|INFO|WARN|ERROR)\\s+(?<pid>\\d+)\\s+---\\s+(?:\\[(?<app>[^\\]]*)\\]\\s+)?\\[(?<thread>[^\\]]+)\\]\\s+(?<logger>\\S+)\\s*:\\s+(?<message>.*)$",
+    "timestampFormat": "ISO_OFFSET_DATE_TIME"
+  },
+  {
+    "name": "Log4j Pattern",
+    "pattern": "(?<timestamp>\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2}[.,]\\d+)\\s+\\[(?<thread>[^\\]]*)\\]\\s+(?<level>TRACE|DEBUG|INFO|WARN|ERROR|FATAL)\\s+(?<logger>\\S+)\\s+-\\s+(?<message>.*)",
+    "timestampFormat": "yyyy-MM-dd HH:mm:ss.SSS"
+  }
+]

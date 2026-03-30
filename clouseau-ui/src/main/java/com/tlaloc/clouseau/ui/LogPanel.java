@@ -148,6 +148,7 @@ public final class LogPanel extends JPanel {
         if (old != null) old.cancel(true);
         logIndex.clear();
         logTableModel.clear();
+        logTableModel.setCustomFields(parser.map(com.tlaloc.clouseau.api.LogParser::customFields).orElse(List.of()));
 
         ((CardLayout) centerCards.getLayout()).show(centerCards, CARD_LOADING);
 

@@ -24,11 +24,13 @@ import java.util.function.Predicate;
  */
 public final class LogTableModel extends AbstractTableModel {
 
-    private static final int COLUMN_COUNT = 6;
+    private static final int FIXED_COLUMNS = 6;
     private static final String[] COLUMN_KEYS = {
         "table.col.index", "table.col.timestamp", "table.col.level",
         "table.col.thread", "table.col.logger",   "table.col.message"
     };
+
+    private List<String> customFields = List.of();
     private static final DateTimeFormatter TS_FMT =
         DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS").withZone(ZoneId.systemDefault());
 
@@ -186,9 +188,19 @@ public final class LogTableModel extends AbstractTableModel {
 
     public int getTotalCount() { return allEntries.size(); }
 
+    /** Sets the custom field columns for the currently loaded file. Must be called on the EDT. */
+    public void setCustomFields(List<String> fields) {
+        customFields = List.copyOf(fields);
+        fireTableStructureChanged();
+    }
+
     @Override public int getRowCount()    { return rows.size(); }
-    @Override public int getColumnCount() { return COLUMN_COUNT; }
-    @Override public String getColumnName(int col) { return Messages.get(COLUMN_KEYS[col]); }
+    @Override public int getColumnCount() { return FIXED_COLUMNS + customFields.size(); }
+
+    @Override public String getColumnName(int col) {
+        if (col < FIXED_COLUMNS) return Messages.get(COLUMN_KEYS[col]);
+        return customFields.get(col - FIXED_COLUMNS);
+    }
 
     @Override
     public Class<?> getColumnClass(int col) {
@@ -198,7 +210,7 @@ public final class LogTableModel extends AbstractTableModel {
     @Override
     public Object getValueAt(int row, int col) {
         LogEntry e = rows.get(row);
-        return switch (col) {
+        if (col < FIXED_COLUMNS) return switch (col) {
             case 0 -> row + 1;
             case 1 -> e.timestamp() != null ? TS_FMT.format(e.timestamp()) : "";
             case 2 -> e.level()     != null ? e.level().name()             : "";
@@ -207,5 +219,6 @@ public final class LogTableModel extends AbstractTableModel {
             case 5 -> e.message()   != null ? e.message()                  : "";
             default -> "";
         };
+        return e.fields().getOrDefault(customFields.get(col - FIXED_COLUMNS), "");
     }
 }

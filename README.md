@@ -120,6 +120,43 @@ clouseau-api  ←  clouseau-core  ←  clouseau-plugin  ←  clouseau-ui
 
 ---
 
+## Custom Parsers
+
+You can add your own log format without writing a plugin. Create `~/.clouseau/parsers.json` as a JSON array of parser definitions:
+
+```json
+[
+  {
+    "name": "My App",
+    "pattern": "(?<timestamp>\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2}) \\[(?<thread>[^\\]]+)\\] (?<level>\\w+) (?<logger>\\S+) - (?<message>.*)",
+    "timestampFormat": "yyyy-MM-dd HH:mm:ss"
+  }
+]
+```
+
+| Field | Required | Description |
+|---|---|---|
+| `name` | Yes | Display name shown in the file chooser |
+| `pattern` | Yes | Java regex with named capture groups |
+| `timestampFormat` | Yes | `DateTimeFormatter` pattern for the `timestamp` group (e.g. `yyyy-MM-dd HH:mm:ss.SSS`). See note below. |
+
+**Named capture groups** map to log entry fields:
+
+| Group | Maps to |
+|---|---|
+| `timestamp` | Parsed timestamp (requires `timestampFormat`) |
+| `level` | Log level (`TRACE` `DEBUG` `INFO` `WARN` `ERROR` `FATAL`) |
+| `logger` | Logger name |
+| `thread` | Thread name |
+| `message` | Log message |
+| anything else | Stored as an extra field, visible in the detail panel |
+
+All groups are optional — only define what your format includes. Parsers are loaded on startup; restart the app after editing the file. Invalid entries are skipped with a warning in the log.
+
+> **`timestampFormat`** accepts any [`DateTimeFormatter`](https://docs.oracle.com/en/java/docs/api/java.base/java/time/format/DateTimeFormatter.html) pattern string (e.g. `yyyy-MM-dd HH:mm:ss.SSS`). One special value is also supported: `ISO_OFFSET_DATE_TIME`, which matches timestamps that include a timezone offset or `Z` suffix — for example `2024-01-15 10:30:45.123+01:00` or `2024-01-15 10:30:45.789Z`. Use this for Spring Boot logs. Note that `,` is automatically normalised to `.` before parsing, so `yyyy-MM-dd HH:mm:ss.SSS` matches both `10:30:45.123` and `10:30:45,123`.
+
+---
+
 ## Writing a Plugin
 
 Implement `LogParser` (or `LogFilter` / `LogSource`) from `clouseau-api`, annotate with `@Extension`, package as a PF4J plugin JAR, and drop it in the plugins directory.

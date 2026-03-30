@@ -5,15 +5,21 @@ import com.tlaloc.clouseau.api.LogEntry.LogLevel;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.util.regex.Pattern;
+
 import static org.assertj.core.api.Assertions.assertThat;
 
 class SpringBootPatternParserTest {
 
-    private SpringBootPatternParser parser;
+    private RegexLogParser parser;
 
     @BeforeEach
     void setUp() {
-        parser = new SpringBootPatternParser();
+        parser = new RegexLogParser(
+                "Spring Boot",
+                Pattern.compile("(?<timestamp>\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}\\.\\d+(?:[+-]\\d{2}:\\d{2}|Z))\\s+(?<level>TRACE|DEBUG|INFO|WARN|ERROR)\\s+(?<pid>\\d+)\\s+---\\s+(?:\\[(?<app>[^\\]]*)\\]\\s+)?\\[(?<thread>[^\\]]+)\\]\\s+(?<logger>\\S+)\\s*:\\s+(?<message>.*)$"),
+                "ISO_OFFSET_DATE_TIME"
+        );
     }
 
     // --- canParse ---

@@ -21,14 +21,11 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.Set;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 @Slf4j
 public final class MainFrame extends JFrame {
 
-    private final List<LogParser> builtins;
     private final ClouseauPluginManager pluginManager;
     private List<LogParser> parsers;
     private final JTabbedPane tabbedPane = new JTabbedPane();
@@ -41,11 +38,10 @@ public final class MainFrame extends JFrame {
     private static final String CARD_WELCOME = "welcome";
     private static final String CARD_TABS    = "tabs";
 
-    public MainFrame(List<LogParser> builtins, ClouseauPluginManager pluginManager) {
+    public MainFrame(ClouseauPluginManager pluginManager) {
         super(Messages.get("app.title"));
-        this.builtins = builtins;
         this.pluginManager = pluginManager;
-        this.parsers = buildParserList();
+        this.parsers = new ArrayList<>(UserParsersLoader.load());
         setDefaultCloseOperation(EXIT_ON_CLOSE);
         setSize(1280, 800);
         setMinimumSize(new Dimension(800, 500));
@@ -71,19 +67,9 @@ public final class MainFrame extends JFrame {
 
     // ── Parser list management ────────────────────────────────────────────────
 
-    private List<LogParser> buildParserList() {
-        Set<String> builtinNames = builtins.stream().map(LogParser::getName).collect(Collectors.toSet());
-        return Stream.concat(
-                builtins.stream(),
-                pluginManager.getExtensions(LogParser.class).stream()
-                             .filter(p -> !builtinNames.contains(p.getName()))
-        ).collect(Collectors.toCollection(ArrayList::new));
-    }
-
-    /** Called after plugin enable/disable or refresh to update the active parser list. */
-    void rebuildParsers() {
-        this.parsers = buildParserList();
-        // Reset parser selection if the previously selected index no longer exists
+    /** Called after parsers.json is saved to reload user-defined parsers. */
+    void reloadParsers() {
+        this.parsers = new ArrayList<>(UserParsersLoader.load());
         if (lastParserIndex > parsers.size()) lastParserIndex = 0;
     }
 
@@ -137,10 +123,14 @@ public final class MainFrame extends JFrame {
         menuBar.add(fileMenu);
 
         JMenu toolsMenu = new JMenu(Messages.get("menu.tools"));
+        JMenuItem parsersItem = menuItem(Messages.get("menu.tools.parsers"));
+        parsersItem.addActionListener(e ->
+                new ParserEditorDialog(this, this::reloadParsers).setVisible(true));
+        toolsMenu.add(parsersItem);
         JMenuItem pluginsItem = menuItem(Messages.get("menu.tools.plugins"));
         pluginsItem.setToolTipText(Messages.get("toolbar.plugins.tooltip"));
         pluginsItem.addActionListener(e ->
-                new PluginManagerDialog(this, pluginManager, this::rebuildParsers).setVisible(true));
+                new PluginManagerDialog(this, pluginManager, () -> {}).setVisible(true));
         toolsMenu.add(pluginsItem);
         menuBar.add(toolsMenu);
 
@@ -239,6 +229,13 @@ public final class MainFrame extends JFrame {
 
     /** Opens {@code file} in a new tab with auto-detect parser. Called via IPC or CLI args. */
     public void openFile(Path file) {
+        if (parsers.isEmpty()) {
+            JOptionPane.showMessageDialog(this,
+                    Messages.get("error.no.parsers.message"),
+                    Messages.get("error.no.parsers.title"),
+                    JOptionPane.WARNING_MESSAGE);
+            return;
+        }
         openFile(file, Optional.empty());
     }
 

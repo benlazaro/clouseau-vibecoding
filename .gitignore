@@ -4,4 +4,3 @@ build/
 !gradle/wrapper/gradle-wrapper.jar
 *.iml
 out/
-/plugins/*

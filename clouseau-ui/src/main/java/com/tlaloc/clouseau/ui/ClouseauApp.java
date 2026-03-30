@@ -1,8 +1,5 @@
 package com.tlaloc.clouseau.ui;
 
-import com.tlaloc.clouseau.api.LogParser;
-import com.tlaloc.clouseau.core.Log4jPatternParser;
-import com.tlaloc.clouseau.core.SpringBootPatternParser;
 import com.tlaloc.clouseau.runtime.ClouseauPluginManager;
 import com.formdev.flatlaf.FlatDarkLaf;
 import com.formdev.flatlaf.FlatLaf;
@@ -19,8 +16,6 @@ public final class ClouseauApp {
     public static void main(String[] args) {
         log.info("Starting Clouseau Log Viewer");
 
-        // Built-in parsers — always available regardless of how the app is launched
-        List<LogParser> builtins = List.of(new SpringBootPatternParser(), new Log4jPatternParser());
 
         // Plugin parsers — loaded from the plugins directory; may be empty if dir not found
         String pluginsDirProp = System.getProperty("clouseau.plugins.dir");
@@ -28,10 +23,10 @@ public final class ClouseauApp {
         // and a sensible install location for end users.
         Path pluginsDir = pluginsDirProp != null
                 ? Path.of(pluginsDirProp)
-                : Path.of(System.getProperty("user.home"), ".clouseau", "plugins", "parser");
+                : Path.of(System.getProperty("user.home"), ".clouseau", "plugins");
         ClouseauPluginManager pluginManager = new ClouseauPluginManager(pluginsDir);
         pluginManager.loadAll();
-        log.info("Loaded {} built-in parser(s)", builtins.size());
+        log.info("Plugin manager loaded");
 
         Runtime.getRuntime().addShutdownHook(new Thread(pluginManager::stopAll, "plugin-shutdown"));
 
@@ -100,7 +95,7 @@ public final class ClouseauApp {
 
 
         SwingUtilities.invokeLater(() -> {
-            MainFrame frame = new MainFrame(builtins, pluginManager);
+            MainFrame frame = new MainFrame(pluginManager);
             frameRef[0] = frame;
             frame.setVisible(true);
 
