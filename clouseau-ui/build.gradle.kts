@@ -4,10 +4,18 @@
 plugins {
     java
     application
+    id("com.github.johnrengelman.shadow") version "8.1.1"
 }
 
 application {
     mainClass.set("com.tlaloc.clouseau.ui.ClouseauApp")
+}
+
+tasks.shadowJar {
+    archiveBaseName.set("clouseau")
+    archiveClassifier.set("")
+    mergeServiceFiles()
+    exclude("META-INF/*.SF", "META-INF/*.DSA", "META-INF/*.RSA")
 }
 
 dependencies {

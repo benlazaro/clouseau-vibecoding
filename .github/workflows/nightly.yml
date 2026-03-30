@@ -1,0 +1,38 @@
+name: Nightly
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  nightly:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v3
+
+      - name: Build fat JAR
+        run: ./gradlew :clouseau-ui:shadowJar -PappVersion=SNAPSHOT
+
+      - name: Update nightly pre-release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: nightly
+          name: Nightly Build
+          prerelease: true
+          files: clouseau-ui/build/libs/clouseau-SNAPSHOT.jar
+          body: |
+            Automated build from the latest commit on `main`.
+            This is a pre-release snapshot — not intended for production use.
