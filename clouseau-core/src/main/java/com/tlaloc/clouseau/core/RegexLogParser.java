@@ -129,7 +129,9 @@ public final class RegexLogParser implements LogParser {
 
     private static DateTimeFormatter buildFormatter(String format) {
         if ("ISO_OFFSET_DATE_TIME".equals(format)) return DateTimeFormatter.ISO_OFFSET_DATE_TIME;
-        return DateTimeFormatter.ofPattern(format).withZone(ZoneId.systemDefault());
+        // Normalize comma decimal separator to dot — Logback uses comma (HH:mm:ss,SSS)
+        // but parseTimestamp normalizes the raw value the same way, so both must agree.
+        return DateTimeFormatter.ofPattern(format.replace(',', '.')).withZone(ZoneId.systemDefault());
     }
 
     private static Set<String> extractNamedGroups(Pattern p) {

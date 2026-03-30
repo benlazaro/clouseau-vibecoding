@@ -59,7 +59,7 @@ public final class SimplifiedPatternConverter {
                     sb.append("(?<timestamp>.+?)");
                 }
             } else switch (keyword) { // keyword != null here
-                case "LEVEL"   -> sb.append("(?<level>TRACE|DEBUG|INFO\\s*|WARN\\s*|ERROR\\s*|FATAL\\s*)");
+                case "LEVEL"   -> sb.append("(?<level>TRACE|DEBUG|INFO|WARN|ERROR|FATAL)");
                 case "LOGGER"  -> sb.append("(?<logger>\\S+)");
                 case "THREAD"  -> sb.append("(?<thread>\\S+)");
                 case "MESSAGE" -> sb.append("(?<message>.*)");
@@ -81,9 +81,18 @@ public final class SimplifiedPatternConverter {
     }
 
     private static void appendLiteral(StringBuilder sb, String text) {
-        for (char c : text.toCharArray()) {
-            if (".[]{}()*+?^$|\\".indexOf(c) >= 0) sb.append('\\');
-            sb.append(c);
+        int i = 0;
+        while (i < text.length()) {
+            char c = text.charAt(i);
+            if (c == ' ' || c == '\t') {
+                // Collapse any run of whitespace into \s+ to tolerate level-name padding
+                sb.append("\\s+");
+                while (i < text.length() && (text.charAt(i) == ' ' || text.charAt(i) == '\t')) i++;
+            } else {
+                if (".[]{}()*+?^$|\\".indexOf(c) >= 0) sb.append('\\');
+                sb.append(c);
+                i++;
+            }
         }
     }
 }
