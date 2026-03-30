@@ -1,4 +1,4 @@
-name: Nightly
+name: Edge
 
 on:
   push:
@@ -6,7 +6,7 @@ on:
       - main
 
 jobs:
-  nightly:
+  edge:
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -24,15 +24,15 @@ jobs:
         uses: gradle/actions/setup-gradle@v3
 
       - name: Build fat JAR
-        run: ./gradlew :clouseau-ui:shadowJar -PappVersion=SNAPSHOT
+        run: ./gradlew :clouseau-ui:shadowJar -PappVersion=edge
 
-      - name: Update nightly pre-release
+      - name: Update edge pre-release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: nightly
-          name: Nightly Build
+          tag_name: edge
+          name: Edge Build
           prerelease: true
-          files: clouseau-ui/build/libs/clouseau-SNAPSHOT.jar
+          files: clouseau-ui/build/libs/clouseau-edge.jar
           body: |
             Automated build from the latest commit on `main`.
             This is a pre-release snapshot — not intended for production use.
