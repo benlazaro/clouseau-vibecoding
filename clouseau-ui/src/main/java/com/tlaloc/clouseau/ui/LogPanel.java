@@ -1,5 +1,6 @@
 package com.tlaloc.clouseau.ui;
 
+import com.tlaloc.clouseau.api.LogColorizer;
 import com.tlaloc.clouseau.api.LogEntry;
 import com.tlaloc.clouseau.api.LogFormatter;
 import com.tlaloc.clouseau.api.LogParser;
@@ -48,6 +49,7 @@ public final class LogPanel extends JPanel {
 
     private final List<LogParser> parsers;
     private final List<LogFormatter> formatters;
+    private final List<LogColorizer> colorizers;
     private final LogIndex        logIndex      = new LogIndex();
     private final LogTableModel   logTableModel = new LogTableModel();
     private final FilterBar       filterBar;
@@ -71,10 +73,11 @@ public final class LogPanel extends JPanel {
     private JLabel highlightNavPosition;
     private Color  highlightNavColor = null;
 
-    public LogPanel(List<LogParser> parsers, List<LogFormatter> formatters) {
+    public LogPanel(List<LogParser> parsers, List<LogFormatter> formatters, List<LogColorizer> colorizers) {
         super(new MigLayout("fill, insets 0, gapy 0", "[grow]", ""));
-        this.parsers   = parsers;
+        this.parsers    = parsers;
         this.formatters = formatters;
+        this.colorizers = colorizers;
         FilterBar[] fbHolder = new FilterBar[1];
         fbHolder[0] = new FilterBar(() -> logTableModel.applyFilter(fbHolder[0].buildPredicate()));
         this.filterBar = fbHolder[0];
@@ -862,9 +865,15 @@ public final class LogPanel extends JPanel {
             entry.fields().forEach((k, v) -> appendField(doc, key, val, k, v));
         }
 
-        String messageText = entry.message() != null ? entry.message() : "";
-        messageText = applyFormatters(messageText);
-        appendField(doc, key, msgVal, Messages.get("table.col.message"), messageText);
+        String messageText = applyFormatters(entry.message() != null ? entry.message() : "");
+        LogColorizer colorizer = colorizers.stream()
+                .filter(c -> c.canColorize(messageText))
+                .findFirst().orElse(null);
+        if (colorizer != null) {
+            renderColorizedField(doc, key, msgVal, Messages.get("table.col.message"), messageText, colorizer);
+        } else {
+            appendField(doc, key, msgVal, Messages.get("table.col.message"), messageText);
+        }
 
         // Collect consecutive continuation lines (null timestamp = stack trace / wrapped lines)
         if (modelRow >= 0) {
@@ -891,6 +900,33 @@ public final class LogPanel extends JPanel {
                                     SimpleAttributeSet valStyle, String label, String value) {
         insertText(doc, String.format("%-12s ", label + ":"), keyStyle);
         insertText(doc, value + "\n", valStyle);
+    }
+
+    private static void renderColorizedField(StyledDocument doc, SimpleAttributeSet keyStyle,
+                                             SimpleAttributeSet baseStyle, String label,
+                                             String text, LogColorizer colorizer) {
+        insertText(doc, String.format("%-12s ", label + ":"), keyStyle);
+        List<LogColorizer.ColorSpan> spans;
+        try {
+            spans = colorizer.colorize(text);
+        } catch (Exception e) {
+            insertText(doc, text + "\n", baseStyle);
+            return;
+        }
+        int pos = 0;
+        for (LogColorizer.ColorSpan span : spans) {
+            if (span.start() > pos) {
+                insertText(doc, text.substring(pos, span.start()), baseStyle);
+            }
+            SimpleAttributeSet spanStyle = new SimpleAttributeSet(baseStyle);
+            StyleConstants.setForeground(spanStyle, new Color(span.rgb()));
+            insertText(doc, text.substring(span.start(), span.end()), spanStyle);
+            pos = span.end();
+        }
+        if (pos < text.length()) {
+            insertText(doc, text.substring(pos), baseStyle);
+        }
+        insertText(doc, "\n", baseStyle);
     }
 
     private static void insertText(StyledDocument doc, String text, SimpleAttributeSet style) {

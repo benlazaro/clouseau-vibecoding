@@ -1,5 +1,6 @@
 package com.tlaloc.clouseau.ui;
 
+import com.tlaloc.clouseau.api.LogColorizer;
 import com.tlaloc.clouseau.api.LogFormatter;
 import com.tlaloc.clouseau.api.LogParser;
 import com.tlaloc.clouseau.runtime.ClouseauPluginManager;
@@ -30,6 +31,7 @@ public final class MainFrame extends JFrame {
     private final ClouseauPluginManager pluginManager;
     private List<LogParser> parsers;
     private List<LogFormatter> formatters;
+    private List<LogColorizer> colorizers;
     private final JTabbedPane tabbedPane = new JTabbedPane();
     private final CardLayout cardLayout  = new CardLayout();
     private final JPanel contentArea     = new JPanel(cardLayout);
@@ -47,12 +49,14 @@ public final class MainFrame extends JFrame {
         this.formatters = new ArrayList<>();
         this.formatters.add(new JsonMessageFormatter());
         this.formatters.addAll(pluginManager.getExtensions(LogFormatter.class));
-        if (!formatters.isEmpty()) {
-            log.info("Loaded {} formatter(s): {}", formatters.size(),
-                    formatters.stream().map(LogFormatter::getName).toList());
-        } else {
-            log.info("No formatters loaded");
-        }
+        log.info("Loaded {} formatter(s): {}", formatters.size(),
+                formatters.stream().map(LogFormatter::getName).toList());
+
+        this.colorizers = new ArrayList<>();
+        this.colorizers.add(new JsonColorizer());
+        this.colorizers.addAll(pluginManager.getExtensions(LogColorizer.class));
+        log.info("Loaded {} colorizer(s): {}", colorizers.size(),
+                colorizers.stream().map(LogColorizer::getName).toList());
         setDefaultCloseOperation(EXIT_ON_CLOSE);
         setSize(1280, 800);
         setMinimumSize(new Dimension(800, 500));
@@ -260,7 +264,7 @@ public final class MainFrame extends JFrame {
         }
         AppPrefs.addRecentFile(file);
         refreshRecentMenu();
-        LogPanel panel = new LogPanel(parsers, formatters);
+        LogPanel panel = new LogPanel(parsers, formatters, colorizers);
         addLogTab(file.getFileName().toString(), panel);
         panel.load(file, parser, () -> {
             AppPrefs.removeRecentFile(file);
