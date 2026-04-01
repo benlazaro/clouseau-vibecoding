@@ -794,10 +794,14 @@ public final class LogPanel extends JPanel {
     /** Apply all formatters that can handle this input, in sequence. */
     private String applyFormatters(String input) {
         String result = input;
+        log.trace("applyFormatters: {} formatters available, input length={}", formatters.size(), input.length());
         for (LogFormatter formatter : formatters) {
-            if (formatter.canFormat(result)) {
+            boolean canFormat = formatter.canFormat(result);
+            log.trace("  {} canFormat={}", formatter.getName(), canFormat);
+            if (canFormat) {
                 try {
                     result = formatter.format(result);
+                    log.trace("  {} formatted successfully, new length={}", formatter.getName(), result.length());
                 } catch (Exception e) {
                     log.warn("Formatter {} failed", formatter.getName(), e);
                 }

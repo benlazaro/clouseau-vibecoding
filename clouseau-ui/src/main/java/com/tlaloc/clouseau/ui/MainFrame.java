@@ -44,7 +44,15 @@ public final class MainFrame extends JFrame {
         super(Messages.get("app.title"));
         this.pluginManager = pluginManager;
         this.parsers = new ArrayList<>(UserParsersLoader.load());
-        this.formatters = new ArrayList<>(pluginManager.getExtensions(LogFormatter.class));
+        this.formatters = new ArrayList<>();
+        this.formatters.add(new JsonMessageFormatter());
+        this.formatters.addAll(pluginManager.getExtensions(LogFormatter.class));
+        if (!formatters.isEmpty()) {
+            log.info("Loaded {} formatter(s): {}", formatters.size(),
+                    formatters.stream().map(LogFormatter::getName).toList());
+        } else {
+            log.info("No formatters loaded");
+        }
         setDefaultCloseOperation(EXIT_ON_CLOSE);
         setSize(1280, 800);
         setMinimumSize(new Dimension(800, 500));
