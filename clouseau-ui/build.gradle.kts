@@ -24,7 +24,8 @@ dependencies {
 
     implementation("com.google.guava:guava:${rootProject.extra["guavaVersion"]}")
     implementation("com.google.code.gson:gson:2.11.0")
-    runtimeOnly("org.slf4j:slf4j-simple:${rootProject.extra["slf4jVersion"]}")
+    implementation("org.apache.logging.log4j:log4j-core:2.23.0")
+    runtimeOnly("org.apache.logging.log4j:log4j-slf4j2-impl:2.23.0")
     implementation("com.formdev:flatlaf:${rootProject.extra["flatlafVersion"]}")
     implementation("com.formdev:flatlaf-intellij-themes:${rootProject.extra["flatlafVersion"]}")
     implementation("com.miglayout:miglayout-swing:${rootProject.extra["migLayoutVersion"]}")

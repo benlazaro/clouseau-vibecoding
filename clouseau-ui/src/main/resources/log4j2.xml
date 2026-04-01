@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Configuration status="warn">
+    <Properties>
+        <Property name="log.dir">${sys:user.home}/.clouseau/logs</Property>
+        <Property name="log.pattern">%d{yyyy-MM-dd HH:mm:ss.SSS} [%t] %-5level %logger{36} - %msg%n</Property>
+    </Properties>
+
+    <Appenders>
+        <!-- File appender: all INFO and above -->
+        <RollingFile name="FileAppender"
+                     fileName="${log.dir}/clouseau.log"
+                     filePattern="${log.dir}/clouseau.%i.log.gz">
+            <PatternLayout pattern="${log.pattern}"/>
+            <Policies>
+                <SizeBasedTriggeringPolicy size="10MB"/>
+            </Policies>
+            <DefaultRolloverStrategy max="5"/>
+        </RollingFile>
+
+        <!-- Console appender: WARNING and above -->
+        <Console name="ConsoleAppender" target="SYSTEM_ERR">
+            <PatternLayout pattern="${log.pattern}"/>
+            <ThresholdFilter level="WARN" onMatch="ACCEPT" onMismatch="DENY"/>
+        </Console>
+    </Appenders>
+
+    <Loggers>
+        <Logger name="com.tlaloc.clouseau" level="INFO"/>
+        <Root level="INFO">
+            <AppenderRef ref="FileAppender"/>
+            <AppenderRef ref="ConsoleAppender"/>
+        </Root>
+    </Loggers>
+</Configuration>
