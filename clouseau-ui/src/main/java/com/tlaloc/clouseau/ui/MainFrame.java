@@ -1,5 +1,6 @@
 package com.tlaloc.clouseau.ui;
 
+import com.tlaloc.clouseau.api.LogFormatter;
 import com.tlaloc.clouseau.api.LogParser;
 import com.tlaloc.clouseau.runtime.ClouseauPluginManager;
 import lombok.extern.slf4j.Slf4j;
@@ -28,6 +29,7 @@ public final class MainFrame extends JFrame {
 
     private final ClouseauPluginManager pluginManager;
     private List<LogParser> parsers;
+    private List<LogFormatter> formatters;
     private final JTabbedPane tabbedPane = new JTabbedPane();
     private final CardLayout cardLayout  = new CardLayout();
     private final JPanel contentArea     = new JPanel(cardLayout);
@@ -42,6 +44,7 @@ public final class MainFrame extends JFrame {
         super(Messages.get("app.title"));
         this.pluginManager = pluginManager;
         this.parsers = new ArrayList<>(UserParsersLoader.load());
+        this.formatters = new ArrayList<>(pluginManager.getExtensions(LogFormatter.class));
         setDefaultCloseOperation(EXIT_ON_CLOSE);
         setSize(1280, 800);
         setMinimumSize(new Dimension(800, 500));
@@ -249,7 +252,7 @@ public final class MainFrame extends JFrame {
         }
         AppPrefs.addRecentFile(file);
         refreshRecentMenu();
-        LogPanel panel = new LogPanel(parsers);
+        LogPanel panel = new LogPanel(parsers, formatters);
         addLogTab(file.getFileName().toString(), panel);
         panel.load(file, parser, () -> {
             AppPrefs.removeRecentFile(file);

@@ -1,6 +1,7 @@
 package com.tlaloc.clouseau.ui;
 
 import com.tlaloc.clouseau.api.LogEntry;
+import com.tlaloc.clouseau.api.LogFormatter;
 import com.tlaloc.clouseau.api.LogParser;
 import com.tlaloc.clouseau.core.LogIndex;
 import lombok.extern.slf4j.Slf4j;
@@ -46,6 +47,7 @@ import java.util.stream.Stream;
 public final class LogPanel extends JPanel {
 
     private final List<LogParser> parsers;
+    private final List<LogFormatter> formatters;
     private final LogIndex        logIndex      = new LogIndex();
     private final LogTableModel   logTableModel = new LogTableModel();
     private final FilterBar       filterBar;
@@ -69,9 +71,10 @@ public final class LogPanel extends JPanel {
     private JLabel highlightNavPosition;
     private Color  highlightNavColor = null;
 
-    public LogPanel(List<LogParser> parsers) {
+    public LogPanel(List<LogParser> parsers, List<LogFormatter> formatters) {
         super(new MigLayout("fill, insets 0, gapy 0", "[grow]", ""));
         this.parsers   = parsers;
+        this.formatters = formatters;
         FilterBar[] fbHolder = new FilterBar[1];
         fbHolder[0] = new FilterBar(() -> logTableModel.applyFilter(fbHolder[0].buildPredicate()));
         this.filterBar = fbHolder[0];
@@ -788,6 +791,21 @@ public final class LogPanel extends JPanel {
     private static final DateTimeFormatter DETAIL_TS_FMT =
             DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS").withZone(ZoneId.systemDefault());
 
+    /** Apply all formatters that can handle this input, in sequence. */
+    private String applyFormatters(String input) {
+        String result = input;
+        for (LogFormatter formatter : formatters) {
+            if (formatter.canFormat(result)) {
+                try {
+                    result = formatter.format(result);
+                } catch (Exception e) {
+                    log.warn("Formatter {} failed", formatter.getName(), e);
+                }
+            }
+        }
+        return result;
+    }
+
     private void showDetail(LogEntry entry, int modelRow) {
         StyledDocument doc = detailArea.getStyledDocument();
         try { doc.remove(0, doc.getLength()); } catch (BadLocationException ignored) {}
@@ -840,8 +858,9 @@ public final class LogPanel extends JPanel {
             entry.fields().forEach((k, v) -> appendField(doc, key, val, k, v));
         }
 
-        appendField(doc, key, msgVal, Messages.get("table.col.message"),
-                entry.message() != null ? entry.message() : "");
+        String messageText = entry.message() != null ? entry.message() : "";
+        messageText = applyFormatters(messageText);
+        appendField(doc, key, msgVal, Messages.get("table.col.message"), messageText);
 
         // Collect consecutive continuation lines (null timestamp = stack trace / wrapped lines)
         if (modelRow >= 0) {
