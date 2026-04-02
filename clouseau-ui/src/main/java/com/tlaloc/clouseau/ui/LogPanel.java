@@ -244,6 +244,10 @@ public final class LogPanel extends JPanel {
         worker.execute();
     }
 
+    public void reload() {
+        if (currentFile != null) load(currentFile, currentParser);
+    }
+
     public void cancelLoad() {
         stopTailing();
         SwingWorker<?, ?> w = currentWorker;
@@ -278,7 +282,12 @@ public final class LogPanel extends JPanel {
             protected Void doInBackground() throws Exception {
                 while (!isCancelled()) {
                     try {
-                        if (Files.size(currentFile) > tailPosition) {
+                        long currentSize = Files.size(currentFile);
+                        if (currentSize < tailPosition) {
+                            // File was rotated — reset position to read new file from the beginning
+                            tailPosition = 0;
+                        }
+                        if (currentSize > tailPosition) {
                             try (RandomAccessFile raf = new RandomAccessFile(currentFile.toFile(), "r")) {
                                 raf.seek(tailPosition);
                                 String line;
@@ -345,6 +354,23 @@ public final class LogPanel extends JPanel {
         panel.setBorder(BorderFactory.createMatteBorder(1, 0, 0, 0, new Color(0x272727)));
         panel.add(statusBarLabel, BorderLayout.CENTER);
         return panel;
+    }
+
+    public void clearTable() {
+        int confirm = JOptionPane.showConfirmDialog(
+                SwingUtilities.getWindowAncestor(this),
+                Messages.get("table.clear.confirm.message"),
+                Messages.get("table.clear.confirm.title"),
+                JOptionPane.OK_CANCEL_OPTION);
+        if (confirm != JOptionPane.OK_OPTION) return;
+        stopTailing();
+        tailPosition = 0;
+        logIndex.clear();
+        logTableModel.clear();
+        showDetail(null, -1);
+        clearSearchMatches();
+        updateStatusBar();
+        if (follow) startTailing();
     }
 
     private void updateStatusBar() {

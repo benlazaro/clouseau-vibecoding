@@ -304,6 +304,28 @@ public final class MainFrame extends JFrame {
 
         header.add(label);
         header.add(close);
+
+        header.addMouseListener(new java.awt.event.MouseAdapter() {
+            @Override public void mousePressed(java.awt.event.MouseEvent e)  { maybeShowTabMenu(e); }
+            @Override public void mouseReleased(java.awt.event.MouseEvent e) { maybeShowTabMenu(e); }
+            private void maybeShowTabMenu(java.awt.event.MouseEvent e) {
+                if (!e.isPopupTrigger()) return;
+                tabbedPane.setSelectedIndex(tabbedPane.indexOfTabComponent(header));
+                JPopupMenu menu = new JPopupMenu();
+                JMenuItem reloadItem = new JMenuItem(Messages.get("tab.context.reload"));
+                reloadItem.addActionListener(ev -> panel.reload());
+                menu.add(reloadItem);
+                JMenuItem clearItem = new JMenuItem(Messages.get("table.clear"));
+                clearItem.addActionListener(ev -> panel.clearTable());
+                menu.add(clearItem);
+                menu.addSeparator();
+                JMenuItem closeItem = new JMenuItem(Messages.get("tab.context.close"));
+                closeItem.addActionListener(ev -> closeTab(tabbedPane.indexOfTabComponent(header)));
+                menu.add(closeItem);
+                menu.show(header, e.getX(), e.getY());
+            }
+        });
+
         return header;
     }
 
