@@ -17,6 +17,8 @@ import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.JTableHeader;
 import javax.swing.table.TableCellRenderer;
 import javax.swing.text.BadLocationException;
+import javax.swing.text.DefaultHighlighter;
+import javax.swing.text.Highlighter;
 import javax.swing.text.SimpleAttributeSet;
 import javax.swing.text.StyleConstants;
 import javax.swing.text.StyledDocument;
@@ -79,6 +81,9 @@ public final class LogPanel extends JPanel {
     private JPanel        findBar;
     private JTextField    findField;
     private JLabel        findCounter;
+    private String        lastFormattedMessage = "";
+    private int           messageFieldStart    = -1;
+    private int           messageFieldEnd      = -1;
     private JPanel centerCards;
     private static final String CARD_CONTENT = "content";
     private static final String CARD_LOADING = "loading";
@@ -962,15 +967,51 @@ public final class LogPanel extends JPanel {
         showDetail(modelRow >= 0 ? logTableModel.getEntry(modelRow) : null, modelRow);
     }
 
+    private void flashMessageField() {
+        if (messageFieldStart < 0 || messageFieldEnd <= messageFieldStart) return;
+        final Color peak = new Color(0x6B7280);
+        final Color bg   = new Color(0x191919);
+        final int   steps = 25;
+        final int[] step  = {0};
+        final Object[] tag = {null};
+
+        Highlighter hl = detailArea.getHighlighter();
+        try {
+            tag[0] = hl.addHighlight(messageFieldStart, messageFieldEnd,
+                    new DefaultHighlighter.DefaultHighlightPainter(peak));
+        } catch (BadLocationException ignored) { return; }
+
+        Timer timer = new Timer(16, null);
+        timer.addActionListener(e -> {
+            step[0]++;
+            hl.removeHighlight(tag[0]);
+            if (step[0] >= steps) {
+                ((Timer) e.getSource()).stop();
+            } else {
+                float t = 1f - (float) step[0] / steps;
+                try {
+                    tag[0] = hl.addHighlight(messageFieldStart, messageFieldEnd,
+                            new DefaultHighlighter.DefaultHighlightPainter(blend(peak, bg, t)));
+                } catch (BadLocationException ignored) {}
+            }
+        });
+        timer.setRepeats(true);
+        timer.start();
+    }
+
     private JPanel buildDetailToolbar() {
-        JPanel bar = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 3));
+        JPanel bar = new JPanel(new BorderLayout());
         bar.setBorder(BorderFactory.createMatteBorder(0, 0, 1, 0, new Color(0x272727)));
+
+        // ── Left: formatter / colorizer toggles ───────────────────────────────
+        JPanel controls = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 3));
+        controls.setOpaque(false);
 
         if (!formatters.isEmpty()) {
             JLabel label = new JLabel(Messages.get("detail.toolbar.format"));
             label.setForeground(FG_DIM);
             label.setFont(label.getFont().deriveFont(11f));
-            bar.add(label);
+            controls.add(label);
 
             for (LogFormatter formatter : formatters) {
                 JToggleButton btn = new JToggleButton(formatter.getName());
@@ -981,21 +1022,21 @@ public final class LogPanel extends JPanel {
                     else                  disabledFormatters.add(formatter.getName());
                     refreshDetail();
                 });
-                bar.add(btn);
+                controls.add(btn);
             }
         }
 
         if (!formatters.isEmpty() && !colorizers.isEmpty()) {
             JSeparator sep = new JSeparator(JSeparator.VERTICAL);
             sep.setPreferredSize(new Dimension(1, 18));
-            bar.add(sep);
+            controls.add(sep);
         }
 
         if (!colorizers.isEmpty()) {
             JLabel label = new JLabel(Messages.get("detail.toolbar.color"));
             label.setForeground(FG_DIM);
             label.setFont(label.getFont().deriveFont(11f));
-            bar.add(label);
+            controls.add(label);
 
             ButtonGroup group = new ButtonGroup();
 
@@ -1004,22 +1045,40 @@ public final class LogPanel extends JPanel {
             autoBtn.setFont(autoBtn.getFont().deriveFont(11f));
             autoBtn.addActionListener(e -> { activeColorizerName = null; refreshDetail(); });
             group.add(autoBtn);
-            bar.add(autoBtn);
+            controls.add(autoBtn);
 
             JToggleButton noneBtn = new JToggleButton(Messages.get("detail.toolbar.color.none"));
             noneBtn.setFont(noneBtn.getFont().deriveFont(11f));
             noneBtn.addActionListener(e -> { activeColorizerName = COLORIZER_NONE; refreshDetail(); });
             group.add(noneBtn);
-            bar.add(noneBtn);
+            controls.add(noneBtn);
 
             for (LogColorizer colorizer : colorizers) {
                 JToggleButton btn = new JToggleButton(colorizer.getName());
                 btn.setFont(btn.getFont().deriveFont(11f));
                 btn.addActionListener(e -> { activeColorizerName = colorizer.getName(); refreshDetail(); });
                 group.add(btn);
-                bar.add(btn);
+                controls.add(btn);
             }
         }
+
+        bar.add(controls, BorderLayout.CENTER);
+
+        // ── Right: copy button ────────────────────────────────────────────────
+        JButton copyBtn = new JButton(Messages.get("detail.toolbar.copy"));
+        copyBtn.setFont(copyBtn.getFont().deriveFont(11f));
+        copyBtn.setMargin(new Insets(2, 6, 2, 6));
+        copyBtn.addActionListener(e -> {
+            if (lastFormattedMessage.isEmpty()) return;
+            Toolkit.getDefaultToolkit().getSystemClipboard()
+                    .setContents(new java.awt.datatransfer.StringSelection(lastFormattedMessage), null);
+            flashMessageField();
+        });
+
+        JPanel right = new JPanel(new FlowLayout(FlowLayout.RIGHT, 6, 3));
+        right.setOpaque(false);
+        right.add(copyBtn);
+        bar.add(right, BorderLayout.EAST);
 
         return bar;
     }
@@ -1034,9 +1093,7 @@ public final class LogPanel extends JPanel {
         JScrollPane scroll = new JScrollPane(detailArea);
 
         JPanel panel = new JPanel(new BorderLayout());
-        if (!formatters.isEmpty() || !colorizers.isEmpty()) {
-            panel.add(buildDetailToolbar(), BorderLayout.NORTH);
-        }
+        panel.add(buildDetailToolbar(), BorderLayout.NORTH);
         panel.add(scroll, BorderLayout.CENTER);
         return panel;
     }
@@ -1081,6 +1138,8 @@ public final class LogPanel extends JPanel {
         StyleConstants.setForeground(val, FG_DEFAULT);
 
         if (entry == null) {
+            lastFormattedMessage = "";
+            messageFieldStart = messageFieldEnd = -1;
             insertText(doc, Messages.get("detail.placeholder"), val);
             detailArea.setCaretPosition(0);
             return;
@@ -1116,6 +1175,7 @@ public final class LogPanel extends JPanel {
         }
 
         String messageText = applyFormatters(entry.message() != null ? entry.message() : "");
+        lastFormattedMessage = messageText;
         LogColorizer colorizer;
         if (COLORIZER_NONE.equals(activeColorizerName)) {
             colorizer = null;
@@ -1126,11 +1186,14 @@ public final class LogPanel extends JPanel {
                     .filter(c -> c.getName().equals(activeColorizerName) && c.canColorize(messageText))
                     .findFirst().orElse(null);
         }
+        String msgLabel = String.format("%-12s ", Messages.get("table.col.message") + ":");
+        messageFieldStart = doc.getLength() + msgLabel.length();
         if (colorizer != null) {
             renderColorizedField(doc, key, msgVal, Messages.get("table.col.message"), messageText, colorizer);
         } else {
             appendField(doc, key, msgVal, Messages.get("table.col.message"), messageText);
         }
+        messageFieldEnd = doc.getLength() - 1; // exclude trailing newline
 
         // Collect consecutive continuation lines (null timestamp = stack trace / wrapped lines)
         if (modelRow >= 0) {
