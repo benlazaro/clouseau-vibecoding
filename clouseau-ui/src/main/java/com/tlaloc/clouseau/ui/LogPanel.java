@@ -360,8 +360,8 @@ public final class LogPanel extends JPanel {
                 SwingUtilities.getWindowAncestor(this),
                 Messages.get("table.clear.confirm.message"),
                 Messages.get("table.clear.confirm.title"),
-                JOptionPane.OK_CANCEL_OPTION);
-        if (confirm != JOptionPane.OK_OPTION) return;
+                JOptionPane.YES_NO_OPTION);
+        if (confirm != JOptionPane.YES_OPTION) return;
         stopTailing();
         tailPosition = 0;
         logIndex.clear();
