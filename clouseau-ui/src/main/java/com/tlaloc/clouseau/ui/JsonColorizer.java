@@ -16,12 +16,12 @@ import java.util.List;
  */
 final class JsonColorizer implements LogColorizer {
 
-    // VS Code Dark+ inspired palette
-    private static final int KEY        = 0x9CDCFE; // light blue
-    private static final int STRING_VAL = 0xCE9178; // orange-brown
-    private static final int NUMBER     = 0xB5CEA8; // light green
-    private static final int BOOL_NULL  = 0x569CD6; // blue
-    private static final int PUNCT      = 0x808080; // gray
+    // Monokai-inspired palette
+    private static final int KEY        = 0xA6E22E; // vivid green
+    private static final int STRING_VAL = 0xE6DB74; // vivid yellow
+    private static final int NUMBER     = 0xAE81FF; // vivid purple
+    private static final int BOOL_NULL  = 0x66D9E8; // vivid cyan
+    private static final int PUNCT      = 0x75715E; // warm gray
 
     @Override
     public String getName() { return "JSON Colorizer"; }
