@@ -1042,6 +1042,7 @@ public final class LogPanel extends JPanel {
                 JToggleButton btn = new JToggleButton(formatter.getName());
                 btn.setSelected(true);
                 btn.setFont(btn.getFont().deriveFont(11f));
+                FilterBar.applyToggleStyle(btn);
                 btn.addActionListener(e -> {
                     if (btn.isSelected()) disabledFormatters.remove(formatter.getName());
                     else                  disabledFormatters.add(formatter.getName());
@@ -1068,12 +1069,14 @@ public final class LogPanel extends JPanel {
             JToggleButton autoBtn = new JToggleButton(Messages.get("detail.toolbar.color.auto"));
             autoBtn.setSelected(true);
             autoBtn.setFont(autoBtn.getFont().deriveFont(11f));
+            FilterBar.applyToggleStyle(autoBtn);
             autoBtn.addActionListener(e -> { activeColorizerName = null; refreshDetail(); });
             group.add(autoBtn);
             controls.add(autoBtn);
 
             JToggleButton noneBtn = new JToggleButton(Messages.get("detail.toolbar.color.none"));
             noneBtn.setFont(noneBtn.getFont().deriveFont(11f));
+            FilterBar.applyToggleStyle(noneBtn);
             noneBtn.addActionListener(e -> { activeColorizerName = COLORIZER_NONE; refreshDetail(); });
             group.add(noneBtn);
             controls.add(noneBtn);
@@ -1081,6 +1084,7 @@ public final class LogPanel extends JPanel {
             for (LogColorizer colorizer : colorizers) {
                 JToggleButton btn = new JToggleButton(colorizer.getName());
                 btn.setFont(btn.getFont().deriveFont(11f));
+                FilterBar.applyToggleStyle(btn);
                 btn.addActionListener(e -> { activeColorizerName = colorizer.getName(); refreshDetail(); });
                 group.add(btn);
                 controls.add(btn);

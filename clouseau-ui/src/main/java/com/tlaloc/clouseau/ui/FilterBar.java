@@ -172,22 +172,17 @@ final class FilterBar extends JPanel {
         add(new JSeparator(JSeparator.VERTICAL), "growy, gapx 4, pushx");
 
         // ── Follow toggle ─────────────────────────────────────────────────────
-        Color followOn  = new Color(0x9E9E9E);
-        Color followOff = new Color(0x4A4A4A);
         followBtn = new JToggleButton(Messages.get("toolbar.follow"));
         followBtn.setFocusPainted(false);
         followBtn.setMargin(new Insets(2, 5, 2, 5));
         followBtn.setFont(followBtn.getFont().deriveFont(11f));
-        followBtn.setBackground(new Color(0x1E1E1E));
-        followBtn.setForeground(followOff);
         followBtn.setToolTipText(Messages.get("toolbar.follow.tooltip"));
-        followBtn.addItemListener(e -> followBtn.setForeground(followBtn.isSelected() ? followOn : followOff));
+        applyToggleStyle(followBtn);
         add(followBtn);
     }
 
     void initFollow(boolean initial, java.util.function.Consumer<Boolean> onToggle) {
         followBtn.setSelected(initial);
-        followBtn.setForeground(initial ? new Color(0x9E9E9E) : new Color(0x4A4A4A));
         followBtn.addActionListener(e -> onToggle.accept(followBtn.isSelected()));
     }
 
@@ -453,6 +448,21 @@ final class FilterBar extends JPanel {
         loggerButton.setText(excludedLoggers.isEmpty() || total == 0
             ? Messages.get("filter.loggers.all")
             : Messages.get("filter.loggers.partial").formatted(active, total));
+    }
+
+    static void applyToggleStyle(JToggleButton btn) {
+        final Color naturalBg = btn.getBackground();
+        final Color naturalFg = btn.getForeground();
+        final Color darkBg    = new Color(0x1E1E1E);
+        final Color dimFg     = new Color(0x4A4A4A);
+        btn.addItemListener(e -> {
+            btn.setBackground(btn.isSelected() ? naturalBg : darkBg);
+            btn.setForeground(btn.isSelected() ? naturalFg : dimFg);
+        });
+        if (!btn.isSelected()) {
+            btn.setBackground(darkBg);
+            btn.setForeground(dimFg);
+        }
     }
 
     private static DocumentListener docListener(Runnable action) {

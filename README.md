@@ -12,10 +12,12 @@ A modern, pluggable log viewer for software engineers — built for large files,
 - **Multi-format parsing** — Log4j pattern, Spring Boot, JSON; auto-detected on open
 - **Compressed files** — open `.gz` and `.zip` files directly
 - **Row highlighting** — color-code rows for visual triage; navigate between highlights by color
-- **Filtering** — filter by level, logger, time range, and free-text message search
-- **Follow mode** — tail a live file like `tail -f`
-- **Detail panel** — inspect the full entry with syntax-highlighted field breakdown
-- **Plugin system** — drop in a JAR to add new parsers, sources, or filters at runtime
+- **Filtering** — filter by level, logger, time range, and free-text message search (all columns)
+- **Follow mode** — tail a live file like `tail -f`; survives log rotation without losing existing rows
+- **Detail panel** — inspect the full entry with formatted, syntax-highlighted message; copy the message to clipboard
+- **Formatters & colorizers** — built-in JSON pretty-printer and Monokai-inspired JSON colorizer; toggle or override per-entry from the detail toolbar
+- **Find bar** — `Ctrl+F` searches all columns across visible rows with `↑`/`↓` navigation
+- **Plugin system** — drop in a JAR to add new parsers, formatters, colorizers, or sources at runtime
 
 ---
 
@@ -91,11 +93,21 @@ Default Logback console format. Two variants are supported:
 2025-06-10T23:43:07.001-05:00  ERROR 31280 --- [demo] [http-nio-8080-exec-1] com.example.OrderService  : Order #4291 not found
 ```
 
-**Highlight rows** — right-click one or more rows and choose a colour. Use the highlight nav bar at the top to jump between highlighted rows, filtered by colour.
+**Highlight rows** — right-click one or more rows and choose a colour. Use the highlight nav bar to jump between highlighted rows, filtered by colour.
 
-**Filter** — use the level toggles, logger picker, time range, and search box. Filters combine (AND). Click **Clear** to reset all.
+**Filter** — use the level toggles, logger picker, time range, and message search box. Filters combine (AND). Click **Clear All Filters** to reset all.
+- **Level solo** — Alt+click a level button to show only that level; Alt+click it again to restore all.
+- **Logger picker** — hierarchical tree with checkboxes; right-click the **Loggers** button to open. Click **Close** to dismiss without accidentally hitting **None**.
 
-**Follow** — toggle **Follow** in the filter bar to auto-scroll as new lines arrive. Only active when a file is being tailed.
+**Find** — press `Ctrl+F` to open the find bar. Searches all columns (message, logger, thread, level, custom fields) across visible rows. `Enter` / `Shift+Enter` or `▲` / `▼` to navigate matches. `Escape` to close.
+
+**Detail panel** — select any row to see all fields expanded. The message is automatically formatted (JSON is pretty-printed) and colorized (Monokai palette).
+- Toggle individual formatters and colorizers from the toolbar above the detail pane.
+- Click **Copy Message** to copy the formatted message text to the clipboard (the message text flashes to confirm).
+
+**Follow** — enabled by default. Toggleable per-tab in the filter bar. New lines are appended as they arrive; opening a file always starts at the top. Log rotation is handled transparently — existing rows are kept and the new file is tailed from the beginning.
+
+**Tab context menu** — right-click any tab to **Reload** (re-read the file from scratch), **Clear Table** (remove all rows with confirmation), or **Close** the tab.
 
 **Settings** — `File → Settings` (`Ctrl+,`). Stored at `~/.clouseau/settings.json`.
 
@@ -195,7 +207,7 @@ User settings are stored at `~/.clouseau/settings.json`:
 ```json
 {
   "tab.close.confirm": true,
-  "follow.by.default": false,
+  "follow.by.default": true,
   "detail.font.size": 12,
   "recent.max": 5,
   "recent.files": [
