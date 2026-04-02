@@ -97,9 +97,21 @@ final class FilterBar extends JPanel {
                     ? new Color(0x4A4A4A)
                     : UIManager.getColor("Label.disabledForeground");
             btn.setForeground(btn.isSelected() ? onColor : offColor);
+            btn.setToolTipText("Click to toggle · Alt+click to solo / restore all");
             btn.addItemListener(e -> {
                 btn.setForeground(btn.isSelected() ? onColor : offColor);
                 onChanged.run();
+            });
+            btn.addMouseListener(new MouseAdapter() {
+                private boolean wasSoloed;
+                @Override public void mousePressed(MouseEvent e) {
+                    if (e.isAltDown())
+                        wasSoloed = levelButtons.entrySet().stream()
+                                .allMatch(en -> en.getValue().isSelected() == (en.getKey() == level));
+                }
+                @Override public void mouseClicked(MouseEvent e) {
+                    if (e.isAltDown()) soloLevel(level, wasSoloed);
+                }
             });
             levelButtons.put(level, btn);
             add(btn);
@@ -226,6 +238,19 @@ final class FilterBar extends JPanel {
     }
 
     // ── Predicates ───────────────────────────────────────────────────────────
+
+    private void soloLevel(LogLevel target, boolean restore) {
+        levelButtons.forEach((lvl, btn) -> {
+            boolean on = restore ? lvl != LogLevel.UNKNOWN : lvl == target;
+            btn.setSelected(on);
+            Color onColor  = LEVEL_COLORS.get(lvl);
+            Color offColor = lvl == LogLevel.UNKNOWN
+                    ? new Color(0x4A4A4A)
+                    : UIManager.getColor("Label.disabledForeground");
+            btn.setForeground(on ? onColor : offColor);
+        });
+        onChanged.run();
+    }
 
     private Predicate<LogEntry> buildLevelPredicate() {
         EnumSet<LogLevel> allowed = EnumSet.noneOf(LogLevel.class);
