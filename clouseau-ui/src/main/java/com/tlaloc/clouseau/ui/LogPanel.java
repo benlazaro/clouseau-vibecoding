@@ -63,6 +63,9 @@ public final class LogPanel extends JPanel {
     private Optional<LogParser> currentParser = Optional.empty();
     private volatile long tailPosition = 0;
     private boolean follow = AppPrefs.isFollowByDefault();
+    private final java.util.Set<String> disabledFormatters = new java.util.HashSet<>();
+    private static final String COLORIZER_NONE = "\0none";
+    private String activeColorizerName = null; // null = auto, COLORIZER_NONE = off, else specific name
     private JPanel centerCards;
     private static final String CARD_CONTENT = "content";
     private static final String CARD_LOADING = "loading";
@@ -779,7 +782,75 @@ public final class LogPanel extends JPanel {
 
     // ── Detail panel ─────────────────────────────────────────────────────────
 
-    private JScrollPane buildDetail() {
+    private void refreshDetail() {
+        int viewRow = logTable.getSelectedRow();
+        int modelRow = viewRow >= 0 ? logTable.convertRowIndexToModel(viewRow) : -1;
+        showDetail(modelRow >= 0 ? logTableModel.getEntry(modelRow) : null, modelRow);
+    }
+
+    private JPanel buildDetailToolbar() {
+        JPanel bar = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 3));
+        bar.setBorder(BorderFactory.createMatteBorder(0, 0, 1, 0, new Color(0x272727)));
+
+        if (!formatters.isEmpty()) {
+            JLabel label = new JLabel(Messages.get("detail.toolbar.format"));
+            label.setForeground(FG_DIM);
+            label.setFont(label.getFont().deriveFont(11f));
+            bar.add(label);
+
+            for (LogFormatter formatter : formatters) {
+                JToggleButton btn = new JToggleButton(formatter.getName());
+                btn.setSelected(true);
+                btn.setFont(btn.getFont().deriveFont(11f));
+                btn.addActionListener(e -> {
+                    if (btn.isSelected()) disabledFormatters.remove(formatter.getName());
+                    else                  disabledFormatters.add(formatter.getName());
+                    refreshDetail();
+                });
+                bar.add(btn);
+            }
+        }
+
+        if (!formatters.isEmpty() && !colorizers.isEmpty()) {
+            JSeparator sep = new JSeparator(JSeparator.VERTICAL);
+            sep.setPreferredSize(new Dimension(1, 18));
+            bar.add(sep);
+        }
+
+        if (!colorizers.isEmpty()) {
+            JLabel label = new JLabel(Messages.get("detail.toolbar.color"));
+            label.setForeground(FG_DIM);
+            label.setFont(label.getFont().deriveFont(11f));
+            bar.add(label);
+
+            ButtonGroup group = new ButtonGroup();
+
+            JToggleButton autoBtn = new JToggleButton(Messages.get("detail.toolbar.color.auto"));
+            autoBtn.setSelected(true);
+            autoBtn.setFont(autoBtn.getFont().deriveFont(11f));
+            autoBtn.addActionListener(e -> { activeColorizerName = null; refreshDetail(); });
+            group.add(autoBtn);
+            bar.add(autoBtn);
+
+            JToggleButton noneBtn = new JToggleButton(Messages.get("detail.toolbar.color.none"));
+            noneBtn.setFont(noneBtn.getFont().deriveFont(11f));
+            noneBtn.addActionListener(e -> { activeColorizerName = COLORIZER_NONE; refreshDetail(); });
+            group.add(noneBtn);
+            bar.add(noneBtn);
+
+            for (LogColorizer colorizer : colorizers) {
+                JToggleButton btn = new JToggleButton(colorizer.getName());
+                btn.setFont(btn.getFont().deriveFont(11f));
+                btn.addActionListener(e -> { activeColorizerName = colorizer.getName(); refreshDetail(); });
+                group.add(btn);
+                bar.add(btn);
+            }
+        }
+
+        return bar;
+    }
+
+    private JPanel buildDetail() {
         detailArea = new JTextPane();
         detailArea.setEditable(false);
         detailArea.setBackground(new Color(0x191919));
@@ -787,8 +858,13 @@ public final class LogPanel extends JPanel {
         detailArea.setBorder(BorderFactory.createEmptyBorder(8, 10, 8, 10));
         showDetail(null, -1);
         JScrollPane scroll = new JScrollPane(detailArea);
-//        scroll.getViewport().setBackground(new Color(0x191919));
-        return scroll;
+
+        JPanel panel = new JPanel(new BorderLayout());
+        if (!formatters.isEmpty() || !colorizers.isEmpty()) {
+            panel.add(buildDetailToolbar(), BorderLayout.NORTH);
+        }
+        panel.add(scroll, BorderLayout.CENTER);
+        return panel;
     }
 
     private static final DateTimeFormatter DETAIL_TS_FMT =
@@ -801,7 +877,7 @@ public final class LogPanel extends JPanel {
         for (LogFormatter formatter : formatters) {
             boolean canFormat = formatter.canFormat(result);
             log.trace("  {} canFormat={}", formatter.getName(), canFormat);
-            if (canFormat) {
+            if (canFormat && !disabledFormatters.contains(formatter.getName())) {
                 try {
                     result = formatter.format(result);
                     log.trace("  {} formatted successfully, new length={}", formatter.getName(), result.length());
@@ -866,9 +942,16 @@ public final class LogPanel extends JPanel {
         }
 
         String messageText = applyFormatters(entry.message() != null ? entry.message() : "");
-        LogColorizer colorizer = colorizers.stream()
-                .filter(c -> c.canColorize(messageText))
-                .findFirst().orElse(null);
+        LogColorizer colorizer;
+        if (COLORIZER_NONE.equals(activeColorizerName)) {
+            colorizer = null;
+        } else if (activeColorizerName == null) {
+            colorizer = colorizers.stream().filter(c -> c.canColorize(messageText)).findFirst().orElse(null);
+        } else {
+            colorizer = colorizers.stream()
+                    .filter(c -> c.getName().equals(activeColorizerName) && c.canColorize(messageText))
+                    .findFirst().orElse(null);
+        }
         if (colorizer != null) {
             renderColorizedField(doc, key, msgVal, Messages.get("table.col.message"), messageText, colorizer);
         } else {
