@@ -115,7 +115,7 @@ public final class AppPrefs {
     // ── Public API ────────────────────────────────────────────────────────────
 
     public static boolean isFollowByDefault() {
-        return getBool(KEY_FOLLOW_BY_DEFAULT, false);
+        return getBool(KEY_FOLLOW_BY_DEFAULT, true);
     }
 
     public static void setFollowByDefault(boolean value) {
