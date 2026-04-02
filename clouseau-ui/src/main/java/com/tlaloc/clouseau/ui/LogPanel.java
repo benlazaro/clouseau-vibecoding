@@ -81,6 +81,7 @@ public final class LogPanel extends JPanel {
     private JPanel        findBar;
     private JTextField    findField;
     private JLabel        findCounter;
+    private JButton       copyBtn;
     private String        lastFormattedMessage = "";
     private int           messageFieldStart    = -1;
     private int           messageFieldEnd      = -1;
@@ -139,6 +140,7 @@ public final class LogPanel extends JPanel {
                 int modelRow = viewRow >= 0 ? logTable.convertRowIndexToModel(viewRow) : -1;
                 showDetail(modelRow >= 0 ? logTableModel.getEntry(modelRow) : null, modelRow);
                 updateHighlightNavPosition();
+                if (copyBtn != null) copyBtn.setEnabled(modelRow >= 0);
             }
         });
 
@@ -1094,9 +1096,10 @@ public final class LogPanel extends JPanel {
         bar.add(controls, BorderLayout.CENTER);
 
         // ── Right: copy button ────────────────────────────────────────────────
-        JButton copyBtn = new JButton(Messages.get("detail.toolbar.copy"));
+        copyBtn = new JButton(Messages.get("detail.toolbar.copy"));
         copyBtn.setFont(copyBtn.getFont().deriveFont(11f));
         copyBtn.setMargin(new Insets(2, 6, 2, 6));
+        copyBtn.setEnabled(false);
         copyBtn.addActionListener(e -> {
             if (lastFormattedMessage.isEmpty()) return;
             Toolkit.getDefaultToolkit().getSystemClipboard()
