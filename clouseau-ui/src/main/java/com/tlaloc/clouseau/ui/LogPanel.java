@@ -10,6 +10,8 @@ import net.miginfocom.swing.MigLayout;
 
 import javax.swing.*;
 import javax.swing.border.Border;
+import javax.swing.event.DocumentEvent;
+import javax.swing.event.DocumentListener;
 import javax.swing.event.TableModelEvent;
 import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.JTableHeader;
@@ -19,6 +21,9 @@ import javax.swing.text.SimpleAttributeSet;
 import javax.swing.text.StyleConstants;
 import javax.swing.text.StyledDocument;
 import java.awt.*;
+import java.awt.event.ActionEvent;
+import java.awt.event.InputEvent;
+import java.awt.event.KeyEvent;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.io.BufferedReader;
@@ -35,9 +40,11 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.EnumMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.stream.Stream;
 
 /**
@@ -66,6 +73,12 @@ public final class LogPanel extends JPanel {
     private final java.util.Set<String> disabledFormatters = new java.util.HashSet<>();
     private static final String COLORIZER_NONE = "\0none";
     private String activeColorizerName = null; // null = auto, COLORIZER_NONE = off, else specific name
+    private Set<Integer>  searchMatchModelRows = Set.of();
+    private List<Integer> searchMatchList      = List.of();
+    private int           searchMatchCursor    = -1;
+    private JPanel        findBar;
+    private JTextField    findField;
+    private JLabel        findCounter;
     private JPanel centerCards;
     private static final String CARD_CONTENT = "content";
     private static final String CARD_LOADING = "loading";
@@ -101,8 +114,10 @@ public final class LogPanel extends JPanel {
         centerCards.add(buildLoadingPanel(), CARD_LOADING);
 
         statusBar = buildStatusBar();
+        findBar = buildFindBar();
 
         add(filterBar, "growx, wrap");
+        add(findBar, "growx, wrap, hidemode 3");
         add(buildHighlightNavBar(), "growx, wrap, hidemode 3");
         add(centerCards, "grow, pushy, wrap");
         add(statusBar, "growx");
@@ -119,6 +134,17 @@ public final class LogPanel extends JPanel {
                 int modelRow = viewRow >= 0 ? logTable.convertRowIndexToModel(viewRow) : -1;
                 showDetail(modelRow >= 0 ? logTableModel.getEntry(modelRow) : null, modelRow);
                 updateHighlightNavPosition();
+            }
+        });
+
+        // Ctrl+F: show find bar and focus the field
+        getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT)
+                .put(KeyStroke.getKeyStroke(KeyEvent.VK_F, InputEvent.CTRL_DOWN_MASK), "showFind");
+        getActionMap().put("showFind", new AbstractAction() {
+            @Override public void actionPerformed(ActionEvent e) {
+                findBar.setVisible(true);
+                findField.selectAll();
+                findField.requestFocusInWindow();
             }
         });
     }
@@ -383,10 +409,13 @@ public final class LogPanel extends JPanel {
                 boolean hlSel = hl != null && sel;
 
                 // Background
+                boolean isSearchMatch = searchMatchModelRows.contains(logTable.convertRowIndexToModel(r));
                 if (hl != null) {
                     setBackground(sel ? blend(hl, t.getSelectionBackground(), 0.55f) : hl);
                 } else if (sel) {
                     setBackground(SEL_BG);
+                } else if (isSearchMatch) {
+                    setBackground(SEARCH_MATCH_BG);
                 } else {
                     setBackground(t.getBackground());
                 }
@@ -606,8 +635,8 @@ public final class LogPanel extends JPanel {
         highlightNavPosition.setForeground(FG_DIM);
         highlightNavPosition.setFont(highlightNavPosition.getFont().deriveFont(12f));
 
-        JButton prevBtn = makeNavArrowButton("↑");
-        JButton nextBtn = makeNavArrowButton("↓");
+        JButton prevBtn = makeNavArrowButton("▲");
+        JButton nextBtn = makeNavArrowButton("▼");
         prevBtn.setToolTipText(Messages.get("highlight.nav.prev.tooltip"));
         nextBtn.setToolTipText(Messages.get("highlight.nav.next.tooltip"));
         prevBtn.addActionListener(e -> navigateHighlight(-1));
@@ -742,6 +771,150 @@ public final class LogPanel extends JPanel {
         }
     }
 
+    // ── Find bar ──────────────────────────────────────────────────────────────
+
+    private JPanel buildFindBar() {
+        JPanel bar = new JPanel(new MigLayout("insets 3 8 3 8, gap 4", "[][grow][][][]", "[center]"));
+        bar.setBorder(BorderFactory.createMatteBorder(0, 0, 1, 0, new Color(0x272727)));
+        bar.setVisible(false);
+
+        JLabel label = new JLabel("Find:");
+        label.setForeground(FG_DIM);
+        label.setFont(label.getFont().deriveFont(12f));
+
+        findField = new JTextField();
+        findField.putClientProperty("JTextField.placeholderText", "Search all columns\u2026");
+
+        JButton clearFieldBtn = new JButton("\u00d7");
+        clearFieldBtn.setVisible(false);
+        clearFieldBtn.setFont(clearFieldBtn.getFont().deriveFont(14f));
+        clearFieldBtn.setBorderPainted(false);
+        clearFieldBtn.setContentAreaFilled(false);
+        clearFieldBtn.setFocusPainted(false);
+        clearFieldBtn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        clearFieldBtn.addActionListener(e -> { findField.setText(""); findField.requestFocusInWindow(); });
+        findField.putClientProperty("JTextField.trailingComponent", clearFieldBtn);
+
+        findField.getDocument().addDocumentListener(new DocumentListener() {
+            public void insertUpdate(DocumentEvent e) { onFindTextChanged(); }
+            public void removeUpdate(DocumentEvent e) { onFindTextChanged(); }
+            public void changedUpdate(DocumentEvent e) {}
+            private void onFindTextChanged() {
+                clearFieldBtn.setVisible(!findField.getText().isEmpty());
+                updateSearchMatches(findField.getText());
+            }
+        });
+        findField.addActionListener(e -> navigateSearch(+1));
+        findField.registerKeyboardAction(
+                e -> navigateSearch(-1),
+                KeyStroke.getKeyStroke(KeyEvent.VK_ENTER, InputEvent.SHIFT_DOWN_MASK),
+                JComponent.WHEN_FOCUSED);
+        findField.registerKeyboardAction(
+                e -> { bar.setVisible(false); clearSearchMatches(); logTable.requestFocusInWindow(); },
+                KeyStroke.getKeyStroke(KeyEvent.VK_ESCAPE, 0),
+                JComponent.WHEN_FOCUSED);
+
+        findCounter = new JLabel();
+        findCounter.setForeground(FG_DIM);
+        findCounter.setFont(findCounter.getFont().deriveFont(11f));
+        findCounter.setPreferredSize(new Dimension(80, findCounter.getPreferredSize().height));
+
+        JButton prevBtn = makeNavArrowButton("▲");
+        JButton nextBtn = makeNavArrowButton("▼");
+        prevBtn.setToolTipText("Previous match (Shift+Enter)");
+        nextBtn.setToolTipText("Next match (Enter)");
+        prevBtn.addActionListener(e -> navigateSearch(-1));
+        nextBtn.addActionListener(e -> navigateSearch(+1));
+
+        JButton closeBtn = new JButton("\u00d7");
+        closeBtn.setFont(closeBtn.getFont().deriveFont(13f));
+        closeBtn.setMargin(new Insets(1, 4, 1, 4));
+        closeBtn.addActionListener(e -> { bar.setVisible(false); clearSearchMatches(); logTable.requestFocusInWindow(); });
+
+        bar.add(label);
+        bar.add(findField, "growx");
+        bar.add(findCounter);
+        bar.add(prevBtn);
+        bar.add(nextBtn);
+        bar.add(closeBtn);
+        return bar;
+    }
+
+    private void updateSearchMatches(String query) {
+        if (query == null || query.isBlank()) {
+            clearSearchMatches();
+            return;
+        }
+        String lower = query.toLowerCase();
+        List<Integer> list = new ArrayList<>();
+        Set<Integer>  set  = new HashSet<>();
+        for (int viewRow = 0; viewRow < logTable.getRowCount(); viewRow++) {
+            int modelRow = logTable.convertRowIndexToModel(viewRow);
+            LogEntry entry = logTableModel.getEntry(modelRow);
+            if (entry != null && entryMatchesQuery(entry, lower)) {
+                list.add(modelRow);
+                set.add(modelRow);
+            }
+        }
+        searchMatchModelRows = Collections.unmodifiableSet(set);
+        searchMatchList      = Collections.unmodifiableList(list);
+        searchMatchCursor    = -1;
+        int n = list.size();
+        findCounter.setForeground(n == 0 ? new Color(0xEF5350) : FG_DIM);
+        findCounter.setText(n + (n == 1 ? " match" : " matches"));
+        logTable.repaint();
+        if (n > 0) navigateSearch(+1);
+    }
+
+    private void clearSearchMatches() {
+        searchMatchModelRows = Set.of();
+        searchMatchList      = List.of();
+        searchMatchCursor    = -1;
+        if (findCounter != null) findCounter.setText("");
+        logTable.repaint();
+    }
+
+    private static boolean entryMatchesQuery(LogEntry entry, String lower) {
+        if (entry.message() != null && entry.message().toLowerCase().contains(lower)) return true;
+        if (entry.logger()  != null && entry.logger().toLowerCase().contains(lower))  return true;
+        if (entry.thread()  != null && entry.thread().toLowerCase().contains(lower))  return true;
+        if (entry.level()   != null && entry.level().name().toLowerCase().contains(lower)) return true;
+        if (entry.fields()  != null) {
+            for (String v : entry.fields().values()) {
+                if (v != null && v.toLowerCase().contains(lower)) return true;
+            }
+        }
+        return false;
+    }
+
+    private void navigateSearch(int direction) {
+        if (searchMatchList.isEmpty()) return;
+        if (searchMatchCursor < 0) {
+            int currentView  = logTable.getSelectedRow();
+            int currentModel = currentView >= 0 ? logTable.convertRowIndexToModel(currentView) : -1;
+            searchMatchCursor = 0;
+            if (direction > 0) {
+                for (int i = 0; i < searchMatchList.size(); i++) {
+                    if (searchMatchList.get(i) >= currentModel) { searchMatchCursor = i; break; }
+                }
+            } else {
+                searchMatchCursor = searchMatchList.size() - 1;
+                for (int i = searchMatchList.size() - 1; i >= 0; i--) {
+                    if (searchMatchList.get(i) <= currentModel) { searchMatchCursor = i; break; }
+                }
+            }
+        } else {
+            searchMatchCursor = (searchMatchCursor + direction + searchMatchList.size()) % searchMatchList.size();
+        }
+        int modelRow = searchMatchList.get(searchMatchCursor);
+        int viewRow  = logTable.convertRowIndexToView(modelRow);
+        if (viewRow >= 0) {
+            logTable.setRowSelectionInterval(viewRow, viewRow);
+            logTable.scrollRectToVisible(logTable.getCellRect(viewRow, 0, true));
+            findCounter.setText((searchMatchCursor + 1) + " / " + searchMatchList.size());
+        }
+    }
+
     // ── Level color palette ───────────────────────────────────────────────────
 
     private static final Map<LogEntry.LogLevel, Color> LEVEL_COLORS;
@@ -756,9 +929,10 @@ public final class LogPanel extends JPanel {
         m.put(LogEntry.LogLevel.UNKNOWN, new Color(0x9E9E9E));
         LEVEL_COLORS = Collections.unmodifiableMap(m);
     }
-    private static final Color FG_DEFAULT = new Color(0xB0B7C3);
-    private static final Color FG_DIM     = new Color(0x6B7280);
-    private static final Color SEL_BG     = new Color(0xC8D8E8);
+    private static final Color FG_DEFAULT      = new Color(0xB0B7C3);
+    private static final Color FG_DIM          = new Color(0x6B7280);
+    private static final Color SEL_BG          = new Color(0xC8D8E8);
+    private static final Color SEARCH_MATCH_BG = new Color(0x2E2800);
 
     private static Color blend(Color a, Color b, float t) {
         return new Color(

@@ -135,7 +135,21 @@ final class FilterBar extends JPanel {
 
         // ── Text / regex search ───────────────────────────────────────────────
         searchField.putClientProperty("JTextField.placeholderText", Messages.get("filter.search.placeholder"));
-        searchField.getDocument().addDocumentListener(docListener(onChanged::run));
+
+        JButton clearSearchBtn = new JButton("×");
+        clearSearchBtn.setVisible(false);
+        clearSearchBtn.setFont(clearSearchBtn.getFont().deriveFont(14f));
+        clearSearchBtn.setBorderPainted(false);
+        clearSearchBtn.setContentAreaFilled(false);
+        clearSearchBtn.setFocusPainted(false);
+        clearSearchBtn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        clearSearchBtn.addActionListener(e -> { searchField.setText(""); searchField.requestFocusInWindow(); });
+        searchField.putClientProperty("JTextField.trailingComponent", clearSearchBtn);
+
+        searchField.getDocument().addDocumentListener(docListener(() -> {
+            clearSearchBtn.setVisible(!searchField.getText().isEmpty());
+            onChanged.run();
+        }));
         add(searchField, "growx");
 
         // ── Clear button ──────────────────────────────────────────────────────
@@ -274,8 +288,8 @@ final class FilterBar extends JPanel {
             rendererCb.setText(ln.segment());
             rendererCb.setSelected(state != CheckState.UNCHECKED);
             rendererCb.putClientProperty("JCheckBox.indeterminate", state == CheckState.INDETERMINATE);
-            int depth = Math.min(node.getLevel(), DEPTH_COLORS.length) - 1;
-            rendererCb.setForeground(DEPTH_COLORS[Math.max(depth, 0)]);
+            int depth = (node.getLevel() - 1) % DEPTH_COLORS.length;
+            rendererCb.setForeground(DEPTH_COLORS[depth]);
             return rendererCb;
         });
 
@@ -295,8 +309,9 @@ final class FilterBar extends JPanel {
 
         content.add(new JScrollPane(tree), "grow, wrap");
 
-        JButton allBtn  = new JButton(Messages.get("filter.loggers.select.all"));
-        JButton noneBtn = new JButton(Messages.get("filter.loggers.select.none"));
+        JButton allBtn   = new JButton(Messages.get("filter.loggers.select.all"));
+        JButton noneBtn  = new JButton(Messages.get("filter.loggers.select.none"));
+        JButton closeBtn = new JButton(Messages.get("filter.loggers.close"));
         allBtn.addActionListener(e -> {
             excludedLoggers.clear();
             tree.repaint();
@@ -309,9 +324,11 @@ final class FilterBar extends JPanel {
             updateLoggerButtonLabel();
             onChanged.run();
         });
-        JPanel btnRow = new JPanel(new MigLayout("insets 0", "[]push[]"));
+        closeBtn.addActionListener(e -> popup.setVisible(false));
+        JPanel btnRow = new JPanel(new MigLayout("insets 0", "[]push[][]"));
         btnRow.add(allBtn);
         btnRow.add(noneBtn);
+        btnRow.add(closeBtn);
         content.add(btnRow, "growx");
 
         popup.add(content);
@@ -377,7 +394,7 @@ final class FilterBar extends JPanel {
     private record LoggerNode(String segment, String fullPath) {}
     private enum CheckState { CHECKED, UNCHECKED, INDETERMINATE }
 
-    // Colors per tree depth (depth 1 = top-level visible node, clamped at last entry)
+    // Colors per tree depth (depth 1 = top-level visible node, wraps after 5 levels)
     private static final Color[] DEPTH_COLORS = {
         new Color(0xB0B7C3),  // depth 1
         new Color(0x82AAFF),  // depth 2
