@@ -83,6 +83,7 @@ final class FilterBar extends JPanel {
 
     // Used when only HH:mm:ss is typed — anchors time to the date of the first log entry
     private LocalDate referenceDate = LocalDate.now();
+    private boolean referenceDateSet = false;
 
     FilterBar(Runnable onChanged) {
         super(new MigLayout("insets 2 8 2 8, gap 4", "", "[center]"));
@@ -196,6 +197,41 @@ final class FilterBar extends JPanel {
         followBtn.setToolTipText(Messages.get("toolbar.follow.tooltip"));
         applyToggleStyle(followBtn);
         add(followBtn);
+    }
+
+    /** Resets logger state at the start of a new file load. */
+    void clearLoggers() {
+        allLoggers = List.of();
+        excludedLoggers.clear();
+        referenceDateSet = false;
+        updateLoggerButtonLabel();
+    }
+
+    /**
+     * Incrementally merges loggers from a streamed batch into the logger picker.
+     * Only rebuilds the sorted list when new loggers are found; only sets
+     * {@code referenceDate} once, from the first entry with a timestamp.
+     */
+    void addBatch(List<LogEntry> entries) {
+        if (!referenceDateSet) {
+            entries.stream()
+                    .filter(e -> e.timestamp() != null)
+                    .findFirst()
+                    .ifPresent(e -> {
+                        referenceDate = e.timestamp().atZone(ZoneId.systemDefault()).toLocalDate();
+                        referenceDateSet = true;
+                    });
+        }
+        Set<String> known = new HashSet<>(allLoggers);
+        boolean changed = entries.stream()
+                .map(LogEntry::logger)
+                .filter(Objects::nonNull)
+                .anyMatch(known::add);
+        if (changed) {
+            allLoggers = known.stream().sorted().toList();
+            excludedLoggers.retainAll(known);
+            updateLoggerButtonLabel();
+        }
     }
 
     void initScrollButtons(Runnable onTop, Runnable onBottom) {

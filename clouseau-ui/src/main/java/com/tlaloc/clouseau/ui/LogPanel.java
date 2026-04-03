@@ -195,11 +195,11 @@ public final class LogPanel extends JPanel {
         if (old != null) old.cancel(true);
         logIndex.clear();
         logTableModel.clear();
+        filterBar.clearLoggers();
         logTableModel.setCustomFields(parser.map(com.tlaloc.clouseau.api.LogParser::customFields).orElse(List.of()));
 
         ((CardLayout) centerCards.getLayout()).show(centerCards, CARD_LOADING);
 
-        List<LogEntry> loadedEntries = new ArrayList<>();
         boolean[] firstBatch = {true};
 
         SwingWorker<Void, LogEntry> worker = new SwingWorker<>() {
@@ -219,7 +219,6 @@ public final class LogPanel extends JPanel {
                                       null, LogEntry.LogLevel.UNKNOWN,
                                       null, null,
                                       candidate, candidate, Map.of()));
-                        loadedEntries.add(entry);
                         publish(entry);
                     }
                 }
@@ -230,6 +229,7 @@ public final class LogPanel extends JPanel {
             protected void process(List<LogEntry> chunk) {
                 if (isCancelled()) return;
                 logTableModel.appendBatch(chunk);
+                filterBar.addBatch(chunk);
                 if (firstBatch[0]) {
                     firstBatch[0] = false;
                     ((CardLayout) centerCards.getLayout()).show(centerCards, CARD_CONTENT);
@@ -243,8 +243,6 @@ public final class LogPanel extends JPanel {
                 if (isCancelled()) return;
                 try {
                     get();
-                    logIndex.load(loadedEntries);
-                    filterBar.updateLoggers(loadedEntries);
                     try { tailPosition = Files.size(currentFile); } catch (IOException ignored) {}
                     if (follow) startTailing();
                 } catch (Exception ex) {
