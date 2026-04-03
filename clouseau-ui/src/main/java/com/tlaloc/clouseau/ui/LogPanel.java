@@ -107,7 +107,6 @@ public final class LogPanel extends JPanel {
         fbHolder[0] = new FilterBar(() -> logTableModel.applyFilter(fbHolder[0].buildPredicate()));
         this.filterBar = fbHolder[0];
         filterBar.initFollow(follow, this::setFollow);
-        filterBar.initScrollButtons(this::scrollToTop, this::scrollToBottom);
         logTableModel.applyFilter(filterBar.buildPredicate());
 
         JSplitPane split = new JSplitPane(JSplitPane.VERTICAL_SPLIT, buildLogTable(), buildDetail());
@@ -435,6 +434,16 @@ public final class LogPanel extends JPanel {
             }
         };
         logTable.setBackground(new Color(0x191919));
+        logTable.getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT)
+                .put(KeyStroke.getKeyStroke(KeyEvent.VK_HOME, InputEvent.CTRL_DOWN_MASK), "scrollToTop");
+        logTable.getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT)
+                .put(KeyStroke.getKeyStroke(KeyEvent.VK_END, InputEvent.CTRL_DOWN_MASK), "scrollToBottom");
+        logTable.getActionMap().put("scrollToTop",    new AbstractAction() {
+            public void actionPerformed(java.awt.event.ActionEvent e) { scrollToTop(); }
+        });
+        logTable.getActionMap().put("scrollToBottom", new AbstractAction() {
+            public void actionPerformed(java.awt.event.ActionEvent e) { scrollToBottom(); }
+        });
         logTable.setAutoResizeMode(JTable.AUTO_RESIZE_LAST_COLUMN);
         logTable.setRowSorter(new javax.swing.table.TableRowSorter<>(logTableModel));
         logTable.getColumnModel().getColumn(0).setPreferredWidth(50);
@@ -1048,7 +1057,7 @@ public final class LogPanel extends JPanel {
         JPanel bar = new JPanel(new BorderLayout());
         bar.setBorder(BorderFactory.createMatteBorder(0, 0, 1, 0, new Color(0x272727)));
 
-        // ── Left: formatter / colorizer toggles ───────────────────────────────
+        // ── Left: formatter / syntax highlight toggles ───────────────────────────────
         JPanel controls = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 3));
         controls.setOpaque(false);
 
@@ -1130,8 +1139,8 @@ public final class LogPanel extends JPanel {
 
     private static void disableDetailBtn(JToggleButton btn) {
         btn.putClientProperty("savedSelected", btn.isSelected());
-        btn.setSelected(false);   // triggers applyToggleStyle's ItemListener → off-state colors
-        btn.setEnabled(false);    // FlatLaf now preserves those off-state colors
+        btn.setSelected(false);
+        btn.setEnabled(false);
     }
 
     private static void enableDetailBtn(JToggleButton btn) {
