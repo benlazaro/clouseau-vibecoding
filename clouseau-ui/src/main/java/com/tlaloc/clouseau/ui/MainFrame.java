@@ -8,16 +8,10 @@ import lombok.extern.slf4j.Slf4j;
 import net.miginfocom.swing.MigLayout;
 
 import javax.swing.*;
-import javax.swing.filechooser.FileNameExtensionFilter;
-import javax.swing.plaf.basic.BasicFileChooserUI;
 import java.awt.*;
 import java.awt.color.ColorSpace;
 import java.awt.image.BufferedImage;
 import java.awt.image.ColorConvertOp;
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.IOException;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
@@ -209,37 +203,12 @@ public final class MainFrame extends JFrame {
     // ── File opening ──────────────────────────────────────────────────────────
 
     private void openFile() {
-        JFileChooser chooser = new JFileChooser() {
-            @Override
-            public void approveSelection() {
-                File f = getSelectedFile();
-                if (f != null && f.isFile()) {
-                    Optional<LogParser> chosen = lastParserIndex == 0
-                            ? Optional.empty()
-                            : Optional.of(parsers.get(lastParserIndex - 1));
-                    if (detectParser(f.toPath(), chosen).isEmpty()) return;
-                }
-                super.approveSelection();
-            }
-        };
-        chooser.setDialogTitle(Messages.get("filechooser.title"));
-        chooser.setFileFilter(new FileNameExtensionFilter(
-                Messages.get("filechooser.filter.desc"), "log", "txt", "out", "gz", "zip"));
-        chooser.setAcceptAllFileFilterUsed(true);
-        chooser.setAccessory(buildParserAccessory(chooser));
-        File lastDir = AppPrefs.getLastOpenDir();
-        if (lastDir != null) chooser.setCurrentDirectory(lastDir);
-
-        if (chooser.showOpenDialog(this) != JFileChooser.APPROVE_OPTION) return;
-
-        AppPrefs.setLastOpenDir(chooser.getCurrentDirectory());
-        Path file = chooser.getSelectedFile().toPath();
-        Optional<LogParser> chosen = lastParserIndex == 0
-                ? Optional.empty()
-                : Optional.of(parsers.get(lastParserIndex - 1));
-        log.info("Opening {} with parser: {}", file.getFileName(),
-                chosen.map(LogParser::getName).orElse("Auto-detect"));
-        openFile(file, chosen);
+        new FileChooserDialog(this, parsers, lastParserIndex).showDialog().ifPresent(r -> {
+            lastParserIndex = r.parserIndex();
+            log.info("Opening {} with parser: {}", r.file().getFileName(),
+                    r.parser().map(LogParser::getName).orElse("Auto-detect"));
+            openFile(r.file(), r.parser());
+        });
     }
 
     /** Opens {@code file} in a new tab with auto-detect parser. Called via IPC or CLI args. */
@@ -427,108 +396,6 @@ public final class MainFrame extends JFrame {
         badge.setBorder(BorderFactory.createEmptyBorder(2, 7, 2, 7));
         badge.add(label);
         return badge;
-    }
-
-    // ── Parser detection + file-chooser accessory ────────────────────────────
-
-    private Optional<LogParser> detectParser(Path file, Optional<LogParser> chosen) {
-        try (BufferedReader reader = LogPanel.openReader(file)) {
-            String line;
-            int checked = 0;
-            while ((line = reader.readLine()) != null && checked < 50) {
-                if (line.isBlank()) continue;
-                checked++;
-                final String candidate = line;
-                Optional<LogParser> match = chosen
-                        .map(Stream::of)
-                        .orElseGet(parsers::stream)
-                        .filter(p -> p.canParse(candidate))
-                        .findFirst();
-                if (match.isPresent()) return match;
-            }
-        } catch (IOException e) {
-            log.warn("Could not validate file {} — proceeding anyway", file, e);
-            return chosen.or(() -> parsers.stream().findFirst());
-        }
-        return Optional.empty();
-    }
-
-    private JPanel buildParserAccessory(JFileChooser chooser) {
-        String[] items = Stream.concat(
-                Stream.of(Messages.get("filechooser.parser.autodetect")),
-                parsers.stream().map(LogParser::getName)
-        ).toArray(String[]::new);
-
-        JComboBox<String> combo = new JComboBox<>(items);
-        combo.setSelectedIndex(lastParserIndex);
-
-        JLabel statusLabel = new JLabel(" ");
-        statusLabel.setFont(statusLabel.getFont().deriveFont(11f));
-
-        Runnable validate = () -> {
-            File selected = chooser.getSelectedFile();
-            if (selected == null || !selected.isFile()) {
-                statusLabel.setText(" ");
-                findApproveButton(chooser).ifPresent(b -> b.setEnabled(true));
-                return;
-            }
-            int idx = combo.getSelectedIndex();
-            Optional<LogParser> chosen = idx == 0
-                    ? Optional.empty()
-                    : Optional.of(parsers.get(idx - 1));
-            Optional<LogParser> matched = detectParser(selected.toPath(), chosen);
-            if (matched.isPresent()) {
-                statusLabel.setForeground(new Color(0x4CAF50));
-                String statusText = chosen.isPresent()
-                        ? Messages.get("filechooser.status.compatible")
-                        : Messages.get("filechooser.status.compatible.detected").formatted(matched.get().getName());
-                statusLabel.setText(statusText);
-            } else {
-                statusLabel.setForeground(new Color(0xE57373));
-                String name = chosen.map(LogParser::getName)
-                        .orElse(Messages.get("filechooser.parser.autodetect"));
-                statusLabel.setText(Messages.get("filechooser.status.incompatible").formatted(name));
-            }
-            findApproveButton(chooser).ifPresent(b -> b.setEnabled(matched.isPresent()));
-        };
-
-        combo.addActionListener(e -> {
-            lastParserIndex = combo.getSelectedIndex();
-            validate.run();
-        });
-        chooser.addPropertyChangeListener(JFileChooser.SELECTED_FILE_CHANGED_PROPERTY,
-                e -> validate.run());
-        chooser.addPropertyChangeListener(JFileChooser.DIRECTORY_CHANGED_PROPERTY, e -> {
-            chooser.setSelectedFile(null);
-            if (chooser.getUI() instanceof BasicFileChooserUI basicUI) {
-                basicUI.setFileName("");
-            }
-            SwingUtilities.invokeLater(validate);
-        });
-
-        JPanel panel = new JPanel(new MigLayout("insets 8, wrap 1", "[160px!]"));
-        panel.add(new JLabel(Messages.get("filechooser.parser.label")));
-        panel.add(combo, "growx");
-        panel.add(statusLabel, "growx, gaptop 6");
-        return panel;
-    }
-
-    private static Optional<JButton> findApproveButton(JFileChooser chooser) {
-        String text = UIManager.getString("FileChooser.openButtonText");
-        return findButtonByText(chooser, text);
-    }
-
-    private static Optional<JButton> findButtonByText(Container container, String text) {
-        for (Component c : container.getComponents()) {
-            if (c instanceof JButton b && text != null && text.equals(b.getText())) {
-                return Optional.of(b);
-            }
-            if (c instanceof Container sub) {
-                Optional<JButton> found = findButtonByText(sub, text);
-                if (found.isPresent()) return found;
-            }
-        }
-        return Optional.empty();
     }
 
     private static BufferedImage renderSvgWatermark(int size) {

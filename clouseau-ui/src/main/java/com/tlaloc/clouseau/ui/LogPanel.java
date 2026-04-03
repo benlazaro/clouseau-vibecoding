@@ -73,8 +73,9 @@ public final class LogPanel extends JPanel {
     private volatile long tailPosition = 0;
     private boolean follow = AppPrefs.isFollowByDefault();
     private final java.util.Set<String> disabledFormatters = new java.util.HashSet<>();
-    private static final String COLORIZER_NONE = "\0none";
-    private String activeColorizerName = null; // null = auto, COLORIZER_NONE = off, else specific name
+    private boolean colorizerEnabled = true;
+    private LogColorizer currentEntryColorizer; // tracks which colorizer button is currently shown
+    private JPanel colorizerButtonPanel;
     private Set<Integer>  searchMatchModelRows = Set.of();
     private List<Integer> searchMatchList      = List.of();
     private int           searchMatchCursor    = -1;
@@ -104,6 +105,7 @@ public final class LogPanel extends JPanel {
         fbHolder[0] = new FilterBar(() -> logTableModel.applyFilter(fbHolder[0].buildPredicate()));
         this.filterBar = fbHolder[0];
         filterBar.initFollow(follow, this::setFollow);
+        filterBar.initScrollButtons(this::scrollToTop, this::scrollToBottom);
         logTableModel.applyFilter(filterBar.buildPredicate());
 
         JSplitPane split = new JSplitPane(JSplitPane.VERTICAL_SPLIT, buildLogTable(), buildDetail());
@@ -162,11 +164,14 @@ public final class LogPanel extends JPanel {
         this.follow = follow;
         filterBar.setFollowSelected(follow);
         if (follow) {
-            scrollToBottom();
             startTailing();
         } else {
             stopTailing();
         }
+    }
+
+    private void scrollToTop() {
+        if (logTable.getRowCount() > 0) logTable.scrollRectToVisible(logTable.getCellRect(0, 0, true));
     }
 
     private void scrollToBottom() {
@@ -1054,44 +1059,9 @@ public final class LogPanel extends JPanel {
             }
         }
 
-        if (!formatters.isEmpty() && !colorizers.isEmpty()) {
-            JSeparator sep = new JSeparator(JSeparator.VERTICAL);
-            sep.setPreferredSize(new Dimension(1, 18));
-            controls.add(sep);
-        }
-
-        if (!colorizers.isEmpty()) {
-            JLabel label = new JLabel(Messages.get("detail.toolbar.color"));
-            label.setForeground(FG_DIM);
-            label.setFont(label.getFont().deriveFont(11f));
-            controls.add(label);
-
-            ButtonGroup group = new ButtonGroup();
-
-            JToggleButton autoBtn = new JToggleButton(Messages.get("detail.toolbar.color.auto"));
-            autoBtn.setSelected(true);
-            autoBtn.setFont(autoBtn.getFont().deriveFont(11f));
-            FilterBar.applyToggleStyle(autoBtn);
-            autoBtn.addActionListener(e -> { activeColorizerName = null; refreshDetail(); });
-            group.add(autoBtn);
-            controls.add(autoBtn);
-
-            JToggleButton noneBtn = new JToggleButton(Messages.get("detail.toolbar.color.none"));
-            noneBtn.setFont(noneBtn.getFont().deriveFont(11f));
-            FilterBar.applyToggleStyle(noneBtn);
-            noneBtn.addActionListener(e -> { activeColorizerName = COLORIZER_NONE; refreshDetail(); });
-            group.add(noneBtn);
-            controls.add(noneBtn);
-
-            for (LogColorizer colorizer : colorizers) {
-                JToggleButton btn = new JToggleButton(colorizer.getName());
-                btn.setFont(btn.getFont().deriveFont(11f));
-                FilterBar.applyToggleStyle(btn);
-                btn.addActionListener(e -> { activeColorizerName = colorizer.getName(); refreshDetail(); });
-                group.add(btn);
-                controls.add(btn);
-            }
-        }
+        colorizerButtonPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 0));
+        colorizerButtonPanel.setOpaque(false);
+        controls.add(colorizerButtonPanel);
 
         bar.add(controls, BorderLayout.CENTER);
 
@@ -1113,6 +1083,35 @@ public final class LogPanel extends JPanel {
         bar.add(right, BorderLayout.EAST);
 
         return bar;
+    }
+
+    private void updateColorizerButton(LogColorizer colorizer) {
+        if (colorizer == currentEntryColorizer) return; // no UI change needed
+        currentEntryColorizer = colorizer;
+        colorizerButtonPanel.removeAll();
+        if (colorizer != null) {
+            if (!formatters.isEmpty()) {
+                JSeparator sep = new JSeparator(JSeparator.VERTICAL);
+                sep.setPreferredSize(new Dimension(1, 18));
+                colorizerButtonPanel.add(sep);
+            }
+            JLabel label = new JLabel(Messages.get("detail.toolbar.color"));
+            label.setForeground(FG_DIM);
+            label.setFont(label.getFont().deriveFont(11f));
+            colorizerButtonPanel.add(label);
+
+            JToggleButton btn = new JToggleButton(colorizer.getName());
+            btn.setSelected(colorizerEnabled);
+            btn.setFont(btn.getFont().deriveFont(11f));
+            FilterBar.applyToggleStyle(btn);
+            btn.addActionListener(e -> {
+                colorizerEnabled = btn.isSelected();
+                refreshDetail();
+            });
+            colorizerButtonPanel.add(btn);
+        }
+        colorizerButtonPanel.revalidate();
+        colorizerButtonPanel.repaint();
     }
 
     private JPanel buildDetail() {
@@ -1172,6 +1171,7 @@ public final class LogPanel extends JPanel {
         if (entry == null) {
             lastFormattedMessage = "";
             messageFieldStart = messageFieldEnd = -1;
+            updateColorizerButton(null);
             insertText(doc, Messages.get("detail.placeholder"), val);
             detailArea.setCaretPosition(0);
             return;
@@ -1208,16 +1208,10 @@ public final class LogPanel extends JPanel {
 
         String messageText = applyFormatters(entry.message() != null ? entry.message() : "");
         lastFormattedMessage = messageText;
-        LogColorizer colorizer;
-        if (COLORIZER_NONE.equals(activeColorizerName)) {
-            colorizer = null;
-        } else if (activeColorizerName == null) {
-            colorizer = colorizers.stream().filter(c -> c.canColorize(messageText)).findFirst().orElse(null);
-        } else {
-            colorizer = colorizers.stream()
-                    .filter(c -> c.getName().equals(activeColorizerName) && c.canColorize(messageText))
-                    .findFirst().orElse(null);
-        }
+        LogColorizer applicableColorizer = colorizers.stream()
+                .filter(c -> c.canColorize(messageText)).findFirst().orElse(null);
+        updateColorizerButton(applicableColorizer);
+        LogColorizer colorizer = colorizerEnabled ? applicableColorizer : null;
         String msgLabel = String.format("%-12s ", Messages.get("table.col.message") + ":");
         messageFieldStart = doc.getLength() + msgLabel.length();
         if (colorizer != null) {

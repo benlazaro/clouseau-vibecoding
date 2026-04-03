@@ -32,6 +32,7 @@ public final class AppPrefs {
     private static final String KEY_LAST_OPEN_DIR     = "last.open.dir";
     private static final String KEY_RECENT_FILES      = "recent.files";
     private static final String KEY_RECENT_MAX        = "recent.max";
+    private static final String KEY_FAVORITES         = "favorites";
     private static final int    MAX_RECENT            = 10;
 
     private static final JsonObject ROOT = load();
@@ -186,5 +187,18 @@ public final class AppPrefs {
 
     public static void clearRecentFiles() {
         remove(KEY_RECENT_FILES);
+    }
+
+    /** Returns the saved favorite locations (directories or files) that still exist on disk. */
+    public static List<Path> getFavorites() {
+        return getStringList(KEY_FAVORITES).stream()
+                .filter(s -> !s.isBlank())
+                .map(Path::of)
+                .filter(Files::exists)
+                .toList();
+    }
+
+    public static void saveFavorites(List<Path> favorites) {
+        putStringList(KEY_FAVORITES, favorites.stream().map(Path::toString).toList());
     }
 }

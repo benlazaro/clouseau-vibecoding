@@ -72,6 +72,8 @@ final class FilterBar extends JPanel {
     private final JTextField     searchField = new JTextField(16);
     private final Runnable       onChanged;
     private JToggleButton        followBtn;
+    private final JButton        scrollTopBtn    = new JButton("▲");
+    private final JButton        scrollBottomBtn = new JButton("▼");
 
     // Logger picker state
     private List<String>     allLoggers      = List.of();
@@ -171,6 +173,19 @@ final class FilterBar extends JPanel {
 
         add(new JSeparator(JSeparator.VERTICAL), "growy, gapx 4, pushx");
 
+        // ── Scroll to top / bottom ────────────────────────────────────────────
+        for (JButton btn : new JButton[]{scrollTopBtn, scrollBottomBtn}) {
+            btn.setFont(btn.getFont().deriveFont(11f));
+            btn.setPreferredSize(new Dimension(28, 22));
+            btn.setMargin(new Insets(0, 2, 0, 2));
+            btn.setFocusPainted(false);
+            add(btn);
+        }
+        scrollTopBtn.setToolTipText(Messages.get("toolbar.scroll.top.tooltip"));
+        scrollBottomBtn.setToolTipText(Messages.get("toolbar.scroll.bottom.tooltip"));
+
+        add(new JSeparator(JSeparator.VERTICAL), "growy, gapx 4");
+
         // ── Follow toggle ─────────────────────────────────────────────────────
         followBtn = new JToggleButton(Messages.get("toolbar.follow"));
         followBtn.setFocusPainted(false);
@@ -179,6 +194,11 @@ final class FilterBar extends JPanel {
         followBtn.setToolTipText(Messages.get("toolbar.follow.tooltip"));
         applyToggleStyle(followBtn);
         add(followBtn);
+    }
+
+    void initScrollButtons(Runnable onTop, Runnable onBottom) {
+        scrollTopBtn.addActionListener(e -> onTop.run());
+        scrollBottomBtn.addActionListener(e -> onBottom.run());
     }
 
     void initFollow(boolean initial, java.util.function.Consumer<Boolean> onToggle) {
