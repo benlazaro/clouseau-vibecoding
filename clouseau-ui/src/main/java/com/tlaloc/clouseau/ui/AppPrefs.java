@@ -26,7 +26,8 @@ public final class AppPrefs {
     private static final Path PREFS_FILE = PREFS_DIR.resolve("settings.json");
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
 
-    private static final String KEY_TAB_CLOSE_CONFIRM  = "tab.close.confirm";
+    private static final String KEY_TAB_CLOSE_CONFIRM            = "tab.close.confirm";
+    private static final String KEY_HIGHLIGHT_CLEAR_ALL_CONFIRM  = "highlight.clear.all.confirm";
     private static final String KEY_FOLLOW_BY_DEFAULT  = "follow.by.default";
     private static final String KEY_DETAIL_FONT_SIZE   = "detail.font.size";
     private static final String KEY_DETAIL_WRAP_LINES  = "detail.wrap.lines";
@@ -131,6 +132,14 @@ public final class AppPrefs {
 
     public static void setTabCloseConfirm(boolean value) {
         putBool(KEY_TAB_CLOSE_CONFIRM, value);
+    }
+
+    public static boolean isHighlightClearAllConfirm() {
+        return getBool(KEY_HIGHLIGHT_CLEAR_ALL_CONFIRM, true);
+    }
+
+    public static void setHighlightClearAllConfirm(boolean value) {
+        putBool(KEY_HIGHLIGHT_CLEAR_ALL_CONFIRM, value);
     }
 
     public static int getDetailFontSize() {

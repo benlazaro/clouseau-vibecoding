@@ -260,11 +260,8 @@ public final class MainFrame extends JFrame {
     private JPanel buildTabHeader(String title, Path file, LogPanel panel) {
         JPanel header = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 0));
         header.setOpaque(false);
-        String tooltip = file != null ? file.toString() : null;
-        header.setToolTipText(tooltip);
 
         JLabel label = new JLabel(title);
-        label.setToolTipText(tooltip);
 
         JButton close = new JButton("\u00d7"); // ×
         close.setPreferredSize(new Dimension(18, 18));

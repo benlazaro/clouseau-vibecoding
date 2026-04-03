@@ -94,6 +94,7 @@ public final class LogPanel extends JPanel {
     private static final String CARD_LOADING = "loading";
     private JPanel statusBar;
     private JLabel statusBarLabel;
+    private JLabel statusBarPathLabel;
     private JPanel highlightNavBar;
     private JPanel highlightNavSwatches;
     private JLabel highlightNavPosition;
@@ -192,6 +193,8 @@ public final class LogPanel extends JPanel {
     public void load(Path file, Optional<LogParser> parser, Runnable onError) {
         currentFile = file.toAbsolutePath();
         currentParser = parser;
+        statusBarPathLabel.setText(currentFile.toString());
+        statusBarPathLabel.setToolTipText(currentFile.toString());
         stopTailing();
         SwingWorker<?, ?> old = currentWorker;
         if (old != null) old.cancel(true);
@@ -364,6 +367,11 @@ public final class LogPanel extends JPanel {
     // ── Status bar ────────────────────────────────────────────────────────────
 
     private JPanel buildStatusBar() {
+        statusBarPathLabel = new JLabel(" ");
+        statusBarPathLabel.setForeground(UIManager.getColor("Button.foreground"));
+        statusBarPathLabel.setFont(statusBarPathLabel.getFont().deriveFont(12f));
+        statusBarPathLabel.setBorder(BorderFactory.createEmptyBorder(6, 8, 8, 8));
+
         statusBarLabel = new JLabel(" ");
         statusBarLabel.setForeground(UIManager.getColor("Button.foreground"));
         statusBarLabel.setFont(statusBarLabel.getFont().deriveFont(12f));
@@ -372,7 +380,8 @@ public final class LogPanel extends JPanel {
 
         JPanel panel = new JPanel(new BorderLayout());
         panel.setBorder(BorderFactory.createMatteBorder(1, 0, 0, 0, new Color(0x272727)));
-        panel.add(statusBarLabel, BorderLayout.CENTER);
+        panel.add(statusBarPathLabel, BorderLayout.WEST);
+        panel.add(statusBarLabel, BorderLayout.EAST);
         return panel;
     }
 
@@ -660,6 +669,14 @@ public final class LogPanel extends JPanel {
         JMenuItem clearAllItem = new JMenuItem(Messages.get("highlight.clear.all"));
         if (hasHL) {
             clearAllItem.addActionListener(e -> {
+                if (AppPrefs.isHighlightClearAllConfirm()) {
+                    int confirm = JOptionPane.showConfirmDialog(
+                            SwingUtilities.getWindowAncestor(this),
+                            Messages.get("highlight.clear.all.confirm.message"),
+                            Messages.get("highlight.clear.all.confirm.title"),
+                            JOptionPane.YES_NO_OPTION);
+                    if (confirm != JOptionPane.YES_OPTION) return;
+                }
                 logTableModel.clearAllHighlights();
                 refreshDetailAfterHighlight();
             });
