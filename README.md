@@ -15,7 +15,7 @@ A modern, pluggable log viewer for software engineers — built for files up to 
 - **Filtering** — filter by level, logger, time range, and free-text message search (all columns)
 - **Follow mode** — tail a live file like `tail -f`; survives log rotation without losing existing rows
 - **Detail panel** — inspect the full entry with formatted, syntax-highlighted message; copy the message to clipboard
-- **Formatters & colorizers** — built-in JSON pretty-printer and Monokai-inspired JSON colorizer; toggle or override per-entry from the detail toolbar
+- **Formatters & syntax highlighters** — built-in JSON pretty-printer and Monokai-inspired JSON syntax highlighter; toggle or override per-entry from the detail toolbar
 - **Find bar** — `Ctrl+F` searches all columns across visible rows with `↑`/`↓` navigation
 - **Plugin system** — drop in a JAR to add new parsers, formatters, colorizers, or sources at runtime
 
@@ -99,10 +99,12 @@ Default Logback console format. Two variants are supported:
 - **Level solo** — Alt+click a level button to show only that level; Alt+click it again to restore all.
 - **Logger picker** — hierarchical tree with checkboxes; right-click the **Loggers** button to open. Click **Close** to dismiss without accidentally hitting **None**.
 
+**Navigate the table** — `Ctrl+Home` jumps to the first row; `Ctrl+End` jumps to the last row.
+
 **Find** — press `Ctrl+F` to open the find bar. Searches all columns (message, logger, thread, level, custom fields) across visible rows. `Enter` / `Shift+Enter` or `▲` / `▼` to navigate matches. `Escape` to close.
 
-**Detail panel** — select any row to see all fields expanded. The message is automatically formatted (JSON is pretty-printed) and colorized (Monokai palette).
-- Toggle individual formatters and colorizers from the toolbar above the detail pane.
+**Detail panel** — select any row to see all fields expanded. The message is automatically formatted (JSON is pretty-printed) and syntax-highlighted (Monokai palette).
+- Toggle individual formatters and syntax highlighters from the toolbar above the detail pane.
 - Click **Copy Message** to copy the formatted message text to the clipboard (the message text flashes to confirm).
 
 **Follow** — enabled by default. Toggleable per-tab in the filter bar. New lines are appended as they arrive; opening a file always starts at the top. Log rotation is handled transparently — existing rows are kept and the new file is tailed from the beginning.
