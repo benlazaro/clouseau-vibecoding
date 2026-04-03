@@ -917,7 +917,7 @@ public final class LogPanel extends JPanel {
         for (int viewRow = 0; viewRow < logTable.getRowCount(); viewRow++) {
             int modelRow = logTable.convertRowIndexToModel(viewRow);
             LogEntry entry = logTableModel.getEntry(modelRow);
-            if (entry != null && entryMatchesQuery(entry, lower)) {
+            if (entry != null && (entryMatchesQuery(entry, lower) || continuationsMatch(modelRow, lower))) {
                 list.add(modelRow);
                 set.add(modelRow);
             }
@@ -938,6 +938,13 @@ public final class LogPanel extends JPanel {
         searchMatchCursor    = -1;
         if (findCounter != null) findCounter.setText("");
         logTable.repaint();
+    }
+
+    private boolean continuationsMatch(int modelRow, String lower) {
+        for (LogEntry c : logTableModel.getContinuationLines(modelRow)) {
+            if (entryMatchesQuery(c, lower)) return true;
+        }
+        return false;
     }
 
     private static boolean entryMatchesQuery(LogEntry entry, String lower) {
