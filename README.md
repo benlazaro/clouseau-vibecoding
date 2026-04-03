@@ -95,7 +95,7 @@ Default Logback console format. Two variants are supported:
 
 **Highlight rows** — right-click one or more rows and choose a colour. Use the highlight nav bar to jump between highlighted rows, filtered by colour.
 
-**Filter** — use the level toggles, logger picker, time range, and message search box. Filters combine (AND). Click **Clear All Filters** to reset all.
+**Filter** — use the level toggles, logger picker, time range, and message filter box. Filters combine (AND). Click **Clear All Filters** to reset all.
 - **Level solo** — Alt+click a level button to show only that level; Alt+click it again to restore all.
 - **Logger picker** — hierarchical tree with checkboxes; right-click the **Loggers** button to open. Click **Close** to dismiss without accidentally hitting **None**.
 
