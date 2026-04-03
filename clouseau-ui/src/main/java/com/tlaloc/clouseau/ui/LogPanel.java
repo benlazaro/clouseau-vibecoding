@@ -88,6 +88,7 @@ public final class LogPanel extends JPanel {
     private String        lastFormattedMessage = "";
     private int           messageFieldStart    = -1;
     private int           messageFieldEnd      = -1;
+    private boolean       wrapLines            = AppPrefs.isDetailWrapLines();
     private JPanel centerCards;
     private static final String CARD_CONTENT = "content";
     private static final String CARD_LOADING = "loading";
@@ -354,6 +355,12 @@ public final class LogPanel extends JPanel {
         showDetail(modelRow >= 0 ? logTableModel.getEntry(modelRow) : null, modelRow);
     }
 
+    public void applyWrapLines(boolean wrap) {
+        this.wrapLines = wrap;
+        detailArea.revalidate();
+        refreshDetail();
+    }
+
     // ── Status bar ────────────────────────────────────────────────────────────
 
     private JPanel buildStatusBar() {
@@ -531,7 +538,7 @@ public final class LogPanel extends JPanel {
         logTable.setShowHorizontalLines(true);
         logTable.setShowVerticalLines(false);
         logTable.setGridColor(new Color(0x272727));
-        logTable.setRowHeight(22);
+        logTable.setRowHeight(AppPrefs.getRowHeight());
         logTable.addComponentListener(new java.awt.event.ComponentAdapter() {
             @Override public void componentResized(java.awt.event.ComponentEvent e) {
                 if (tableColumnsManaged) stretchMessageColumn();
@@ -1116,7 +1123,7 @@ public final class LogPanel extends JPanel {
 
         bar.add(controls, BorderLayout.CENTER);
 
-        // ── Right: copy button ────────────────────────────────────────────────
+        // ── Right: font size + copy button ───────────────────────────────────
         copyBtn = new JButton(Messages.get("detail.toolbar.copy"));
         copyBtn.setFont(copyBtn.getFont().deriveFont(11f));
         copyBtn.setMargin(new Insets(2, 6, 2, 6));
@@ -1128,8 +1135,32 @@ public final class LogPanel extends JPanel {
             flashMessageField();
         });
 
-        JPanel right = new JPanel(new FlowLayout(FlowLayout.RIGHT, 6, 3));
+        JButton fontDecBtn = new JButton("A\u207B");
+        JButton fontIncBtn = new JButton("A\u207A");
+        for (JButton btn : new JButton[]{fontDecBtn, fontIncBtn}) {
+            btn.setFont(btn.getFont().deriveFont(11f));
+            btn.setMargin(new Insets(2, 5, 2, 5));
+        }
+        fontDecBtn.setToolTipText("Decrease font size");
+        fontIncBtn.setToolTipText("Increase font size");
+        fontDecBtn.addActionListener(e -> {
+            int sz = Math.max(8, AppPrefs.getDetailFontSize() - 1);
+            AppPrefs.setDetailFontSize(sz);
+            refreshDetail();
+        });
+        fontIncBtn.addActionListener(e -> {
+            int sz = Math.min(32, AppPrefs.getDetailFontSize() + 1);
+            AppPrefs.setDetailFontSize(sz);
+            refreshDetail();
+        });
+
+        JPanel right = new JPanel(new FlowLayout(FlowLayout.RIGHT, 4, 3));
         right.setOpaque(false);
+        right.add(fontDecBtn);
+        right.add(fontIncBtn);
+        JSeparator fontSep = new JSeparator(JSeparator.VERTICAL);
+        fontSep.setPreferredSize(new Dimension(1, 18));
+        right.add(fontSep);
         right.add(copyBtn);
         bar.add(right, BorderLayout.EAST);
 
@@ -1138,7 +1169,9 @@ public final class LogPanel extends JPanel {
 
 
     private static void disableDetailBtn(JToggleButton btn) {
-        btn.putClientProperty("savedSelected", btn.isSelected());
+        if (btn.isEnabled()) {
+            btn.putClientProperty("savedSelected", btn.isSelected());
+        }
         btn.setSelected(false);
         btn.setEnabled(false);
     }
@@ -1152,7 +1185,12 @@ public final class LogPanel extends JPanel {
     }
 
     private JPanel buildDetail() {
-        detailArea = new JTextPane();
+        detailArea = new JTextPane() {
+            @Override
+            public boolean getScrollableTracksViewportWidth() {
+                return wrapLines;
+            }
+        };
         detailArea.setEditable(false);
         detailArea.setBackground(new Color(0x191919));
         detailArea.setForeground(FG_DEFAULT);

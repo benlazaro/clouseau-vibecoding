@@ -32,11 +32,9 @@ final class SettingsDialog extends JDialog {
         this.logPanel = logPanel;
         this.onApply  = onApply;
 
-        JTable logTable = logPanel != null ? logPanel.getLogTable() : null;
-        int currentRowHeight = logTable != null ? logTable.getRowHeight() : 22;
-        rowHeightSpinner       = new JSpinner(new SpinnerNumberModel(currentRowHeight, 14, 64, 1));
+        rowHeightSpinner       = new JSpinner(new SpinnerNumberModel(AppPrefs.getRowHeight(), 14, 64, 1));
         detailFontSizeSpinner  = new JSpinner(new SpinnerNumberModel(AppPrefs.getDetailFontSize(), 8, 36, 1));
-        wrapLinesCheckBox      = new JCheckBox(Messages.get("settings.detail.wrap"), true);
+        wrapLinesCheckBox      = new JCheckBox(Messages.get("settings.detail.wrap"), AppPrefs.isDetailWrapLines());
         confirmCloseCheckBox   = new JCheckBox(Messages.get("settings.tab.confirm.close"), AppPrefs.isTabCloseConfirm());
         followByDefaultCheckBox = new JCheckBox(Messages.get("settings.follow.by.default"), AppPrefs.isFollowByDefault());
         recentMaxSpinner       = new JSpinner(new SpinnerNumberModel(AppPrefs.getRecentFilesMax(), 1, 10, 1));

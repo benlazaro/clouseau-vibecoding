@@ -278,7 +278,11 @@ public final class MainFrame extends JFrame {
         header.add(close);
 
         java.awt.event.MouseAdapter tabMenu = new java.awt.event.MouseAdapter() {
-            @Override public void mousePressed(java.awt.event.MouseEvent e)  { maybeShow(e); }
+            @Override public void mousePressed(java.awt.event.MouseEvent e) {
+                int idx = tabbedPane.indexOfTabComponent(header);
+                if (idx >= 0) tabbedPane.setSelectedIndex(idx);
+                maybeShow(e);
+            }
             @Override public void mouseReleased(java.awt.event.MouseEvent e) { maybeShow(e); }
             private void maybeShow(java.awt.event.MouseEvent e) {
                 if (!e.isPopupTrigger()) return;
