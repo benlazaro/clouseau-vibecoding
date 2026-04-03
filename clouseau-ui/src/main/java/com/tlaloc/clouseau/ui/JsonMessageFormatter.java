@@ -16,7 +16,7 @@ final class JsonMessageFormatter implements LogFormatter {
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
 
     @Override
-    public String getName() { return "JSON Pretty-Print"; }
+    public String getName() { return "JSON"; }
 
     @Override
     public boolean canFormat(String input) {

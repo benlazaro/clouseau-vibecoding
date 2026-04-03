@@ -71,11 +71,13 @@ public final class LogPanel extends JPanel {
     private Path currentFile;
     private Optional<LogParser> currentParser = Optional.empty();
     private volatile long tailPosition = 0;
-    private boolean follow = AppPrefs.isFollowByDefault();
+    private boolean follow  = AppPrefs.isFollowByDefault();
+    private boolean loading = false;
     private final java.util.Set<String> disabledFormatters = new java.util.HashSet<>();
-    private boolean syntaxHighlightEnabled = true;
-    private LogSyntaxHighlighter currentEntrySyntaxHighlighter; // tracks which colorizer button is currently shown
     private JPanel syntaxHighlightPanel;
+    private final List<JToggleButton> formatterBtnList       = new ArrayList<>();
+    private final List<JToggleButton> syntaxHighlightBtnList = new ArrayList<>();
+    private JPanel formatterPanel;
     private Set<Integer>  searchMatchModelRows = Set.of();
     private List<Integer> searchMatchList      = List.of();
     private int           searchMatchCursor    = -1;
@@ -131,7 +133,7 @@ public final class LogPanel extends JPanel {
         add(statusBar, "growx");
 
         logTableModel.addTableModelListener(e -> {
-            if (follow && e.getType() == TableModelEvent.INSERT)
+            if (follow && !loading && e.getType() == TableModelEvent.INSERT)
                 SwingUtilities.invokeLater(this::scrollToBottom);
             updateStatusBar();
         });
@@ -193,14 +195,13 @@ public final class LogPanel extends JPanel {
         stopTailing();
         SwingWorker<?, ?> old = currentWorker;
         if (old != null) old.cancel(true);
+        loading = true;
         logIndex.clear();
         logTableModel.clear();
         filterBar.clearLoggers();
         logTableModel.setCustomFields(parser.map(com.tlaloc.clouseau.api.LogParser::customFields).orElse(List.of()));
 
         ((CardLayout) centerCards.getLayout()).show(centerCards, CARD_LOADING);
-
-        boolean[] firstBatch = {true};
 
         SwingWorker<Void, LogEntry> worker = new SwingWorker<>() {
             @Override
@@ -230,19 +231,16 @@ public final class LogPanel extends JPanel {
                 if (isCancelled()) return;
                 logTableModel.appendBatch(chunk);
                 filterBar.addBatch(chunk);
-                if (firstBatch[0]) {
-                    firstBatch[0] = false;
-                    ((CardLayout) centerCards.getLayout()).show(centerCards, CARD_CONTENT);
-                    autoResizeColumns();
-                }
             }
 
             @Override
             protected void done() {
+                loading = false;
                 ((CardLayout) centerCards.getLayout()).show(centerCards, CARD_CONTENT);
                 if (isCancelled()) return;
                 try {
                     get();
+                    autoResizeColumns();
                     try { tailPosition = Files.size(currentFile); } catch (IOException ignored) {}
                     if (follow) startTailing();
                 } catch (Exception ex) {
@@ -843,13 +841,17 @@ public final class LogPanel extends JPanel {
         clearFieldBtn.addActionListener(e -> { findField.setText(""); findField.requestFocusInWindow(); });
         findField.putClientProperty("JTextField.trailingComponent", clearFieldBtn);
 
+        javax.swing.Timer[] findDebounce = {null};
         findField.getDocument().addDocumentListener(new DocumentListener() {
             public void insertUpdate(DocumentEvent e) { onFindTextChanged(); }
             public void removeUpdate(DocumentEvent e) { onFindTextChanged(); }
             public void changedUpdate(DocumentEvent e) {}
             private void onFindTextChanged() {
                 clearFieldBtn.setVisible(!findField.getText().isEmpty());
-                updateSearchMatches(findField.getText());
+                if (findDebounce[0] != null) findDebounce[0].stop();
+                findDebounce[0] = new javax.swing.Timer(250, ev -> updateSearchMatches(findField.getText()));
+                findDebounce[0].setRepeats(false);
+                findDebounce[0].start();
             }
         });
         findField.addActionListener(e -> navigateSearch(+1));
@@ -1050,15 +1052,19 @@ public final class LogPanel extends JPanel {
         JPanel controls = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 3));
         controls.setOpaque(false);
 
+        formatterPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 0));
+        formatterPanel.setOpaque(false);
+        formatterPanel.setVisible(false);
         if (!formatters.isEmpty()) {
             JLabel label = new JLabel(Messages.get("detail.toolbar.format"));
             label.setForeground(FG_DIM);
             label.setFont(label.getFont().deriveFont(11f));
-            controls.add(label);
+            formatterPanel.add(label);
 
             for (LogFormatter formatter : formatters) {
                 JToggleButton btn = new JToggleButton(formatter.getName());
                 btn.setSelected(true);
+                btn.setEnabled(false);
                 btn.setFont(btn.getFont().deriveFont(11f));
                 FilterBar.applyToggleStyle(btn);
                 btn.addActionListener(e -> {
@@ -1066,12 +1072,37 @@ public final class LogPanel extends JPanel {
                     else                  disabledFormatters.add(formatter.getName());
                     refreshDetail();
                 });
-                controls.add(btn);
+                formatterPanel.add(btn);
+                formatterBtnList.add(btn);
             }
         }
+        controls.add(formatterPanel);
 
         syntaxHighlightPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 0));
         syntaxHighlightPanel.setOpaque(false);
+        syntaxHighlightPanel.setVisible(false);
+        if (!syntaxHighlighters.isEmpty()) {
+            if (!formatters.isEmpty()) {
+                JSeparator sep = new JSeparator(JSeparator.VERTICAL);
+                sep.setPreferredSize(new Dimension(1, 18));
+                syntaxHighlightPanel.add(sep);
+            }
+            JLabel label = new JLabel(Messages.get("detail.toolbar.color"));
+            label.setForeground(FG_DIM);
+            label.setFont(label.getFont().deriveFont(11f));
+            syntaxHighlightPanel.add(label);
+
+            for (LogSyntaxHighlighter hl : syntaxHighlighters) {
+                JToggleButton btn = new JToggleButton(hl.getName());
+                btn.setSelected(true);
+                btn.setEnabled(false);
+                btn.setFont(btn.getFont().deriveFont(11f));
+                FilterBar.applyToggleStyle(btn);
+                btn.addActionListener(e -> refreshDetail());
+                syntaxHighlightPanel.add(btn);
+                syntaxHighlightBtnList.add(btn);
+            }
+        }
         controls.add(syntaxHighlightPanel);
 
         bar.add(controls, BorderLayout.CENTER);
@@ -1096,33 +1127,19 @@ public final class LogPanel extends JPanel {
         return bar;
     }
 
-    private void updateSyntaxHighlightButton(LogSyntaxHighlighter colorizer) {
-        if (colorizer == currentEntrySyntaxHighlighter) return; // no UI change needed
-        currentEntrySyntaxHighlighter = colorizer;
-        syntaxHighlightPanel.removeAll();
-        if (colorizer != null) {
-            if (!formatters.isEmpty()) {
-                JSeparator sep = new JSeparator(JSeparator.VERTICAL);
-                sep.setPreferredSize(new Dimension(1, 18));
-                syntaxHighlightPanel.add(sep);
-            }
-            JLabel label = new JLabel(Messages.get("detail.toolbar.color"));
-            label.setForeground(FG_DIM);
-            label.setFont(label.getFont().deriveFont(11f));
-            syntaxHighlightPanel.add(label);
 
-            JToggleButton btn = new JToggleButton(colorizer.getName());
-            btn.setSelected(syntaxHighlightEnabled);
-            btn.setFont(btn.getFont().deriveFont(11f));
-            FilterBar.applyToggleStyle(btn);
-            btn.addActionListener(e -> {
-                syntaxHighlightEnabled = btn.isSelected();
-                refreshDetail();
-            });
-            syntaxHighlightPanel.add(btn);
+    private static void disableDetailBtn(JToggleButton btn) {
+        btn.putClientProperty("savedSelected", btn.isSelected());
+        btn.setSelected(false);   // triggers applyToggleStyle's ItemListener → off-state colors
+        btn.setEnabled(false);    // FlatLaf now preserves those off-state colors
+    }
+
+    private static void enableDetailBtn(JToggleButton btn) {
+        if (!btn.isEnabled()) {
+            btn.setEnabled(true);
+            Boolean saved = (Boolean) btn.getClientProperty("savedSelected");
+            btn.setSelected(saved != null ? saved : true);
         }
-        syntaxHighlightPanel.revalidate();
-        syntaxHighlightPanel.repaint();
     }
 
     private JPanel buildDetail() {
@@ -1131,11 +1148,12 @@ public final class LogPanel extends JPanel {
         detailArea.setBackground(new Color(0x191919));
         detailArea.setForeground(FG_DEFAULT);
         detailArea.setBorder(BorderFactory.createEmptyBorder(8, 10, 8, 10));
+        JPanel toolbar = buildDetailToolbar();
         showDetail(null, -1);
         JScrollPane scroll = new JScrollPane(detailArea);
 
         JPanel panel = new JPanel(new BorderLayout());
-        panel.add(buildDetailToolbar(), BorderLayout.NORTH);
+        panel.add(toolbar, BorderLayout.NORTH);
         panel.add(scroll, BorderLayout.CENTER);
         return panel;
     }
@@ -1163,6 +1181,7 @@ public final class LogPanel extends JPanel {
     }
 
     private void showDetail(LogEntry entry, int modelRow) {
+        formatterPanel.setVisible(entry != null && !formatters.isEmpty());
         StyledDocument doc = detailArea.getStyledDocument();
         try { doc.remove(0, doc.getLength()); } catch (BadLocationException ignored) {}
 
@@ -1182,7 +1201,8 @@ public final class LogPanel extends JPanel {
         if (entry == null) {
             lastFormattedMessage = "";
             messageFieldStart = messageFieldEnd = -1;
-            updateSyntaxHighlightButton(null);
+            formatterPanel.setVisible(false);
+            syntaxHighlightPanel.setVisible(false);
             insertText(doc, Messages.get("detail.placeholder"), val);
             detailArea.setCaretPosition(0);
             return;
@@ -1217,12 +1237,30 @@ public final class LogPanel extends JPanel {
             entry.fields().forEach((k, v) -> appendField(doc, key, val, k, v));
         }
 
-        String messageText = applyFormatters(entry.message() != null ? entry.message() : "");
+        formatterPanel.setVisible(!formatters.isEmpty());
+        syntaxHighlightPanel.setVisible(!syntaxHighlighters.isEmpty());
+
+        String rawMsg = entry.message() != null ? entry.message() : "";
+        for (int i = 0; i < formatters.size(); i++) {
+            if (formatters.get(i).canFormat(rawMsg)) enableDetailBtn(formatterBtnList.get(i));
+            else                                     disableDetailBtn(formatterBtnList.get(i));
+        }
+
+        String messageText = applyFormatters(rawMsg);
         lastFormattedMessage = messageText;
-        LogSyntaxHighlighter applicableColorizer = syntaxHighlighters.stream()
-                .filter(c -> c.canHighlight(messageText)).findFirst().orElse(null);
-        updateSyntaxHighlightButton(applicableColorizer);
-        LogSyntaxHighlighter colorizer = syntaxHighlightEnabled ? applicableColorizer : null;
+
+        for (int i = 0; i < syntaxHighlighters.size(); i++) {
+            if (syntaxHighlighters.get(i).canHighlight(messageText)) enableDetailBtn(syntaxHighlightBtnList.get(i));
+            else                                                      disableDetailBtn(syntaxHighlightBtnList.get(i));
+        }
+
+        LogSyntaxHighlighter colorizer = null;
+        for (int i = 0; i < syntaxHighlighters.size(); i++) {
+            if (syntaxHighlighters.get(i).canHighlight(messageText) && syntaxHighlightBtnList.get(i).isSelected()) {
+                colorizer = syntaxHighlighters.get(i);
+                break;
+            }
+        }
         String msgLabel = String.format("%-12s ", Messages.get("table.col.message") + ":");
         messageFieldStart = doc.getLength() + msgLabel.length();
         if (colorizer != null) {

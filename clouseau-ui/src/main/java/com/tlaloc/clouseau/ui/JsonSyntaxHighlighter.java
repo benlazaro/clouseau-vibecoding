@@ -24,7 +24,7 @@ final class JsonSyntaxHighlighter implements LogSyntaxHighlighter {
     private static final int PUNCT      = 0x75715E; // warm gray
 
     @Override
-    public String getName() { return "JSON Syntax Highlight"; }
+    public String getName() { return "JSON"; }
 
     @Override
     public boolean canHighlight(String input) {

@@ -277,10 +277,10 @@ public final class MainFrame extends JFrame {
         header.add(label);
         header.add(close);
 
-        header.addMouseListener(new java.awt.event.MouseAdapter() {
-            @Override public void mousePressed(java.awt.event.MouseEvent e)  { maybeShowTabMenu(e); }
-            @Override public void mouseReleased(java.awt.event.MouseEvent e) { maybeShowTabMenu(e); }
-            private void maybeShowTabMenu(java.awt.event.MouseEvent e) {
+        java.awt.event.MouseAdapter tabMenu = new java.awt.event.MouseAdapter() {
+            @Override public void mousePressed(java.awt.event.MouseEvent e)  { maybeShow(e); }
+            @Override public void mouseReleased(java.awt.event.MouseEvent e) { maybeShow(e); }
+            private void maybeShow(java.awt.event.MouseEvent e) {
                 if (!e.isPopupTrigger()) return;
                 tabbedPane.setSelectedIndex(tabbedPane.indexOfTabComponent(header));
                 JPopupMenu menu = new JPopupMenu();
@@ -294,9 +294,12 @@ public final class MainFrame extends JFrame {
                 JMenuItem closeItem = new JMenuItem(Messages.get("tab.context.close"));
                 closeItem.addActionListener(ev -> closeTab(tabbedPane.indexOfTabComponent(header)));
                 menu.add(closeItem);
-                menu.show(header, e.getX(), e.getY());
+                java.awt.Point pt = SwingUtilities.convertPoint(e.getComponent(), e.getPoint(), header);
+                menu.show(header, pt.x, pt.y);
             }
-        });
+        };
+        header.addMouseListener(tabMenu);
+        label.addMouseListener(tabMenu);
 
         return header;
     }
