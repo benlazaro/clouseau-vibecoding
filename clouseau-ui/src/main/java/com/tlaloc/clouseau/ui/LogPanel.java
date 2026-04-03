@@ -393,7 +393,7 @@ public final class LogPanel extends JPanel {
                 JOptionPane.YES_NO_OPTION);
         if (confirm != JOptionPane.YES_OPTION) return;
         stopTailing();
-        tailPosition = 0;
+        try { tailPosition = currentFile != null ? Files.size(currentFile) : 0; } catch (IOException ignored) { tailPosition = 0; }
         logIndex.clear();
         logTableModel.clear();
         showDetail(null, -1);
