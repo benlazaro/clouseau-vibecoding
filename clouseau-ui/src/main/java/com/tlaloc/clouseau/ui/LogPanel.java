@@ -199,10 +199,12 @@ public final class LogPanel extends JPanel {
 
         ((CardLayout) centerCards.getLayout()).show(centerCards, CARD_LOADING);
 
-        SwingWorker<ArrayList<LogEntry>, Void> worker = new SwingWorker<>() {
+        List<LogEntry> loadedEntries = new ArrayList<>();
+        boolean[] firstBatch = {true};
+
+        SwingWorker<Void, LogEntry> worker = new SwingWorker<>() {
             @Override
-            protected ArrayList<LogEntry> doInBackground() throws Exception {
-                ArrayList<LogEntry> result = new ArrayList<>();
+            protected Void doInBackground() throws Exception {
                 try (BufferedReader reader = openReader(file)) {
                     String line;
                     while ((line = reader.readLine()) != null && !isCancelled()) {
@@ -217,10 +219,22 @@ public final class LogPanel extends JPanel {
                                       null, LogEntry.LogLevel.UNKNOWN,
                                       null, null,
                                       candidate, candidate, Map.of()));
-                        result.add(entry);
+                        loadedEntries.add(entry);
+                        publish(entry);
                     }
                 }
-                return result;
+                return null;
+            }
+
+            @Override
+            protected void process(List<LogEntry> chunk) {
+                if (isCancelled()) return;
+                logTableModel.appendBatch(chunk);
+                if (firstBatch[0]) {
+                    firstBatch[0] = false;
+                    ((CardLayout) centerCards.getLayout()).show(centerCards, CARD_CONTENT);
+                    autoResizeColumns();
+                }
             }
 
             @Override
@@ -228,11 +242,9 @@ public final class LogPanel extends JPanel {
                 ((CardLayout) centerCards.getLayout()).show(centerCards, CARD_CONTENT);
                 if (isCancelled()) return;
                 try {
-                    ArrayList<LogEntry> entries = get();
-                    logIndex.load(entries);
-                    filterBar.updateLoggers(entries);
-                    logTableModel.load(entries);
-                    autoResizeColumns();
+                    get();
+                    logIndex.load(loadedEntries);
+                    filterBar.updateLoggers(loadedEntries);
                     try { tailPosition = Files.size(currentFile); } catch (IOException ignored) {}
                     if (follow) startTailing();
                 } catch (Exception ex) {
@@ -545,6 +557,7 @@ public final class LogPanel extends JPanel {
     private void autoResizeColumns() {
         int lastCol = logTable.getColumnCount() - 1;
         int totalFitted = 0;
+        int sampleSize = Math.min(logTable.getRowCount(), 50);
 
         for (int col = 0; col < lastCol; col++) {
             int maxWidth = 0;
@@ -553,7 +566,7 @@ public final class LogPanel extends JPanel {
             Component hc = hr.getTableCellRendererComponent(
                     logTable, logTable.getColumnName(col), false, false, -1, col);
             maxWidth = Math.max(maxWidth, hc.getPreferredSize().width);
-            for (int row = 0; row < logTable.getRowCount(); row++) {
+            for (int row = 0; row < sampleSize; row++) {
                 Component rc = logTable.prepareRenderer(logTable.getCellRenderer(row, col), row, col);
                 maxWidth = Math.max(maxWidth, rc.getPreferredSize().width);
             }

@@ -6,6 +6,7 @@ import net.miginfocom.swing.MigLayout;
 
 import javax.swing.*;
 import javax.swing.filechooser.FileNameExtensionFilter;
+import javax.swing.filechooser.FileSystemView;
 import javax.swing.plaf.basic.BasicFileChooserUI;
 import java.awt.*;
 import java.awt.event.ActionEvent;
@@ -60,11 +61,26 @@ final class FileChooserDialog extends JDialog {
             else if (JFileChooser.CANCEL_SELECTION.equals(e.getActionCommand())) dispose();
         });
 
+        JSplitPane leftSplit = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT,
+                buildFavoritesPanel(), chooser);
+        leftSplit.setDividerLocation(180);
+        leftSplit.setBorder(null);
+
+        JSplitPane mainSplit = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT,
+                leftSplit, buildParserAccessory());
+        mainSplit.setResizeWeight(1.0); // chooser absorbs resize, accessory stays fixed
+        mainSplit.setBorder(null);
+        // Set right divider after first layout when widths are known
+        mainSplit.addComponentListener(new java.awt.event.ComponentAdapter() {
+            @Override public void componentResized(java.awt.event.ComponentEvent e) {
+                mainSplit.removeComponentListener(this);
+                mainSplit.setDividerLocation(mainSplit.getWidth() - 280 - mainSplit.getDividerSize());
+            }
+        });
+
         JPanel content = new JPanel(new BorderLayout(0, 0));
-        content.add(buildFavoritesPanel(),  BorderLayout.WEST);
-        content.add(chooser,               BorderLayout.CENTER);
-        content.add(buildParserAccessory(), BorderLayout.EAST);
-        content.add(buildButtonBar(),       BorderLayout.SOUTH);
+        content.add(mainSplit,        BorderLayout.CENTER);
+        content.add(buildButtonBar(), BorderLayout.SOUTH);
         setContentPane(content);
 
         setPreferredSize(new Dimension(1100, 650));
@@ -95,6 +111,7 @@ final class FileChooserDialog extends JDialog {
         JList<Path> list = new JList<>(favoritesModel);
         list.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
         list.setFixedCellHeight(28);
+        FileSystemView fsv = FileSystemView.getFileSystemView();
         list.setCellRenderer(new DefaultListCellRenderer() {
             @Override
             public Component getListCellRendererComponent(
@@ -104,6 +121,8 @@ final class FileChooserDialog extends JDialog {
                 setText(p.getFileName() != null ? p.getFileName().toString() : p.toString());
                 setToolTipText(p.toString());
                 setBorder(BorderFactory.createEmptyBorder(0, 8, 0, 8));
+                File f = p.toFile();
+                setIcon(f.exists() ? fsv.getSystemIcon(f) : null);
                 return this;
             }
         });
@@ -158,8 +177,8 @@ final class FileChooserDialog extends JDialog {
         btnRow.add(removeBtn);
 
         JPanel panel = new JPanel(new BorderLayout());
+        panel.setMinimumSize(new Dimension(80, 0));
         panel.setPreferredSize(new Dimension(180, 0));
-        panel.setBorder(BorderFactory.createMatteBorder(0, 0, 0, 1, new Color(0x3C3C3C)));
         panel.add(header, BorderLayout.NORTH);
         panel.add(scroll,  BorderLayout.CENTER);
         panel.add(btnRow,  BorderLayout.SOUTH);
@@ -274,8 +293,8 @@ final class FileChooserDialog extends JDialog {
             SwingUtilities.invokeLater(validate);
         });
 
-        JPanel panel = new JPanel(new MigLayout("insets 8, fill, wrap 1", "[280px!]", "[][]4[]8[][grow]"));
-        panel.setBorder(BorderFactory.createMatteBorder(0, 1, 0, 0, new Color(0x3C3C3C)));
+        JPanel panel = new JPanel(new MigLayout("insets 8, fill, wrap 1", "[280px,grow]", "[][]4[]8[][grow]"));
+        panel.setMinimumSize(new Dimension(150, 0));
         panel.add(new JLabel(Messages.get("filechooser.parser.label")));
         panel.add(combo, "growx");
         panel.add(statusLabel, "growx");

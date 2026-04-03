@@ -126,6 +126,17 @@ public final class LogTableModel extends AbstractTableModel {
         else SwingUtilities.invokeLater(doClear);
     }
 
+    /** Appends a batch of entries from streaming load. Must be called on the EDT. */
+    public void appendBatch(List<LogEntry> entries) {
+        allEntries.addAll(entries);
+        int first = rows.size();
+        List<LogEntry> matching = entries.stream().filter(activeFilter).toList();
+        if (!matching.isEmpty()) {
+            rows.addAll(matching);
+            fireTableRowsInserted(first, rows.size() - 1);
+        }
+    }
+
     /** Appends a single entry from file tailing. Must be called on the EDT. */
     public void append(LogEntry entry) {
         allEntries.add(entry);

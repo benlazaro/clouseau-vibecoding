@@ -5,6 +5,7 @@ import com.tlaloc.clouseau.api.LogEntry.LogLevel;
 import net.miginfocom.swing.MigLayout;
 
 import javax.swing.*;
+import javax.swing.Timer;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
 import javax.swing.tree.DefaultMutableTreeNode;
@@ -74,6 +75,7 @@ final class FilterBar extends JPanel {
     private JToggleButton        followBtn;
     private final JButton        scrollTopBtn    = new JButton("▲");
     private final JButton        scrollBottomBtn = new JButton("▼");
+    private Timer debounceTimer;
 
     // Logger picker state
     private List<String>     allLoggers      = List.of();
@@ -135,7 +137,7 @@ final class FilterBar extends JPanel {
         DocumentListener tsDoc = docListener(() -> {
             validateTimestamp(fromField);
             validateTimestamp(toField);
-            onChanged.run();
+            scheduleChange();
         });
         fromField.getDocument().addDocumentListener(tsDoc);
         toField.getDocument().addDocumentListener(tsDoc);
@@ -162,7 +164,7 @@ final class FilterBar extends JPanel {
 
         searchField.getDocument().addDocumentListener(docListener(() -> {
             clearSearchBtn.setVisible(!searchField.getText().isEmpty());
-            onChanged.run();
+            scheduleChange();
         }));
         add(searchField, "growx");
 
@@ -483,6 +485,13 @@ final class FilterBar extends JPanel {
             btn.setBackground(darkBg);
             btn.setForeground(dimFg);
         }
+    }
+
+    private void scheduleChange() {
+        if (debounceTimer != null) debounceTimer.stop();
+        debounceTimer = new javax.swing.Timer(250, e -> onChanged.run());
+        debounceTimer.setRepeats(false);
+        debounceTimer.start();
     }
 
     private static DocumentListener docListener(Runnable action) {
