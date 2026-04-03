@@ -5,10 +5,14 @@ plugins {
     java
     application
     id("com.github.johnrengelman.shadow") version "8.1.1"
+    id("org.beryx.runtime") version "1.13.1"
 }
 
 application {
     mainClass.set("com.tlaloc.clouseau.ui.ClouseauApp")
+    // Applied to installDist launchers and the jpackage image.
+    // Users can override at runtime with -J-Xmx in the launcher or JAVA_OPTS.
+    applicationDefaultJvmArgs = listOf("-Xms64m", "-Xmx2g")
 }
 
 tasks.shadowJar {
@@ -16,6 +20,89 @@ tasks.shadowJar {
     archiveClassifier.set("")
     mergeServiceFiles()
     exclude("META-INF/*.SF", "META-INF/*.DSA", "META-INF/*.RSA")
+}
+
+// jpackage requires a purely numeric version (e.g. 1.0.0) — strip -SNAPSHOT.
+val pkgVersion: String = (project.version as String).removeSuffix("-SNAPSHOT")
+
+runtime {
+    // jlink options: produce a lean JRE image.
+    options.set(listOf(
+        "--strip-debug",
+        "--compress", "2",
+        "--no-header-files",
+        "--no-man-pages"
+    ))
+
+    // Modules required by the app and its dependencies.
+    // java.desktop  — Swing / AWT
+    // java.logging  — java.util.logging (used internally)
+    // java.management — JMX (Guava, log4j2)
+    // java.naming   — JNDI (log4j2 lookups)
+    // java.prefs    — Preferences API
+    // java.sql      — JDBC stubs pulled in transitively
+    // java.xml      — XML (Batik SVG, log4j2 config)
+    // jdk.unsupported — sun.misc.Unsafe (Guava, Gson)
+    // jdk.crypto.ec — TLS EC ciphers (HTTPS downloads, update checks)
+    // jdk.zipfs     — ZipFileSystem (reading .zip log files)
+    modules.set(listOf(
+        "java.desktop",
+        "java.logging",
+        "java.management",
+        "java.naming",
+        "java.prefs",
+        "java.sql",
+        "java.xml",
+        "jdk.unsupported",
+        "jdk.crypto.ec",
+        "jdk.zipfs"
+    ))
+
+    jpackage {
+        imageName     = "Clouseau"
+        installerName = "Clouseau"
+        appVersion    = pkgVersion
+        vendor        = "Tlaloc"
+
+        // JVM flags baked into the native launcher.
+        jvmArgs = listOf("-Xms64m", "-Xmx2g")
+
+        val os           = org.gradle.internal.os.OperatingSystem.current()
+        val packagingDir = project.file("packaging")
+
+        when {
+            os.isWindows -> {
+                installerType = "msi"
+                val ico = packagingDir.resolve("windows/clouseau.ico")
+                if (ico.exists()) imageOptions = listOf("--icon", ico.absolutePath)
+                installerOptions = listOf(
+                    "--win-dir-chooser",
+                    "--win-menu",
+                    "--win-shortcut",
+                    "--win-menu-group", "Clouseau",
+                    // Fixed UUID — Windows uses this to match installed versions for upgrade/uninstall.
+                    // Do NOT change this after the first public release.
+                    "--win-upgrade-uuid", "3f8a7c2e-1d94-4b60-9e5f-0a2b6c8d3e7f"
+                )
+            }
+            os.isMacOsX -> {
+                installerType = "dmg"
+                val icns = packagingDir.resolve("macos/clouseau.icns")
+                if (icns.exists()) imageOptions = listOf("--icon", icns.absolutePath)
+                installerOptions = listOf("--mac-package-name", "Clouseau")
+            }
+            else -> {
+                installerType = "deb"
+                val png = packagingDir.resolve("linux/clouseau.png")
+                if (png.exists()) imageOptions = listOf("--icon", png.absolutePath)
+                installerOptions = listOf(
+                    "--linux-shortcut",
+                    "--linux-menu-group", "Development;Utility;",
+                    "--linux-app-category", "utils"
+                )
+            }
+        }
+    }
 }
 
 dependencies {
