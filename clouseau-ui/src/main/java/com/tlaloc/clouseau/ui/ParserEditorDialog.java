@@ -19,7 +19,7 @@ import java.util.regex.PatternSyntaxException;
 @Slf4j
 public final class ParserEditorDialog extends JDialog {
 
-    private static final String TYPE_SIMPLIFIED = "simplified";
+    private static final String TYPE_SIMPLIFIED = "template";
     private static final String TYPE_PATTERN    = "pattern";
     private static final String TYPE_REGEX      = "regex";
 
@@ -44,7 +44,7 @@ public final class ParserEditorDialog extends JDialog {
     // ── Form ─────────────────────────────────────────────────────────────────
     private final JTextField        nameField    = new JTextField();
     private final JComboBox<String> typeCombo    = new JComboBox<>(new String[]{
-            Messages.get("parsereditor.type.simplified"),
+            Messages.get("parsereditor.type.template"),
             Messages.get("parsereditor.type.pattern"),
             Messages.get("parsereditor.type.regex") });
     private final JLabel    sourceLabel  = dimLabel(Messages.get("parsereditor.field.source"));
@@ -468,7 +468,7 @@ public final class ParserEditorDialog extends JDialog {
         try {
             String regex, fmt;
             if (TYPE_SIMPLIFIED.equals(type)) {
-                SimplifiedPatternConverter.Result r = SimplifiedPatternConverter.convert(source);
+                TemplatePatternConverter.Result r = TemplatePatternConverter.convert(source);
                 regex = r.regex();
                 fmt   = r.timestampFormat();
             } else {

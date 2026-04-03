@@ -4,15 +4,15 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * Converts a simplified, human-readable pattern into a Java regex with named
- * capture groups suitable for {@link com.tlaloc.clouseau.core.RegexLogParser}.
+ * Converts a template pattern into a Java regex with named capture groups
+ * suitable for {@link com.tlaloc.clouseau.core.RegexLogParser}.
  *
  * <p>Supported field keywords (case-sensitive, must be uppercase):
  * <pre>
  *   TIMESTAMP{format}  — timestamp, with an optional DateTimeFormatter pattern in braces
  *   LEVEL              — log level (TRACE / DEBUG / INFO / WARN / ERROR / FATAL)
  *   LOGGER             — logger name (no whitespace)
- *   THREAD             — thread name (no whitespace)
+ *   THREAD             — thread name (anything up to closing bracket)
  *   MESSAGE            — log message (rest of line)
  *   PID                — process ID (digits only)
  * </pre>
@@ -22,10 +22,10 @@ import java.util.regex.Pattern;
  * <p>Example:
  * <pre>
  *   TIMESTAMP{yyyy-MM-dd HH:mm:ss} [THREAD] LEVEL LOGGER - MESSAGE
- *   →  ^(?&lt;timestamp&gt;\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}) \[(?&lt;thread&gt;\S+)\] ...
+ *   →  ^(?&lt;timestamp&gt;\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}) \[(?&lt;thread&gt;[^\]]+)\] ...
  * </pre>
  */
-public final class SimplifiedPatternConverter {
+public final class TemplatePatternConverter {
 
     private static final Pattern KEYWORD = Pattern.compile(
             "(?<![A-Za-z])(TIMESTAMP(?:\\{([^}]+)\\})?|LEVEL|LOGGER|THREAD|MESSAGE|PID)(?![A-Za-z])" +
@@ -50,7 +50,8 @@ public final class SimplifiedPatternConverter {
             String customField = m.group(3); // only populated for {field_name}
 
             if (customField != null) {
-                sb.append("(?<").append(customField).append(">\\S+)");
+                // Allow empty values and spaces (e.g. [] brackets with no content)
+                sb.append("(?<").append(customField).append(">[^\\]]*)");
             } else if (keyword.startsWith("TIMESTAMP")) {
                 if (fmt != null) {
                     timestampFormat = fmt;
@@ -61,7 +62,7 @@ public final class SimplifiedPatternConverter {
             } else switch (keyword) { // keyword != null here
                 case "LEVEL"   -> sb.append("(?<level>TRACE|DEBUG|INFO|WARN|ERROR|FATAL)");
                 case "LOGGER"  -> sb.append("(?<logger>\\S+)");
-                case "THREAD"  -> sb.append("(?<thread>\\S+)");
+                case "THREAD"  -> sb.append("(?<thread>[^\\]]+)");
                 case "MESSAGE" -> sb.append("(?<message>.*)");
                 case "PID"     -> sb.append("(?<pid>\\d+)");
             }
