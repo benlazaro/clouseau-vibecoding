@@ -1,6 +1,6 @@
 package com.tlaloc.clouseau.ui;
 
-import com.tlaloc.clouseau.api.LogColorizer;
+import com.tlaloc.clouseau.api.LogSyntaxHighlighter;
 import com.tlaloc.clouseau.api.LogEntry;
 import com.tlaloc.clouseau.api.LogFormatter;
 import com.tlaloc.clouseau.api.LogParser;
@@ -58,7 +58,7 @@ public final class LogPanel extends JPanel {
 
     private final List<LogParser> parsers;
     private final List<LogFormatter> formatters;
-    private final List<LogColorizer> colorizers;
+    private final List<LogSyntaxHighlighter> syntaxHighlighters;
     private final LogIndex        logIndex      = new LogIndex();
     private final LogTableModel   logTableModel = new LogTableModel();
     private final FilterBar       filterBar;
@@ -73,9 +73,9 @@ public final class LogPanel extends JPanel {
     private volatile long tailPosition = 0;
     private boolean follow = AppPrefs.isFollowByDefault();
     private final java.util.Set<String> disabledFormatters = new java.util.HashSet<>();
-    private boolean colorizerEnabled = true;
-    private LogColorizer currentEntryColorizer; // tracks which colorizer button is currently shown
-    private JPanel colorizerButtonPanel;
+    private boolean syntaxHighlightEnabled = true;
+    private LogSyntaxHighlighter currentEntrySyntaxHighlighter; // tracks which colorizer button is currently shown
+    private JPanel syntaxHighlightPanel;
     private Set<Integer>  searchMatchModelRows = Set.of();
     private List<Integer> searchMatchList      = List.of();
     private int           searchMatchCursor    = -1;
@@ -96,11 +96,11 @@ public final class LogPanel extends JPanel {
     private JLabel highlightNavPosition;
     private Color  highlightNavColor = null;
 
-    public LogPanel(List<LogParser> parsers, List<LogFormatter> formatters, List<LogColorizer> colorizers) {
+    public LogPanel(List<LogParser> parsers, List<LogFormatter> formatters, List<LogSyntaxHighlighter> syntaxHighlighters) {
         super(new MigLayout("fill, insets 0, gapy 0", "[grow]", ""));
         this.parsers    = parsers;
         this.formatters = formatters;
-        this.colorizers = colorizers;
+        this.syntaxHighlighters = syntaxHighlighters;
         FilterBar[] fbHolder = new FilterBar[1];
         fbHolder[0] = new FilterBar(() -> logTableModel.applyFilter(fbHolder[0].buildPredicate()));
         this.filterBar = fbHolder[0];
@@ -1070,9 +1070,9 @@ public final class LogPanel extends JPanel {
             }
         }
 
-        colorizerButtonPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 0));
-        colorizerButtonPanel.setOpaque(false);
-        controls.add(colorizerButtonPanel);
+        syntaxHighlightPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 0));
+        syntaxHighlightPanel.setOpaque(false);
+        controls.add(syntaxHighlightPanel);
 
         bar.add(controls, BorderLayout.CENTER);
 
@@ -1096,33 +1096,33 @@ public final class LogPanel extends JPanel {
         return bar;
     }
 
-    private void updateColorizerButton(LogColorizer colorizer) {
-        if (colorizer == currentEntryColorizer) return; // no UI change needed
-        currentEntryColorizer = colorizer;
-        colorizerButtonPanel.removeAll();
+    private void updateSyntaxHighlightButton(LogSyntaxHighlighter colorizer) {
+        if (colorizer == currentEntrySyntaxHighlighter) return; // no UI change needed
+        currentEntrySyntaxHighlighter = colorizer;
+        syntaxHighlightPanel.removeAll();
         if (colorizer != null) {
             if (!formatters.isEmpty()) {
                 JSeparator sep = new JSeparator(JSeparator.VERTICAL);
                 sep.setPreferredSize(new Dimension(1, 18));
-                colorizerButtonPanel.add(sep);
+                syntaxHighlightPanel.add(sep);
             }
             JLabel label = new JLabel(Messages.get("detail.toolbar.color"));
             label.setForeground(FG_DIM);
             label.setFont(label.getFont().deriveFont(11f));
-            colorizerButtonPanel.add(label);
+            syntaxHighlightPanel.add(label);
 
             JToggleButton btn = new JToggleButton(colorizer.getName());
-            btn.setSelected(colorizerEnabled);
+            btn.setSelected(syntaxHighlightEnabled);
             btn.setFont(btn.getFont().deriveFont(11f));
             FilterBar.applyToggleStyle(btn);
             btn.addActionListener(e -> {
-                colorizerEnabled = btn.isSelected();
+                syntaxHighlightEnabled = btn.isSelected();
                 refreshDetail();
             });
-            colorizerButtonPanel.add(btn);
+            syntaxHighlightPanel.add(btn);
         }
-        colorizerButtonPanel.revalidate();
-        colorizerButtonPanel.repaint();
+        syntaxHighlightPanel.revalidate();
+        syntaxHighlightPanel.repaint();
     }
 
     private JPanel buildDetail() {
@@ -1182,7 +1182,7 @@ public final class LogPanel extends JPanel {
         if (entry == null) {
             lastFormattedMessage = "";
             messageFieldStart = messageFieldEnd = -1;
-            updateColorizerButton(null);
+            updateSyntaxHighlightButton(null);
             insertText(doc, Messages.get("detail.placeholder"), val);
             detailArea.setCaretPosition(0);
             return;
@@ -1219,14 +1219,14 @@ public final class LogPanel extends JPanel {
 
         String messageText = applyFormatters(entry.message() != null ? entry.message() : "");
         lastFormattedMessage = messageText;
-        LogColorizer applicableColorizer = colorizers.stream()
-                .filter(c -> c.canColorize(messageText)).findFirst().orElse(null);
-        updateColorizerButton(applicableColorizer);
-        LogColorizer colorizer = colorizerEnabled ? applicableColorizer : null;
+        LogSyntaxHighlighter applicableColorizer = syntaxHighlighters.stream()
+                .filter(c -> c.canHighlight(messageText)).findFirst().orElse(null);
+        updateSyntaxHighlightButton(applicableColorizer);
+        LogSyntaxHighlighter colorizer = syntaxHighlightEnabled ? applicableColorizer : null;
         String msgLabel = String.format("%-12s ", Messages.get("table.col.message") + ":");
         messageFieldStart = doc.getLength() + msgLabel.length();
         if (colorizer != null) {
-            renderColorizedField(doc, key, msgVal, Messages.get("table.col.message"), messageText, colorizer);
+            renderSyntaxHighlightedField(doc, key, msgVal, Messages.get("table.col.message"), messageText, colorizer);
         } else {
             appendField(doc, key, msgVal, Messages.get("table.col.message"), messageText);
         }
@@ -1259,19 +1259,19 @@ public final class LogPanel extends JPanel {
         insertText(doc, value + "\n", valStyle);
     }
 
-    private static void renderColorizedField(StyledDocument doc, SimpleAttributeSet keyStyle,
+    private static void renderSyntaxHighlightedField(StyledDocument doc, SimpleAttributeSet keyStyle,
                                              SimpleAttributeSet baseStyle, String label,
-                                             String text, LogColorizer colorizer) {
+                                             String text, LogSyntaxHighlighter colorizer) {
         insertText(doc, String.format("%-12s ", label + ":"), keyStyle);
-        List<LogColorizer.ColorSpan> spans;
+        List<LogSyntaxHighlighter.ColorSpan> spans;
         try {
-            spans = colorizer.colorize(text);
+            spans = colorizer.highlight(text);
         } catch (Exception e) {
             insertText(doc, text + "\n", baseStyle);
             return;
         }
         int pos = 0;
-        for (LogColorizer.ColorSpan span : spans) {
+        for (LogSyntaxHighlighter.ColorSpan span : spans) {
             if (span.start() > pos) {
                 insertText(doc, text.substring(pos, span.start()), baseStyle);
             }

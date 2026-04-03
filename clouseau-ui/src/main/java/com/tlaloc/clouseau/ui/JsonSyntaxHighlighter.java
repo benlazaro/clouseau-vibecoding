@@ -2,7 +2,7 @@ package com.tlaloc.clouseau.ui;
 
 import com.google.gson.JsonParseException;
 import com.google.gson.JsonParser;
-import com.tlaloc.clouseau.api.LogColorizer;
+import com.tlaloc.clouseau.api.LogSyntaxHighlighter;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -10,11 +10,11 @@ import java.util.Deque;
 import java.util.List;
 
 /**
- * Built-in colorizer for JSON messages (plain or prefixed).
+ * Built-in syntax highlighter for JSON messages (plain or prefixed).
  * Produces VS Code-inspired token colors for keys, string values,
  * numbers, booleans, nulls, and punctuation.
  */
-final class JsonColorizer implements LogColorizer {
+final class JsonSyntaxHighlighter implements LogSyntaxHighlighter {
 
     // Monokai-inspired palette
     private static final int KEY        = 0xA6E22E; // vivid green
@@ -24,16 +24,16 @@ final class JsonColorizer implements LogColorizer {
     private static final int PUNCT      = 0x75715E; // warm gray
 
     @Override
-    public String getName() { return "JSON Colorizer"; }
+    public String getName() { return "JSON Syntax Highlight"; }
 
     @Override
-    public boolean canColorize(String input) {
+    public boolean canHighlight(String input) {
         if (input == null) return false;
         return findJsonStart(input) >= 0;
     }
 
     @Override
-    public List<ColorSpan> colorize(String input) {
+    public List<ColorSpan> highlight(String input) {
         int jsonStart = findJsonStart(input);
         if (jsonStart < 0) return List.of();
         return tokenize(input, jsonStart);

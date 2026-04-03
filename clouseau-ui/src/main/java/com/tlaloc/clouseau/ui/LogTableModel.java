@@ -16,6 +16,9 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.function.Predicate;
 
 /**
@@ -35,9 +38,17 @@ public final class LogTableModel extends AbstractTableModel {
         DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS").withZone(ZoneId.systemDefault());
 
     private final List<LogEntry>         allEntries = new ArrayList<>();
-    private final List<LogEntry>         rows       = new ArrayList<>();
+    private       List<LogEntry>         rows       = new ArrayList<>();
     private final Map<LogEntry, Color>   highlights = new IdentityHashMap<>();
     private Predicate<LogEntry>          activeFilter = e -> true;
+
+    private final ExecutorService filterExecutor = Executors.newSingleThreadExecutor(r -> {
+        Thread t = new Thread(r, "clouseau-filter");
+        t.setDaemon(true);
+        return t;
+    });
+    private Future<?>  filterFuture;
+    private long       filterGeneration = 0;
 
     public LogTableModel() {
         ClouseauEventBus.registerAsync(this);
@@ -45,6 +56,7 @@ public final class LogTableModel extends AbstractTableModel {
 
     public void dispose() {
         ClouseauEventBus.unregisterAsync(this);
+        filterExecutor.shutdownNow();
     }
 
     @Subscribe
@@ -154,10 +166,34 @@ public final class LogTableModel extends AbstractTableModel {
         reapplyFilter();
     }
 
-    /** Installs a new filter and recomputes the visible rows. Must be called on the EDT. */
+    /** Installs a new filter and schedules an off-EDT recompute of visible rows. Must be called on the EDT. */
     public void applyFilter(Predicate<LogEntry> filter) {
         activeFilter = filter;
-        reapplyFilter();
+        scheduleReapply();
+    }
+
+    private void scheduleReapply() {
+        if (filterFuture != null) filterFuture.cancel(true);
+        List<LogEntry> snapshot = List.copyOf(allEntries);
+        Predicate<LogEntry> filter = activeFilter;
+        long generation = ++filterGeneration;
+
+        filterFuture = filterExecutor.submit(() -> {
+            List<LogEntry> newRows = new ArrayList<>(snapshot.size());
+            for (LogEntry e : snapshot) {
+                if (Thread.currentThread().isInterrupted()) return;
+                if (filter.test(e)) newRows.add(e);
+            }
+            SwingUtilities.invokeLater(() -> {
+                if (filterGeneration != generation) return; // superseded by a newer filter
+                // catch up any entries appended via streaming after the snapshot was taken
+                for (int i = snapshot.size(); i < allEntries.size(); i++) {
+                    if (filter.test(allEntries.get(i))) newRows.add(allEntries.get(i));
+                }
+                rows = newRows;
+                fireTableDataChanged();
+            });
+        });
     }
 
     private void reapplyFilter() {

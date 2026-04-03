@@ -1,6 +1,6 @@
 package com.tlaloc.clouseau.ui;
 
-import com.tlaloc.clouseau.api.LogColorizer;
+import com.tlaloc.clouseau.api.LogSyntaxHighlighter;
 import com.tlaloc.clouseau.api.LogFormatter;
 import com.tlaloc.clouseau.api.LogParser;
 import com.tlaloc.clouseau.runtime.ClouseauPluginManager;
@@ -25,7 +25,7 @@ public final class MainFrame extends JFrame {
     private final ClouseauPluginManager pluginManager;
     private List<LogParser> parsers;
     private List<LogFormatter> formatters;
-    private List<LogColorizer> colorizers;
+    private List<LogSyntaxHighlighter> syntaxHighlighters;
     private final JTabbedPane tabbedPane = new JTabbedPane();
     private final CardLayout cardLayout  = new CardLayout();
     private final JPanel contentArea     = new JPanel(cardLayout);
@@ -46,11 +46,11 @@ public final class MainFrame extends JFrame {
         log.info("Loaded {} formatter(s): {}", formatters.size(),
                 formatters.stream().map(LogFormatter::getName).toList());
 
-        this.colorizers = new ArrayList<>();
-        this.colorizers.add(new JsonColorizer());
-        this.colorizers.addAll(pluginManager.getExtensions(LogColorizer.class));
-        log.info("Loaded {} colorizer(s): {}", colorizers.size(),
-                colorizers.stream().map(LogColorizer::getName).toList());
+        this.syntaxHighlighters = new ArrayList<>();
+        this.syntaxHighlighters.add(new JsonSyntaxHighlighter());
+        this.syntaxHighlighters.addAll(pluginManager.getExtensions(LogSyntaxHighlighter.class));
+        log.info("Loaded {} syntax highlighter(s): {}", syntaxHighlighters.size(),
+                syntaxHighlighters.stream().map(LogSyntaxHighlighter::getName).toList());
         setDefaultCloseOperation(EXIT_ON_CLOSE);
         setSize(1280, 800);
         setMinimumSize(new Dimension(800, 500));
@@ -233,8 +233,8 @@ public final class MainFrame extends JFrame {
         }
         AppPrefs.addRecentFile(file);
         refreshRecentMenu();
-        LogPanel panel = new LogPanel(parsers, formatters, colorizers);
-        addLogTab(file.getFileName().toString(), panel);
+        LogPanel panel = new LogPanel(parsers, formatters, syntaxHighlighters);
+        addLogTab(file.getFileName().toString(), abs, panel);
         panel.load(file, parser, () -> {
             AppPrefs.removeRecentFile(file);
             refreshRecentMenu();
@@ -249,19 +249,22 @@ public final class MainFrame extends JFrame {
 
     // ── Tab management ────────────────────────────────────────────────────────
 
-    private void addLogTab(String title, LogPanel panel) {
+    private void addLogTab(String title, Path file, LogPanel panel) {
         tabbedPane.addTab(null, panel);
         int idx = tabbedPane.getTabCount() - 1;
-        tabbedPane.setTabComponentAt(idx, buildTabHeader(title, panel));
+        tabbedPane.setTabComponentAt(idx, buildTabHeader(title, file, panel));
         tabbedPane.setSelectedIndex(idx);
         updateCard();
     }
 
-    private JPanel buildTabHeader(String title, LogPanel panel) {
+    private JPanel buildTabHeader(String title, Path file, LogPanel panel) {
         JPanel header = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 0));
         header.setOpaque(false);
+        String tooltip = file != null ? file.toString() : null;
+        header.setToolTipText(tooltip);
 
         JLabel label = new JLabel(title);
+        label.setToolTipText(tooltip);
 
         JButton close = new JButton("\u00d7"); // ×
         close.setPreferredSize(new Dimension(18, 18));

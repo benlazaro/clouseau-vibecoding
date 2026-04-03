@@ -168,8 +168,28 @@ final class FileChooserDialog extends JDialog {
         });
 
         JLabel header = new JLabel(Messages.get("filechooser.favorites.label"));
-        header.setFont(header.getFont().deriveFont(Font.BOLD, 11f));
-        header.setForeground(new Color(0x6B7280));
+        header.setIcon(new javax.swing.Icon() {
+            private static final int S = 12;
+            public int getIconWidth()  { return S; }
+            public int getIconHeight() { return S; }
+            public void paintIcon(Component c, Graphics g, int x, int y) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                double cx = x + S / 2.0, cy = y + S / 2.0;
+                double outer = S / 2.0, inner = outer * 0.42;
+                int[] px = new int[10], py = new int[10];
+                for (int i = 0; i < 10; i++) {
+                    double angle = Math.PI / 2 + i * Math.PI / 5;
+                    double r = (i % 2 == 0) ? outer : inner;
+                    px[i] = (int) Math.round(cx - r * Math.cos(angle));
+                    py[i] = (int) Math.round(cy - r * Math.sin(angle));
+                }
+                g2.setColor(new Color(0xFFD700));
+                g2.fillPolygon(px, py, 10);
+                g2.dispose();
+            }
+        });
+        header.setIconTextGap(5);
         header.setBorder(BorderFactory.createEmptyBorder(8, 8, 6, 8));
 
         JPanel btnRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 4));
