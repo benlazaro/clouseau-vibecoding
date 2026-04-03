@@ -42,6 +42,17 @@ public final class AppPrefs {
 
     private AppPrefs() {}
 
+    public static String getAppVersion() {
+        try (java.io.InputStream is = AppPrefs.class.getResourceAsStream("/version.properties")) {
+            if (is == null) return "dev";
+            java.util.Properties props = new java.util.Properties();
+            props.load(is);
+            return props.getProperty("version", "dev");
+        } catch (java.io.IOException e) {
+            return "dev";
+        }
+    }
+
     // ── I/O ──────────────────────────────────────────────────────────────────
 
     private static JsonObject load() {

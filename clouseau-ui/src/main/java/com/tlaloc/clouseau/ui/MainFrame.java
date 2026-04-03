@@ -164,8 +164,9 @@ public final class MainFrame extends JFrame {
                 MainFrame.class.getResource("/com/tlaloc/clouseau/ui/icons/clouseau.svg").toString(), 64, 1.15f);
         JOptionPane.showMessageDialog(
                 this,
-                "<html><b>" + Messages.get("about.version") + "</b><br><br>"
-                        + Messages.get("about.description") + "</html>",
+                "<html><b>" + Messages.get("about.version") + "</b>"
+                        + "<br><font color='gray'>" + AppPrefs.getAppVersion() + "</font>"
+                        + "<br><br>" + Messages.get("about.description") + "</html>",
                 Messages.get("about.title"),
                 JOptionPane.INFORMATION_MESSAGE,
                 icon64 != null ? new ImageIcon(icon64) : null);

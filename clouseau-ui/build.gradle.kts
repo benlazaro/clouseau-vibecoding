@@ -15,6 +15,12 @@ application {
     applicationDefaultJvmArgs = listOf("-Xms64m", "-Xmx2g")
 }
 
+tasks.processResources {
+    filesMatching("version.properties") {
+        expand("appVersion" to project.version)
+    }
+}
+
 tasks.shadowJar {
     archiveBaseName.set("clouseau")
     archiveClassifier.set("")
@@ -62,7 +68,6 @@ runtime {
         imageName     = "Clouseau"
         installerName = "Clouseau"
         appVersion    = pkgVersion
-        vendor        = "Tlaloc"
 
         // JVM flags baked into the native launcher.
         jvmArgs = listOf("-Xms64m", "-Xmx2g")
@@ -76,6 +81,7 @@ runtime {
                 val ico = packagingDir.resolve("windows/clouseau.ico")
                 if (ico.exists()) imageOptions = listOf("--icon", ico.absolutePath)
                 installerOptions = listOf(
+                    "--vendor", "Tlaloc",
                     "--win-dir-chooser",
                     "--win-menu",
                     "--win-shortcut",
@@ -89,13 +95,17 @@ runtime {
                 installerType = "dmg"
                 val icns = packagingDir.resolve("macos/clouseau.icns")
                 if (icns.exists()) imageOptions = listOf("--icon", icns.absolutePath)
-                installerOptions = listOf("--mac-package-name", "Clouseau")
+                installerOptions = listOf(
+                    "--vendor", "Tlaloc",
+                    "--mac-package-name", "Clouseau"
+                )
             }
             else -> {
                 installerType = "deb"
                 val png = packagingDir.resolve("linux/clouseau.png")
                 if (png.exists()) imageOptions = listOf("--icon", png.absolutePath)
                 installerOptions = listOf(
+                    "--vendor", "Tlaloc",
                     "--linux-shortcut",
                     "--linux-menu-group", "Development;Utility;",
                     "--linux-app-category", "utils"
