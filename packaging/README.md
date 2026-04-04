@@ -17,19 +17,25 @@ packaging/
 The source SVG is at:
 `clouseau-ui/src/main/resources/com/tlaloc/clouseau/ui/icons/clouseau.svg`
 
-## Building the installer
+## Building the distribution
 
-Requires JDK 17+ and, on Windows, [WiX Toolset 3.x](https://wixtoolset.org/) on the PATH for MSI output.
+Requires JDK 17+. No additional tools needed on any platform.
 
 ```bash
-# Native installer for the current platform
-./gradlew :clouseau-ui:jpackage
+# Zipped app image (bundled JRE, no installer required) — recommended for releases
+./gradlew :clouseau-ui:distZipImage "-PappVersion=1.0.0"
 
 # Output location
-clouseau-ui/build/jpackage/
+clouseau-ui/build/distributions/clouseau-1.0.0.zip
+
+# App image only (unzipped folder, useful for testing)
+./gradlew :clouseau-ui:jpackageImage "-PappVersion=1.0.0"
+
+# Native installer (requires WiX on Windows, no extra tools on macOS/Linux)
+./gradlew :clouseau-ui:jpackage "-PappVersion=1.0.0"
 ```
 
-The installer bundles a trimmed JRE — no separate Java installation needed.
+The zip bundles a trimmed JRE — users just extract and run, no Java installation needed.
 
 ## Heap size
 

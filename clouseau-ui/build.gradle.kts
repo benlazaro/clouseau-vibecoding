@@ -31,6 +31,26 @@ tasks.shadowJar {
 // jpackage requires a purely numeric version (e.g. 1.0.0) — strip -SNAPSHOT.
 val pkgVersion: String = (project.version as String).removeSuffix("-SNAPSHOT")
 
+tasks.named("jpackageImage") {
+    onlyIf { !(project.version as String).endsWith("-SNAPSHOT") }
+}
+
+// Zip the jpackageImage output for distribution (no installer toolchain needed).
+tasks.register<Zip>("distZipImage") {
+    group       = "distribution"
+    description = "Zips the jpackageImage output for distribution."
+    onlyIf { !(project.version as String).endsWith("-SNAPSHOT") }
+    dependsOn("jpackageImage")
+    from(layout.buildDirectory.dir("jpackage"))
+    archiveBaseName.set("clouseau")
+    archiveVersion.set(pkgVersion)
+    destinationDirectory.set(layout.buildDirectory.dir("distributions"))
+}
+
+tasks.named("jpackage") {
+    onlyIf { !(project.version as String).endsWith("-SNAPSHOT") }
+}
+
 runtime {
     // jlink options: produce a lean JRE image.
     options.set(listOf(
@@ -68,6 +88,7 @@ runtime {
         imageName     = "Clouseau"
         installerName = "Clouseau"
         appVersion    = pkgVersion
+        mainJar       = tasks.shadowJar.get().archiveFileName.get()
 
         // JVM flags baked into the native launcher.
         jvmArgs = listOf("-Xms64m", "-Xmx2g")
@@ -77,7 +98,7 @@ runtime {
 
         when {
             os.isWindows -> {
-                installerType = "msi"
+                installerType = "exe"
                 val ico = packagingDir.resolve("windows/clouseau.ico")
                 if (ico.exists()) imageOptions = listOf("--icon", ico.absolutePath)
                 installerOptions = listOf(
@@ -85,10 +106,7 @@ runtime {
                     "--win-dir-chooser",
                     "--win-menu",
                     "--win-shortcut",
-                    "--win-menu-group", "Clouseau",
-                    // Fixed UUID — Windows uses this to match installed versions for upgrade/uninstall.
-                    // Do NOT change this after the first public release.
-                    "--win-upgrade-uuid", "3f8a7c2e-1d94-4b60-9e5f-0a2b6c8d3e7f"
+                    "--win-menu-group", "Clouseau"
                 )
             }
             os.isMacOsX -> {
