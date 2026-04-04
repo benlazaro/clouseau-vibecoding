@@ -33,8 +33,14 @@ tasks.shadowJar {
     exclude("META-INF/*.SF", "META-INF/*.DSA", "META-INF/*.RSA")
 }
 
-// jpackage requires a purely numeric version (e.g. 1.0.0) — strip -SNAPSHOT.
-val pkgVersion: String = (project.version as String).removeSuffix("-SNAPSHOT")
+// jpackage requires a purely numeric version — strip -SNAPSHOT.
+// macOS additionally requires the first component to be >= 1, so 0.x.y becomes 1.x.y
+// in the package metadata only (the in-app version display is unaffected).
+val pkgVersion: String = run {
+    val v = (project.version as String).removeSuffix("-SNAPSHOT")
+    val parts = v.split(".")
+    if (parts[0].toIntOrNull() == 0) "1.${parts.drop(1).joinToString(".")}" else v
+}
 
 // Generates packaging/windows/clouseau.ico from the SVG at 16/32/48/256 px.
 // Batik is available via the root buildscript classpath.
