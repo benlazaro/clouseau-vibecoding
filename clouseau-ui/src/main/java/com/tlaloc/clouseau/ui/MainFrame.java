@@ -489,7 +489,7 @@ public final class MainFrame extends JFrame {
             g2.drawImage(hi, 0, 0, size, size, null);
             g2.dispose();
 
-//            new ColorConvertOp(ColorSpace.getInstance(ColorSpace.CS_GRAY), null).filter(img, img);
+            new ColorConvertOp(ColorSpace.getInstance(ColorSpace.CS_GRAY), null).filter(img, img);
             for (int y = 0; y < img.getHeight(); y++) {
                 for (int x = 0; x < img.getWidth(); x++) {
                     int argb = img.getRGB(x, y);
