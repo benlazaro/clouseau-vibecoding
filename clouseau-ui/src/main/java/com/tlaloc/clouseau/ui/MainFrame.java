@@ -146,7 +146,13 @@ public final class MainFrame extends JFrame {
         JMenu helpMenu = new JMenu(Messages.get("menu.help"));
 
         JMenuItem docsItem = menuItem(Messages.get("menu.help.docs"));
-        docsItem.setEnabled(false);
+        docsItem.addActionListener(e -> {
+            try {
+                Desktop.getDesktop().browse(new java.net.URI("https://github.com/benlazaro/clouseau#readme"));
+            } catch (Exception ex) {
+                log.warn("Could not open documentation URL", ex);
+            }
+        });
         helpMenu.add(docsItem);
 
         helpMenu.addSeparator();

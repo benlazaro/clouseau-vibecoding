@@ -30,7 +30,7 @@ A modern, pluggable log viewer for software engineers — built for files up to 
 ### Run from source
 
 ```bash
-git clone https://github.com/yourorg/clouseau.git
+git clone https://github.com/benlazaro/clouseau.git
 cd clouseau
 ./gradlew :clouseau-ui:run
 ```
