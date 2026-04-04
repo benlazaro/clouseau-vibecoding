@@ -1,3 +1,11 @@
+buildscript {
+    repositories { mavenCentral() }
+    dependencies {
+        classpath("org.apache.xmlgraphics:batik-transcoder:1.17")
+        classpath("org.apache.xmlgraphics:batik-codec:1.17")
+    }
+}
+
 val pf4jVersion      = "3.12.0"
 val guavaVersion     = "33.2.1-jre"
 val flatlafVersion   = "3.4.1"

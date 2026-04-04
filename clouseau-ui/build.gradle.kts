@@ -1,6 +1,11 @@
 // clouseau-ui — Swing presentation layer (MVP)
 // Rule: no business logic, no direct log parsing.
 
+import java.io.ByteArrayOutputStream
+import java.io.OutputStream
+import java.nio.ByteBuffer
+import java.nio.ByteOrder
+
 plugins {
     java
     application
@@ -31,8 +36,141 @@ tasks.shadowJar {
 // jpackage requires a purely numeric version (e.g. 1.0.0) — strip -SNAPSHOT.
 val pkgVersion: String = (project.version as String).removeSuffix("-SNAPSHOT")
 
+// Generates packaging/windows/clouseau.ico from the SVG at 16/32/48/256 px.
+// Batik is available via the root buildscript classpath.
+tasks.register("generateWindowsIcon") {
+    onlyIf { org.gradle.internal.os.OperatingSystem.current().isWindows }
+    val svgFile = file("src/main/resources/com/tlaloc/clouseau/ui/icons/clouseau.svg")
+    val icoFile = rootProject.file("packaging/windows/clouseau.ico")
+    inputs.file(svgFile)
+    outputs.file(icoFile)
+
+    doLast {
+        val sizes = listOf(16, 32, 48, 256)
+
+        // Render SVG to PNG bytes at each size using Batik
+        val pngList: List<ByteArray> = sizes.map { size ->
+            val transcoder = org.apache.batik.transcoder.image.PNGTranscoder()
+            transcoder.addTranscodingHint(
+                org.apache.batik.transcoder.SVGAbstractTranscoder.KEY_WIDTH, size.toFloat())
+            transcoder.addTranscodingHint(
+                org.apache.batik.transcoder.SVGAbstractTranscoder.KEY_HEIGHT, size.toFloat())
+            val baos = ByteArrayOutputStream()
+            transcoder.transcode(
+                org.apache.batik.transcoder.TranscoderInput(svgFile.toURI().toString()),
+                org.apache.batik.transcoder.TranscoderOutput(baos as OutputStream))
+            baos.toByteArray()
+        }
+
+        // Assemble ICO file (little-endian, PNG-embedded format supported by Windows Vista+)
+        val count     = sizes.size
+        val dirBytes  = 6 + count * 16
+        val offsets   = IntArray(count)
+        offsets[0]    = dirBytes
+        for (i in 1 until count) offsets[i] = offsets[i - 1] + pngList[i - 1].size
+        val total     = offsets.last() + pngList.last().size
+
+        val buf = ByteBuffer.allocate(total).order(ByteOrder.LITTLE_ENDIAN)
+
+        // ICONDIR header
+        buf.putShort(0); buf.putShort(1); buf.putShort(count.toShort())
+
+        // ICONDIRENTRY per image (width/height 0 means 256)
+        for (i in sizes.indices) {
+            val d = if (sizes[i] == 256) 0 else sizes[i]
+            buf.put(d.toByte()); buf.put(d.toByte())
+            buf.put(0);          buf.put(0)
+            buf.putShort(1);     buf.putShort(32)
+            buf.putInt(pngList[i].size)
+            buf.putInt(offsets[i])
+        }
+
+        pngList.forEach { buf.put(it) }
+
+        icoFile.parentFile.mkdirs()
+        icoFile.writeBytes(buf.array())
+        logger.lifecycle("Generated ${icoFile.name} (${sizes.joinToString(", ")}px)")
+    }
+}
+
+// Generates packaging/linux/clouseau.png (128x128) from the SVG.
+tasks.register("generateLinuxIcon") {
+    onlyIf { org.gradle.internal.os.OperatingSystem.current().isLinux }
+    val svgFile = file("src/main/resources/com/tlaloc/clouseau/ui/icons/clouseau.svg")
+    val pngFile = rootProject.file("packaging/linux/clouseau.png")
+    inputs.file(svgFile)
+    outputs.file(pngFile)
+
+    doLast {
+        val transcoder = org.apache.batik.transcoder.image.PNGTranscoder()
+        transcoder.addTranscodingHint(
+            org.apache.batik.transcoder.SVGAbstractTranscoder.KEY_WIDTH, 128f)
+        transcoder.addTranscodingHint(
+            org.apache.batik.transcoder.SVGAbstractTranscoder.KEY_HEIGHT, 128f)
+        val baos = ByteArrayOutputStream()
+        transcoder.transcode(
+            org.apache.batik.transcoder.TranscoderInput(svgFile.toURI().toString()),
+            org.apache.batik.transcoder.TranscoderOutput(baos as OutputStream))
+        pngFile.parentFile.mkdirs()
+        pngFile.writeBytes(baos.toByteArray())
+        logger.lifecycle("Generated ${pngFile.name} (128x128)")
+    }
+}
+
+// Generates packaging/macos/clouseau.icns from the SVG at 128/256/512/1024 px.
+tasks.register("generateMacOsIcon") {
+    onlyIf { org.gradle.internal.os.OperatingSystem.current().isMacOsX }
+    val svgFile = file("src/main/resources/com/tlaloc/clouseau/ui/icons/clouseau.svg")
+    val icnsFile = rootProject.file("packaging/macos/clouseau.icns")
+    inputs.file(svgFile)
+    outputs.file(icnsFile)
+
+    doLast {
+        // ICNS type codes → sizes (PNG-embedded, supported macOS 10.7+)
+        val entries = listOf("ic07" to 128, "ic08" to 256, "ic09" to 512, "ic10" to 1024)
+
+        val pngList: List<ByteArray> = entries.map { (_, size) ->
+            val transcoder = org.apache.batik.transcoder.image.PNGTranscoder()
+            transcoder.addTranscodingHint(
+                org.apache.batik.transcoder.SVGAbstractTranscoder.KEY_WIDTH, size.toFloat())
+            transcoder.addTranscodingHint(
+                org.apache.batik.transcoder.SVGAbstractTranscoder.KEY_HEIGHT, size.toFloat())
+            val baos = ByteArrayOutputStream()
+            transcoder.transcode(
+                org.apache.batik.transcoder.TranscoderInput(svgFile.toURI().toString()),
+                org.apache.batik.transcoder.TranscoderOutput(baos as OutputStream))
+            baos.toByteArray()
+        }
+
+        // Assemble ICNS file (big-endian)
+        val totalSize = 8 + entries.indices.sumOf { 8 + pngList[it].size }
+        val buf = ByteBuffer.allocate(totalSize).order(ByteOrder.BIG_ENDIAN)
+
+        // ICNS header: magic + file size
+        "icns".forEach { buf.put(it.code.toByte()) }
+        buf.putInt(totalSize)
+
+        // One resource block per size: type code + block size + PNG bytes
+        for (i in entries.indices) {
+            entries[i].first.forEach { buf.put(it.code.toByte()) }
+            buf.putInt(8 + pngList[i].size)
+            buf.put(pngList[i])
+        }
+
+        icnsFile.parentFile.mkdirs()
+        icnsFile.writeBytes(buf.array())
+        logger.lifecycle("Generated ${icnsFile.name} (${entries.map { it.second }.joinToString(", ")}px)")
+    }
+}
+
 tasks.named("jpackageImage") {
     onlyIf { !(project.version as String).endsWith("-SNAPSHOT") }
+    val os = org.gradle.internal.os.OperatingSystem.current()
+    when {
+        os.isWindows -> dependsOn("generateWindowsIcon")
+        os.isMacOsX  -> dependsOn("generateMacOsIcon")
+        os.isLinux   -> dependsOn("generateLinuxIcon")
+    }
 }
 
 // Zip the jpackageImage output for distribution (no installer toolchain needed).
@@ -94,13 +232,12 @@ runtime {
         jvmArgs = listOf("-Xms64m", "-Xmx2g")
 
         val os           = org.gradle.internal.os.OperatingSystem.current()
-        val packagingDir = project.file("packaging")
+        val packagingDir = rootProject.file("packaging")
 
         when {
             os.isWindows -> {
                 installerType = "exe"
-                val ico = packagingDir.resolve("windows/clouseau.ico")
-                if (ico.exists()) imageOptions = listOf("--icon", ico.absolutePath)
+                imageOptions = listOf("--icon", packagingDir.resolve("windows/clouseau.ico").absolutePath)
                 installerOptions = listOf(
                     "--vendor", "Tlaloc",
                     "--win-dir-chooser",
@@ -111,8 +248,7 @@ runtime {
             }
             os.isMacOsX -> {
                 installerType = "dmg"
-                val icns = packagingDir.resolve("macos/clouseau.icns")
-                if (icns.exists()) imageOptions = listOf("--icon", icns.absolutePath)
+                imageOptions = listOf("--icon", packagingDir.resolve("macos/clouseau.icns").absolutePath)
                 installerOptions = listOf(
                     "--vendor", "Tlaloc",
                     "--mac-package-name", "Clouseau"
@@ -120,8 +256,7 @@ runtime {
             }
             else -> {
                 installerType = "deb"
-                val png = packagingDir.resolve("linux/clouseau.png")
-                if (png.exists()) imageOptions = listOf("--icon", png.absolutePath)
+                imageOptions = listOf("--icon", packagingDir.resolve("linux/clouseau.png").absolutePath)
                 installerOptions = listOf(
                     "--vendor", "Tlaloc",
                     "--linux-shortcut",
