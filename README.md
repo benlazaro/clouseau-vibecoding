@@ -6,6 +6,22 @@ A modern, pluggable log viewer for software engineers — built for files up to 
 
 ---
 
+## Screenshots
+
+**Main view** — log table with level color-coding, multi-color row highlighting, and the detail panel showing the full entry with a formatted stack trace.
+![Main view](docs/screenshots/screenshot1.png)
+
+**Logger filter** — hierarchical logger tree lets you include or exclude individual packages and classes with a single click.
+![Logger filter](docs/screenshots/screenshot2.png)
+
+**Parser editor** — define custom log formats using a simple template syntax; the generated regex is shown live and can be tested against a real file before saving.
+![Parser editor](docs/screenshots/screenshot3.png)
+
+**Open file dialog** — browse with pinned favorites, open compressed `.gz` and `.zip` files directly, and see a live parser preview before committing to open.
+![Open file dialog](docs/screenshots/screenshot4.png)
+
+---
+
 ## Features
 
 - **Large file support** — handles hundreds of thousands of log lines without breaking a sweat
