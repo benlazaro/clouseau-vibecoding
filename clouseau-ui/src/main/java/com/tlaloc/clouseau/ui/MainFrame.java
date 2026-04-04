@@ -155,6 +155,12 @@ public final class MainFrame extends JFrame {
         });
         helpMenu.add(docsItem);
 
+        JMenuItem shortcutsItem = menuItem(Messages.get("menu.help.shortcuts"));
+        shortcutsItem.setAccelerator(KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_SLASH,
+                java.awt.Toolkit.getDefaultToolkit().getMenuShortcutKeyMaskEx() | java.awt.event.InputEvent.SHIFT_DOWN_MASK));
+        shortcutsItem.addActionListener(e -> openShortcuts());
+        helpMenu.add(shortcutsItem);
+
         helpMenu.addSeparator();
 
         JMenuItem aboutItem = menuItem(Messages.get("menu.help.about"));
@@ -163,6 +169,53 @@ public final class MainFrame extends JFrame {
 
         menuBar.add(helpMenu);
         return menuBar;
+    }
+
+    private void openShortcuts() {
+        JDialog dialog = new JDialog(this, Messages.get("shortcuts.title"), true);
+
+        // Single unified grid — all rows share the same two columns so descriptions
+        // and badges stay perfectly aligned across every section.
+        JPanel grid = new JPanel(new MigLayout(
+                "insets 24, wrap 2, gapy 10, gapx 40",
+                "[grow, fill][right]"));
+
+        addDialogSection(grid, Messages.get("shortcuts.section.file"),  "gaptop 0");
+        addShortcutRow(grid, Messages.get("shortcuts.shortcut.open"),      "Ctrl+O");
+        addShortcutRow(grid, Messages.get("shortcuts.shortcut.close.tab"), "Ctrl+W");
+        addShortcutRow(grid, Messages.get("shortcuts.shortcut.settings"),  "Ctrl+,");
+
+        addDialogSection(grid, Messages.get("shortcuts.section.table"), "gaptop 20");
+        addShortcutRow(grid, Messages.get("shortcuts.shortcut.first.row"),  "Ctrl+Home");
+        addShortcutRow(grid, Messages.get("shortcuts.shortcut.last.row"),   "Ctrl+End");
+        addShortcutRow(grid, Messages.get("shortcuts.shortcut.solo.level"), "Alt+Click");
+
+        addDialogSection(grid, Messages.get("shortcuts.section.find"),  "gaptop 20");
+        addShortcutRow(grid, Messages.get("shortcuts.shortcut.find"),       "Ctrl+F");
+        addShortcutRow(grid, Messages.get("shortcuts.shortcut.find.next"),  "Enter");
+        addShortcutRow(grid, Messages.get("shortcuts.shortcut.find.prev"),  "Shift+Enter");
+        addShortcutRow(grid, Messages.get("shortcuts.shortcut.find.close"), "Esc");
+
+        dialog.setContentPane(grid);
+        dialog.getRootPane().registerKeyboardAction(
+                e -> dialog.dispose(),
+                KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_ESCAPE, 0),
+                JComponent.WHEN_IN_FOCUSED_WINDOW);
+        dialog.pack();
+        dialog.setSize(Math.max(dialog.getWidth(), 440), dialog.getHeight());
+        dialog.setResizable(false);
+        dialog.setLocationRelativeTo(this);
+        dialog.setVisible(true);
+    }
+
+    private static void addDialogSection(JPanel grid, String title, String gapConstraint) {
+        JLabel label = new JLabel(title);
+        label.setFont(label.getFont().deriveFont(Font.BOLD));
+        label.setForeground(new Color(0x82AAFF));
+        grid.add(label, "span 2, " + gapConstraint + ", gapbottom 2");
+        JSeparator sep = new JSeparator();
+        sep.setForeground(new Color(0x3A3A3A));
+        grid.add(sep, "span 2, growx, gapbottom 4");
     }
 
     private void openAbout() {
@@ -357,9 +410,10 @@ public final class MainFrame extends JFrame {
 
         JPanel grid = new JPanel(new MigLayout("insets 0, wrap 2, gapy 10, gapx 24", "[right][left]"));
         grid.setOpaque(false);
-        addShortcutRow(grid, Messages.get("welcome.shortcut.open"),      "Ctrl+O");
-        addShortcutRow(grid, Messages.get("welcome.shortcut.close.tab"), "Ctrl+W");
-        addShortcutRow(grid, Messages.get("welcome.shortcut.settings"),  "Ctrl+,");
+        addShortcutRow(grid, Messages.get("shortcuts.shortcut.open"),      "Ctrl+O");
+        addShortcutRow(grid, Messages.get("shortcuts.shortcut.close.tab"), "Ctrl+W");
+        addShortcutRow(grid, Messages.get("shortcuts.shortcut.find"),     "Ctrl+F");
+        addShortcutRow(grid, Messages.get("shortcuts.shortcut.settings"), "Ctrl+,");
         content.add(grid);
 
         outer.add(content);
