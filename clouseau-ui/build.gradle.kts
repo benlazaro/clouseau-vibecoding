@@ -33,13 +33,14 @@ tasks.shadowJar {
     exclude("META-INF/*.SF", "META-INF/*.DSA", "META-INF/*.RSA")
 }
 
-// jpackage requires a purely numeric version — strip -SNAPSHOT.
-// macOS additionally requires the first component to be >= 1, so 0.x.y becomes 1.x.y
-// in the package metadata only (the in-app version display is unaffected).
+// User-facing version used for zip filenames and in-app display — strip -SNAPSHOT only.
+val appVersion: String = (project.version as String).removeSuffix("-SNAPSHOT")
+
+// jpackage bundle version: macOS requires the first component to be >= 1,
+// so 0.x.y becomes 1.x.y in the package metadata only.
 val pkgVersion: String = run {
-    val v = (project.version as String).removeSuffix("-SNAPSHOT")
-    val parts = v.split(".")
-    if (parts[0].toIntOrNull() == 0) "1.${parts.drop(1).joinToString(".")}" else v
+    val parts = appVersion.split(".")
+    if (parts[0].toIntOrNull() == 0) "1.${parts.drop(1).joinToString(".")}" else appVersion
 }
 
 // Generates packaging/windows/clouseau.ico from the SVG at 16/32/48/256 px.
@@ -187,7 +188,7 @@ tasks.register<Zip>("distZipImage") {
     dependsOn("jpackageImage")
     from(layout.buildDirectory.dir("jpackage"))
     archiveBaseName.set("clouseau")
-    archiveVersion.set(pkgVersion)
+    archiveVersion.set(appVersion)
     destinationDirectory.set(layout.buildDirectory.dir("distributions"))
 }
 
