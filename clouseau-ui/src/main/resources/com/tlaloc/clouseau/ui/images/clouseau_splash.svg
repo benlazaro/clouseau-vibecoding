@@ -1,0 +1,31 @@
+<svg width="680" height="300" viewBox="0 0 680 300" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <clipPath id="lens-clip">
+      <circle cx="308" cy="108" r="68"/>
+    </clipPath>
+  </defs>
+
+  <!-- HANDLE -->
+  <path d="M 385,165 L 456,234 Q 462,240 458,245 Q 454,250 447,244 L 376,175 Z"
+    fill="#BA7517" stroke="#1a0e00" stroke-width="20" stroke-linejoin="round" stroke-linecap="round" paint-order="stroke fill"/>
+
+  <!-- LENS rings -->
+  <circle cx="308" cy="108" r="90" fill="#1a0e00"/>
+  <circle cx="308" cy="108" r="80" fill="#EF9F27"/>
+  <!-- Sclera — explicitly opaque white -->
+  <circle cx="308" cy="108" r="68" fill="#FFFFFF"/>
+
+  <g clip-path="url(#lens-clip)">
+    <circle cx="308" cy="116" r="36" fill="#1a0e00"/>
+    <circle cx="294" cy="104" r="10" fill="#FFFFFF"/>
+    <path d="M 240,108 L 240,38 L 376,38 L 376,108 Q 308,72 240,108 Z" fill="#F5C88A"/>
+    <path d="M 240,108 Q 308,72 376,108" fill="none" stroke="#1a0e00" stroke-width="7" stroke-linecap="round"/>
+  </g>
+
+  <circle cx="308" cy="108" r="90" fill="none" stroke="#1a0e00" stroke-width="8"/>
+
+  <!-- WORDMARK -->
+  <line x1="304" y1="222" x2="376" y2="222" stroke="#EF9F27" stroke-width="1.5"/>
+  <text font-family="sans-serif" font-size="50" font-weight="700" letter-spacing="8" fill="#EF9F27" text-anchor="middle" x="340" y="276">CLOUSEAU</text>
+  <text font-family="sans-serif" font-size="11" font-weight="500" letter-spacing="10" fill="#BA7517" text-anchor="middle" x="340" y="294">LOG VIEWER</text>
+</svg>

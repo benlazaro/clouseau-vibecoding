@@ -23,6 +23,7 @@ public final class ClouseauApp {
 
         log.info("Starting Clouseau Log Viewer");
 
+        SplashWindow splash = SplashWindow.createAndShow();
 
         // Plugin parsers — loaded from the plugins directory; may be empty if dir not found
         String pluginsDirProp = System.getProperty("clouseau.plugins.dir");
@@ -104,10 +105,17 @@ public final class ClouseauApp {
         SwingUtilities.invokeLater(() -> {
             MainFrame frame = new MainFrame(pluginManager);
             frameRef[0] = frame;
-            frame.setVisible(true);
 
-            // Open any files passed as command-line arguments.
-            for (String arg : args) frame.openFile(Path.of(arg));
+            Runnable show = () -> {
+                frame.setVisible(true);
+                for (String arg : args) frame.openFile(Path.of(arg));
+            };
+
+            if (splash != null) {
+                splash.close(show);
+            } else {
+                show.run();
+            }
         });
     }
 
