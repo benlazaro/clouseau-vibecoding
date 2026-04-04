@@ -17,7 +17,7 @@ public final class SplashWindow extends JWindow {
     private static final int    PAD            = 24;
     private static final int    STATUS_H       = 32;
     private static final Color  BG             = new Color(0x2c2c2c);
-    private static final long   MIN_DISPLAY_MS = 1_200;
+    private static final long   MIN_DISPLAY_MS = 1_500;
 
     private final long   shownAt = System.currentTimeMillis();
     private final JLabel statusLabel;
@@ -43,12 +43,25 @@ public final class SplashWindow extends JWindow {
         int winH = SVG_H + PAD * 2 + STATUS_H;
         panel.setPreferredSize(new Dimension(winW, winH));
 
-        statusLabel = new JLabel("Initializing application...", SwingConstants.CENTER);
-        statusLabel.setForeground(new Color(0x888888));
-        statusLabel.setFont(statusLabel.getFont().deriveFont(Font.PLAIN, 11f));
+        int statusY = SVG_H + PAD * 2;
+        Font statusFont = UIManager.getFont("defaultFont") != null
+                ? UIManager.getFont("defaultFont").deriveFont(Font.PLAIN, 11f)
+                : new JLabel().getFont().deriveFont(Font.PLAIN, 11f);
+        Color statusColor = new Color(0x888888);
+
+        statusLabel = new JLabel("Initializing application...", SwingConstants.LEFT);
+        statusLabel.setForeground(statusColor);
+        statusLabel.setFont(statusFont);
         statusLabel.setOpaque(false);
-        statusLabel.setBounds(0, SVG_H + PAD * 2, winW, STATUS_H);
+        statusLabel.setBounds(PAD, statusY, winW / 2, STATUS_H);
         panel.add(statusLabel);
+
+        JLabel versionLabel = new JLabel("v" + AppPrefs.getAppVersion(), SwingConstants.RIGHT);
+        versionLabel.setForeground(statusColor);
+        versionLabel.setFont(statusFont);
+        versionLabel.setOpaque(false);
+        versionLabel.setBounds(winW / 2, statusY, winW / 2 - PAD, STATUS_H);
+        panel.add(versionLabel);
 
         setContentPane(panel);
         pack();
