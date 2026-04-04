@@ -32,6 +32,8 @@ public final class ClouseauApp {
         Path pluginsDir = pluginsDirProp != null
                 ? Path.of(pluginsDirProp)
                 : Path.of(System.getProperty("user.home"), ".clouseau", "plugins");
+
+        if (splash != null) splash.setStatus("Loading plugins...");
         ClouseauPluginManager pluginManager = new ClouseauPluginManager(pluginsDir);
         pluginManager.loadAll();
         log.info("Plugin manager loaded");
@@ -41,6 +43,7 @@ public final class ClouseauApp {
         // Use an array so the IPC lambda can capture the reference set later on the EDT.
         MainFrame[] frameRef = new MainFrame[1];
 
+        if (splash != null) splash.setStatus("Starting...");
         boolean isPrimary = SingleInstanceManager.tryBecomePrimary(filePath ->
                 SwingUtilities.invokeLater(() -> {
                     if (frameRef[0] != null) frameRef[0].openFile(Path.of(filePath));

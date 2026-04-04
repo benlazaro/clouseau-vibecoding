@@ -15,13 +15,15 @@ public final class SplashWindow extends JWindow {
     private static final int    SVG_W          = 680;
     private static final int    SVG_H          = 300;
     private static final int    PAD            = 24;
+    private static final int    STATUS_H       = 32;
     private static final Color  BG             = new Color(0x2c2c2c);
-    private static final long   MIN_DISPLAY_MS = 1_000;
+    private static final long   MIN_DISPLAY_MS = 1_200;
 
-    private final long shownAt = System.currentTimeMillis();
+    private final long   shownAt = System.currentTimeMillis();
+    private final JLabel statusLabel;
 
     private SplashWindow(BufferedImage img) {
-        JPanel panel = new JPanel() {
+        JPanel panel = new JPanel(null) {
             @Override
             protected void paintComponent(Graphics g) {
                 Graphics2D g2 = (Graphics2D) g.create();
@@ -36,10 +38,26 @@ public final class SplashWindow extends JWindow {
                 g2.dispose();
             }
         };
-        panel.setPreferredSize(new Dimension(SVG_W + PAD * 2, SVG_H + PAD * 2));
+
+        int winW = SVG_W + PAD * 2;
+        int winH = SVG_H + PAD * 2 + STATUS_H;
+        panel.setPreferredSize(new Dimension(winW, winH));
+
+        statusLabel = new JLabel("Initializing application...", SwingConstants.CENTER);
+        statusLabel.setForeground(new Color(0x888888));
+        statusLabel.setFont(statusLabel.getFont().deriveFont(Font.PLAIN, 11f));
+        statusLabel.setOpaque(false);
+        statusLabel.setBounds(0, SVG_H + PAD * 2, winW, STATUS_H);
+        panel.add(statusLabel);
+
         setContentPane(panel);
         pack();
         setLocationRelativeTo(null);
+    }
+
+    /** Updates the status label. Safe to call from any thread. */
+    public void setStatus(String text) {
+        SwingUtilities.invokeLater(() -> statusLabel.setText(text));
     }
 
     /**
