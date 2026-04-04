@@ -15,7 +15,7 @@ packaging/
 ```
 
 The source SVG is at:
-`clouseau-ui/src/main/resources/com/tlaloc/clouseau/ui/icons/clouseau.svg`
+`clouseau-ui/src/main/resources/com/droidenx/clouseau/ui/icons/clouseau.svg`
 
 ## Building the distribution
 

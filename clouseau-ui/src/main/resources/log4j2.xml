@@ -25,7 +25,7 @@
     </Appenders>
 
     <Loggers>
-        <Logger name="com.tlaloc.clouseau" level="INFO"/>
+        <Logger name="com.droidenx.clouseau" level="INFO"/>
         <Root level="INFO">
             <AppenderRef ref="FileAppender"/>
             <AppenderRef ref="ConsoleAppender"/>

@@ -14,7 +14,7 @@ plugins {
 }
 
 application {
-    mainClass.set("com.tlaloc.clouseau.ui.ClouseauApp")
+    mainClass.set("com.droidenx.clouseau.ui.ClouseauApp")
     // Applied to installDist launchers and the jpackage image.
     // Users can override at runtime with -J-Xmx in the launcher or JAVA_OPTS.
     applicationDefaultJvmArgs = listOf("-Xms64m", "-Xmx2g")
@@ -47,7 +47,7 @@ val bundleVersion: String = run {
 // Batik is available via the root buildscript classpath.
 tasks.register("generateWindowsIcon") {
     onlyIf { org.gradle.internal.os.OperatingSystem.current().isWindows }
-    val svgFile = file("src/main/resources/com/tlaloc/clouseau/ui/icons/clouseau.svg")
+    val svgFile = file("src/main/resources/com/droidenx/clouseau/ui/icons/clouseau.svg")
     val icoFile = rootProject.file("packaging/windows/clouseau.ico")
     inputs.file(svgFile)
     outputs.file(icoFile)
@@ -103,7 +103,7 @@ tasks.register("generateWindowsIcon") {
 // Generates packaging/linux/clouseau.png (128x128) from the SVG.
 tasks.register("generateLinuxIcon") {
     onlyIf { org.gradle.internal.os.OperatingSystem.current().isLinux }
-    val svgFile = file("src/main/resources/com/tlaloc/clouseau/ui/icons/clouseau.svg")
+    val svgFile = file("src/main/resources/com/droidenx/clouseau/ui/icons/clouseau.svg")
     val pngFile = rootProject.file("packaging/linux/clouseau.png")
     inputs.file(svgFile)
     outputs.file(pngFile)
@@ -127,7 +127,7 @@ tasks.register("generateLinuxIcon") {
 // Generates packaging/macos/clouseau.icns from the SVG at 128/256/512/1024 px.
 tasks.register("generateMacOsIcon") {
     onlyIf { org.gradle.internal.os.OperatingSystem.current().isMacOsX }
-    val svgFile = file("src/main/resources/com/tlaloc/clouseau/ui/icons/clouseau.svg")
+    val svgFile = file("src/main/resources/com/droidenx/clouseau/ui/icons/clouseau.svg")
     val icnsFile = rootProject.file("packaging/macos/clouseau.icns")
     inputs.file(svgFile)
     outputs.file(icnsFile)
