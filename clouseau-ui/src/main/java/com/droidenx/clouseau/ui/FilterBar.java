@@ -151,7 +151,7 @@ final class FilterBar extends JPanel {
         // ── Text / regex search ───────────────────────────────────────────────
         searchField.putClientProperty("JTextField.placeholderText", Messages.get("filter.search.placeholder"));
 
-        JButton clearSearchBtn = new JButton("×");
+        JButton clearSearchBtn = new JButton("\u00d7");
         clearSearchBtn.setVisible(false);
         clearSearchBtn.setFont(clearSearchBtn.getFont().deriveFont(14f));
         clearSearchBtn.setBorderPainted(false);

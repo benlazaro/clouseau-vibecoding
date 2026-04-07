@@ -38,8 +38,8 @@ public final class ParserEditorDialog extends JDialog {
     private final Runnable onSave;
     private final DefaultListModel<ParserDef> listModel  = new DefaultListModel<>();
     private final JList<ParserDef>            parserList;
-    private final JButton                     deleteBtn      = new JButton("−");
-    private final JButton                     duplicateBtn   = new JButton("⧉");
+    private final JButton                     deleteBtn      = new JButton("\u2212");
+    private final JButton                     duplicateBtn   = new JButton("\u29c9");
 
     // ── Form ─────────────────────────────────────────────────────────────────
     private final JTextField        nameField    = new JTextField();

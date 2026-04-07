@@ -714,8 +714,8 @@ public final class LogPanel extends JPanel {
         highlightNavPosition.setForeground(FG_DIM);
         highlightNavPosition.setFont(highlightNavPosition.getFont().deriveFont(12f));
 
-        JButton prevBtn = makeNavArrowButton("▲");
-        JButton nextBtn = makeNavArrowButton("▼");
+        JButton prevBtn = makeNavArrowButton("\u25b2");
+        JButton nextBtn = makeNavArrowButton("\u25bc");
         prevBtn.setToolTipText(Messages.get("highlight.nav.prev.tooltip"));
         nextBtn.setToolTipText(Messages.get("highlight.nav.next.tooltip"));
         prevBtn.addActionListener(e -> navigateHighlight(-1));
@@ -902,8 +902,8 @@ public final class LogPanel extends JPanel {
         findCounter.setFont(findCounter.getFont().deriveFont(11f));
         findCounter.setPreferredSize(new Dimension(80, findCounter.getPreferredSize().height));
 
-        JButton prevBtn = makeNavArrowButton("▲");
-        JButton nextBtn = makeNavArrowButton("▼");
+        JButton prevBtn = makeNavArrowButton("\u25b2");
+        JButton nextBtn = makeNavArrowButton("\u25bc");
         prevBtn.setToolTipText("Previous match (Shift+Enter)");
         nextBtn.setToolTipText("Next match (Enter)");
         prevBtn.addActionListener(e -> navigateSearch(-1));

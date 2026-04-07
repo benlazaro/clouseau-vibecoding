@@ -157,7 +157,7 @@ final class FileChooserDialog extends JDialog {
             }
         });
 
-        JButton removeBtn = new JButton("−");
+        JButton removeBtn = new JButton("\u2212");
         removeBtn.setToolTipText(Messages.get("filechooser.favorites.remove.tooltip"));
         removeBtn.setMargin(new Insets(2, 8, 2, 8));
         removeBtn.setEnabled(false);
