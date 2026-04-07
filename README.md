@@ -1,6 +1,6 @@
 # Clouseau Log Viewer
 
-A modern, pluggable log viewer for software engineers — built for files up to 2 GB in size, fast filtering, and a clean dark UI.
+A log viewer for software engineers, born from a love of OtrosLogViewer and a desire to bring its core functionality into a cleaner, more modern interface — Support files of up to 2 GB in size, features fast filtering, and a clean dark UI.
 
 ![Java 17](https://img.shields.io/badge/Java-17-blue) ![Gradle 8.8](https://img.shields.io/badge/Gradle-8.8-02303A) ![License MIT](https://img.shields.io/badge/License-MIT-green)
 
