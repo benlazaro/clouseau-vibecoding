@@ -36,11 +36,12 @@ tasks.shadowJar {
 // Version used for zip filenames and in-app display — strip -SNAPSHOT only.
 val zipVersion: String = (project.version as String).removeSuffix("-SNAPSHOT")
 
-// jpackage bundle version: macOS requires the first component to be >= 1,
-// so 0.x.y becomes 1.x.y in the package metadata only (the in-app display is unaffected).
+// jpackage bundle version: must be numeric only (no pre-release labels like -alpha/-beta).
+// macOS also requires the first component to be >= 1, so 0.x.y becomes 1.x.y in package
+// metadata only (the in-app display is unaffected).
 val bundleVersion: String = run {
-    val parts = zipVersion.split(".")
-    if (parts[0].toIntOrNull() == 0) "1.${parts.drop(1).joinToString(".")}" else zipVersion
+    val parts = zipVersion.substringBefore("-").split(".")
+    if (parts[0].toIntOrNull() == 0) "1.${parts.drop(1).joinToString(".")}" else parts.joinToString(".")
 }
 
 // Generates packaging/windows/clouseau.ico from the SVG at 16/32/48/256 px.
