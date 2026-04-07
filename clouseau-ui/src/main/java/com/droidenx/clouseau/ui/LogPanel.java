@@ -1312,6 +1312,18 @@ public final class LogPanel extends JPanel {
         syntaxHighlightPanel.setVisible(!syntaxHighlighters.isEmpty());
 
         String rawMsg = entry.message() != null ? entry.message() : "";
+
+        // Fold continuation lines (HL7 segments, stack traces, wrapped lines) into the message
+        // so they are included in formatting, syntax highlighting, and the copy action.
+        if (modelRow >= 0) {
+            List<LogEntry> continuations = logTableModel.getContinuationLines(modelRow);
+            if (!continuations.isEmpty()) {
+                StringBuilder sb = new StringBuilder(rawMsg);
+                for (LogEntry c : continuations) sb.append("\n").append(c.rawLine());
+                rawMsg = sb.toString();
+            }
+        }
+
         for (int i = 0; i < formatters.size(); i++) {
             if (formatters.get(i).canFormat(rawMsg)) enableDetailBtn(formatterBtnList.get(i));
             else                                     disableDetailBtn(formatterBtnList.get(i));
@@ -1340,18 +1352,6 @@ public final class LogPanel extends JPanel {
             appendField(doc, key, msgVal, Messages.get("table.col.message"), messageText);
         }
         messageFieldEnd = doc.getLength() - 1; // exclude trailing newline
-
-        // Collect consecutive continuation lines (null timestamp = stack trace / wrapped lines)
-        if (modelRow >= 0) {
-            List<LogEntry> continuations = logTableModel.getContinuationLines(modelRow);
-            StringBuilder stackTrace = new StringBuilder();
-            for (LogEntry c : continuations) stackTrace.append(c.rawLine()).append("\n");
-            if (!stackTrace.isEmpty()) {
-                insertText(doc, "\n", val);
-                insertText(doc, Messages.get("detail.stacktrace.label") + "\n", key);
-                insertText(doc, stackTrace.toString().stripTrailing(), val);
-            }
-        }
 
 //        if (entry.rawLine() != null) {
 //            insertText(doc, "\n" + "─".repeat(60) + "\n", val);
