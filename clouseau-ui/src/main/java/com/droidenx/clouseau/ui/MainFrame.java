@@ -103,6 +103,10 @@ public final class MainFrame extends JFrame {
         fileMenu.add(recentMenu);
         refreshRecentMenu();
 
+        JMenuItem sshItem = menuItem(Messages.get("menu.file.ssh"));
+        sshItem.addActionListener(e -> openSsh());
+        fileMenu.add(sshItem);
+
         closeTabItem = menuItem(Messages.get("menu.file.close.tab"));
         closeTabItem.setEnabled(false);
         closeTabItem.setAccelerator(KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_W,
@@ -304,6 +308,16 @@ public final class MainFrame extends JFrame {
                 tabbedPane.removeTabAt(idx);
                 updateCard();
             }
+        });
+    }
+
+    private void openSsh() {
+        new SshConnectionDialog(this, parsers).showDialog().ifPresent(r -> {
+            log.info("Opening SSH: {}", r.config().displayName());
+            LogPanel panel = new LogPanel(parsers, formatters, syntaxHighlighters);
+            String title = r.config().user() + "@" + r.config().host();
+            addLogTab(title, null, panel);
+            panel.loadSsh(r.config(), r.parser());
         });
     }
 

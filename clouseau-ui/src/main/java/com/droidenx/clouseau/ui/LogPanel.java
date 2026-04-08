@@ -68,6 +68,7 @@ public final class LogPanel extends JPanel {
     private int fittedColumnsWidth = 0;
     private volatile SwingWorker<?, ?> currentWorker;
     private volatile SwingWorker<Void, LogEntry> tailWorker;
+    private volatile SshLogSource sshSource;
     private Path currentFile;
     private Optional<LogParser> currentParser = Optional.empty();
     private volatile long tailPosition = 0;
@@ -269,6 +270,84 @@ public final class LogPanel extends JPanel {
         stopTailing();
         SwingWorker<?, ?> w = currentWorker;
         if (w != null) w.cancel(true);
+        SshLogSource s = sshSource;
+        if (s != null) { s.close(); sshSource = null; }
+    }
+
+    /**
+     * Connects to a remote host via SSH and streams log lines using {@code tail -f}.
+     * The panel immediately shows the content card; rows appear as they arrive.
+     */
+    public void loadSsh(SshConfig config, Optional<LogParser> parser) {
+        currentFile   = null;
+        currentParser = parser;
+        statusBarPathLabel.setText(config.displayName());
+        statusBarPathLabel.setToolTipText(config.displayName());
+        cancelLoad();   // closes any prior SSH source, cancels in-flight workers
+
+        logIndex.clear();
+        logTableModel.clear();
+        filterBar.clearLoggers();
+        logTableModel.setCustomFields(parser.map(com.droidenx.clouseau.api.LogParser::customFields).orElse(List.of()));
+
+        ((CardLayout) centerCards.getLayout()).show(centerCards, CARD_LOADING);
+
+        SshLogSource source = new SshLogSource(config);
+        sshSource = source;
+
+        SwingWorker<Void, LogEntry> worker = new SwingWorker<>() {
+            boolean firstBatch = true;
+
+            @Override
+            protected Void doInBackground() throws Exception {
+                source.open(line -> {
+                    if (line.isBlank() || isCancelled()) return;
+                    final String candidate = line;
+                    LogEntry entry = parser.map(Stream::of)
+                            .orElseGet(parsers::stream)
+                            .filter(p -> p.canParse(candidate))
+                            .findFirst()
+                            .map(p -> p.parse(candidate))
+                            .orElseGet(() -> new LogEntry(
+                                    null, LogEntry.LogLevel.UNKNOWN,
+                                    null, null,
+                                    candidate, candidate, Map.of()));
+                    publish(entry);
+                });
+                return null;
+            }
+
+            @Override
+            protected void process(List<LogEntry> chunk) {
+                if (isCancelled()) return;
+                if (firstBatch) {
+                    firstBatch = false;
+                    ((CardLayout) centerCards.getLayout()).show(centerCards, CARD_CONTENT);
+                }
+                logTableModel.appendBatch(chunk);
+                filterBar.addBatch(chunk);
+                if (follow) scrollToBottom();
+            }
+
+            @Override
+            protected void done() {
+                ((CardLayout) centerCards.getLayout()).show(centerCards, CARD_CONTENT);
+                if (isCancelled()) return;
+                try {
+                    get();
+                } catch (java.util.concurrent.ExecutionException ex) {
+                    Throwable cause = ex.getCause() != null ? ex.getCause() : ex;
+                    log.error("SSH error for {}", config.displayName(), cause);
+                    JOptionPane.showMessageDialog(
+                            SwingUtilities.getWindowAncestor(LogPanel.this),
+                            cause.getMessage(),
+                            Messages.get("ssh.error.title"),
+                            JOptionPane.ERROR_MESSAGE);
+                } catch (Exception ignored) {}
+            }
+        };
+        currentWorker = worker;
+        worker.execute();
     }
 
     private static boolean isCompressed(Path file) {
