@@ -36,7 +36,25 @@ public final class AppPrefs {
     private static final String KEY_RECENT_FILES       = "recent.files";
     private static final String KEY_RECENT_MAX         = "recent.max";
     private static final String KEY_FAVORITES          = "favorites";
+    private static final String KEY_SSH_FAVORITES      = "ssh.favorites";
     private static final int    MAX_RECENT             = 10;
+
+    /**
+     * A saved SSH connection. Passwords and passphrases are stored as plaintext
+     * in settings.json — use key-based auth to avoid storing credentials on disk.
+     */
+    public record SshFavorite(
+            String name,
+            String host,
+            int    port,
+            String user,
+            String authType,      // "password" or "key"
+            String password,      // null when using key auth
+            String keyFilePath,   // null when using password auth
+            String keyPassphrase, // may be blank
+            String remotePath,
+            String parserName     // null = auto-detect
+    ) {}
 
     private static final JsonObject ROOT = load();
 
@@ -238,5 +256,55 @@ public final class AppPrefs {
 
     public static void saveFavorites(List<Path> favorites) {
         putStringList(KEY_FAVORITES, favorites.stream().map(Path::toString).toList());
+    }
+
+    public static List<SshFavorite> getSshFavorites() {
+        if (!ROOT.has(KEY_SSH_FAVORITES)) return new ArrayList<>();
+        JsonArray arr = ROOT.get(KEY_SSH_FAVORITES).getAsJsonArray();
+        List<SshFavorite> list = new ArrayList<>(arr.size());
+        for (JsonElement el : arr) {
+            JsonObject o = el.getAsJsonObject();
+            list.add(new SshFavorite(
+                    jsonString(o, "name", ""),
+                    jsonString(o, "host", ""),
+                    jsonInt(o,    "port", 22),
+                    jsonString(o, "user", ""),
+                    jsonString(o, "authType", "password"),
+                    jsonString(o, "password", null),
+                    jsonString(o, "keyFilePath", null),
+                    jsonString(o, "keyPassphrase", null),
+                    jsonString(o, "remotePath", ""),
+                    jsonString(o, "parserName", null)
+            ));
+        }
+        return list;
+    }
+
+    public static void saveSshFavorites(List<SshFavorite> favorites) {
+        JsonArray arr = new JsonArray();
+        for (SshFavorite f : favorites) {
+            JsonObject o = new JsonObject();
+            o.addProperty("name",       f.name());
+            o.addProperty("host",       f.host());
+            o.addProperty("port",       f.port());
+            o.addProperty("user",       f.user());
+            o.addProperty("authType",   f.authType());
+            if (f.password()      != null) o.addProperty("password",      f.password());
+            if (f.keyFilePath()   != null) o.addProperty("keyFilePath",   f.keyFilePath());
+            if (f.keyPassphrase() != null) o.addProperty("keyPassphrase", f.keyPassphrase());
+            o.addProperty("remotePath", f.remotePath());
+            if (f.parserName()    != null) o.addProperty("parserName",    f.parserName());
+            arr.add(o);
+        }
+        ROOT.add(KEY_SSH_FAVORITES, arr);
+        save();
+    }
+
+    private static String jsonString(JsonObject o, String key, String def) {
+        return o.has(key) && !o.get(key).isJsonNull() ? o.get(key).getAsString() : def;
+    }
+
+    private static int jsonInt(JsonObject o, String key, int def) {
+        return o.has(key) ? o.get(key).getAsInt() : def;
     }
 }

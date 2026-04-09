@@ -8,6 +8,7 @@ import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
 import java.awt.*;
 import java.io.File;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
@@ -19,9 +20,6 @@ public class SshConnectionDialog extends JDialog {
 
     public record Result(SshConfig config, Optional<LogParser> parser) {}
 
-    private static final String AUTH_PASSWORD = "password";
-    private static final String AUTH_KEY      = "key";
-
     // Connection fields
     private final JTextField hostField       = new JTextField(20);
     private final JSpinner   portSpinner     = new JSpinner(new SpinnerNumberModel(22, 1, 65535, 1));
@@ -31,18 +29,29 @@ public class SshConnectionDialog extends JDialog {
     // Auth panels
     private final JRadioButton passwordRadio = new JRadioButton(Messages.get("ssh.dialog.auth.password"), true);
     private final JRadioButton keyRadio      = new JRadioButton(Messages.get("ssh.dialog.auth.key"));
-    private final JPanel       authCards     = new JPanel(new CardLayout());
+    private final JRadioButton noneRadio     = new JRadioButton(Messages.get("ssh.dialog.auth.none"));
 
     // Password auth
-    private final JPasswordField passwordField = new JPasswordField(20);
+    private final JLabel         passwordLabel     = new JLabel(Messages.get("ssh.dialog.password"));
+    private final JPasswordField passwordField     = new JPasswordField(20);
 
     // Key auth
+    private final JLabel         keyFileLabel      = new JLabel(Messages.get("ssh.dialog.key.file"));
     private final JTextField     keyFileField      = new JTextField(16);
+    private final JLabel         keyPassLabel       = new JLabel(Messages.get("ssh.dialog.key.passphrase"));
     private final JPasswordField keyPassphraseField = new JPasswordField(16);
+    private final JCheckBox      noPassphraseBox    = new JCheckBox(Messages.get("ssh.dialog.key.no.passphrase"));
+    private       JPanel         keyFileRow;         // built in buildContent()
+    private       JPanel         keyPassRow;         // built in buildContent()
 
     // Parser
     private final JComboBox<String> parserCombo;
     private final List<LogParser>   parsers;
+
+    // Favorites
+    private final DefaultComboBoxModel<String> favoritesModel = new DefaultComboBoxModel<>();
+    private final JComboBox<String>            favoritesCombo = new JComboBox<>(favoritesModel);
+    private       List<AppPrefs.SshFavorite>   favorites;
 
     // Action
     private final JButton connectBtn = new JButton(Messages.get("ssh.dialog.connect"));
@@ -56,6 +65,9 @@ public class SshConnectionDialog extends JDialog {
         parserNames[0] = Messages.get("filechooser.parser.autodetect");
         for (int i = 0; i < parsers.size(); i++) parserNames[i + 1] = parsers.get(i).getName();
         parserCombo = new JComboBox<>(parserNames);
+
+        favorites = new ArrayList<>(AppPrefs.getSshFavorites());
+        rebuildFavoritesCombo();
 
         setContentPane(buildContent());
         getRootPane().setDefaultButton(connectBtn);
@@ -81,6 +93,10 @@ public class SshConnectionDialog extends JDialog {
                 "insets 20, wrap 2, gapy 8, gapx 10",
                 "[right][grow, fill]"));
 
+        // Favorites row
+        panel.add(buildFavoritesRow(), "span 2, growx, gapbottom 4");
+        panel.add(new JSeparator(), "span 2, growx, gapbottom 4");
+
         // Host + port on the same row
         panel.add(new JLabel(Messages.get("ssh.dialog.host")));
         JPanel hostRow = new JPanel(new MigLayout("insets 0, gapy 0, gapx 6", "[grow, fill][][]"));
@@ -99,38 +115,45 @@ public class SshConnectionDialog extends JDialog {
         ButtonGroup authGroup = new ButtonGroup();
         authGroup.add(passwordRadio);
         authGroup.add(keyRadio);
+        authGroup.add(noneRadio);
         JPanel authTypeRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
         authTypeRow.add(passwordRadio);
         authTypeRow.add(Box.createHorizontalStrut(16));
         authTypeRow.add(keyRadio);
+        authTypeRow.add(Box.createHorizontalStrut(16));
+        authTypeRow.add(noneRadio);
         panel.add(new JLabel());
         panel.add(authTypeRow);
 
-        // Password card
-        JPanel passwordCard = new JPanel(new MigLayout("insets 0", "[right][grow, fill]"));
-        passwordCard.add(new JLabel(Messages.get("ssh.dialog.password")));
-        passwordCard.add(passwordField, "growx");
+        // Password field — flat in outer panel so "Password:" aligns with other labels
+        panel.add(passwordLabel,  "hidemode 3");
+        panel.add(passwordField,  "hidemode 3");
 
-        // Key card
-        JPanel keyCard = new JPanel(new MigLayout("insets 0, wrap 2, gapy 6", "[right][grow, fill]"));
-        keyCard.add(new JLabel(Messages.get("ssh.dialog.key.file")));
-        JPanel keyFileRow = new JPanel(new MigLayout("insets 0, gapy 0, gapx 4", "[grow, fill][]"));
+        // Key fields — also flat; shown/hidden as a group when switching auth type
+        keyFileRow = new JPanel(new MigLayout("insets 0, gapy 0, gapx 4", "[grow, fill][]"));
         keyFileRow.add(keyFileField, "growx");
         JButton browseBtn = new JButton(Messages.get("ssh.dialog.key.browse"));
         browseBtn.addActionListener(e -> browseKeyFile());
         keyFileRow.add(browseBtn);
-        keyCard.add(keyFileRow);
-        keyCard.add(new JLabel(Messages.get("ssh.dialog.key.passphrase")));
-        keyCard.add(keyPassphraseField, "growx");
 
-        authCards.add(passwordCard, AUTH_PASSWORD);
-        authCards.add(keyCard,      AUTH_KEY);
+        panel.add(keyFileLabel,       "hidemode 3");
+        panel.add(keyFileRow,         "hidemode 3");
+        keyPassRow = new JPanel(new MigLayout("insets 0, gapy 0, gapx 6", "[grow, fill][]"));
+        keyPassRow.add(keyPassphraseField, "growx");
+        keyPassRow.add(noPassphraseBox);
+        noPassphraseBox.addActionListener(e -> {
+            keyPassphraseField.setEnabled(!noPassphraseBox.isSelected());
+            if (noPassphraseBox.isSelected()) keyPassphraseField.setText("");
+        });
 
-        passwordRadio.addActionListener(e -> ((CardLayout) authCards.getLayout()).show(authCards, AUTH_PASSWORD));
-        keyRadio.addActionListener(e ->      ((CardLayout) authCards.getLayout()).show(authCards, AUTH_KEY));
+        panel.add(keyPassLabel,  "hidemode 3");
+        panel.add(keyPassRow,    "hidemode 3");
 
-        panel.add(new JLabel(), "");
-        panel.add(authCards);
+        // Default to password auth; wire radio buttons
+        switchAuth("password");
+        passwordRadio.addActionListener(e -> switchAuth("password"));
+        keyRadio.addActionListener(e ->      switchAuth("key"));
+        noneRadio.addActionListener(e ->     switchAuth("none"));
 
         panel.add(new JLabel(Messages.get("ssh.dialog.remote.path")));
         panel.add(remotePathField);
@@ -163,11 +186,133 @@ public class SshConnectionDialog extends JDialog {
         return panel;
     }
 
+    private void switchAuth(String authType) {
+        boolean usePw  = "password".equals(authType);
+        boolean useKey = "key".equals(authType);
+        passwordLabel.setVisible(usePw);
+        passwordField.setVisible(usePw);
+        keyFileLabel.setVisible(useKey);
+        keyFileRow.setVisible(useKey);
+        keyPassLabel.setVisible(useKey);
+        keyPassRow.setVisible(useKey);
+        pack();
+    }
+
     private void validateForm() {
         boolean ok = !hostField.getText().isBlank()
                   && !userField.getText().isBlank()
                   && !remotePathField.getText().isBlank();
         connectBtn.setEnabled(ok);
+    }
+
+    // ── Favorites ─────────────────────────────────────────────────────────────
+
+    private JPanel buildFavoritesRow() {
+        JButton saveBtn = new JButton("\u2605");
+        saveBtn.setToolTipText(Messages.get("ssh.dialog.favorites.save.tooltip"));
+        saveBtn.setMargin(new Insets(2, 8, 2, 8));
+
+        JButton deleteBtn = new JButton("\u2212");
+        deleteBtn.setToolTipText(Messages.get("ssh.dialog.favorites.delete.tooltip"));
+        deleteBtn.setMargin(new Insets(2, 8, 2, 8));
+        deleteBtn.setEnabled(false);
+
+        favoritesCombo.addActionListener(e -> {
+            int idx = favoritesCombo.getSelectedIndex();
+            deleteBtn.setEnabled(idx > 0);
+            if (idx > 0) loadFavorite(favorites.get(idx - 1));
+        });
+
+        saveBtn.addActionListener(e -> saveFavorite());
+        deleteBtn.addActionListener(e -> {
+            int idx = favoritesCombo.getSelectedIndex();
+            if (idx < 1) return;
+            favorites.remove(idx - 1);
+            AppPrefs.saveSshFavorites(favorites);
+            rebuildFavoritesCombo();
+            deleteBtn.setEnabled(false);
+        });
+
+        JPanel row = new JPanel(new MigLayout("insets 0, gapy 0, gapx 6", "[][grow, fill][][]"));
+        row.add(new JLabel(Messages.get("ssh.dialog.favorites")));
+        row.add(favoritesCombo, "growx");
+        row.add(saveBtn);
+        row.add(deleteBtn);
+        return row;
+    }
+
+    private void rebuildFavoritesCombo() {
+        favoritesModel.removeAllElements();
+        favoritesModel.addElement(Messages.get("ssh.dialog.favorites.placeholder"));
+        favorites.forEach(f -> favoritesModel.addElement(f.name()));
+    }
+
+    private void loadFavorite(AppPrefs.SshFavorite f) {
+        hostField.setText(f.host());
+        portSpinner.setValue(f.port());
+        userField.setText(f.user());
+        remotePathField.setText(f.remotePath());
+
+        if ("key".equals(f.authType())) {
+            keyRadio.setSelected(true);
+            keyFileField.setText(f.keyFilePath() != null ? f.keyFilePath() : "");
+            boolean noPass = f.keyPassphrase() == null || f.keyPassphrase().isEmpty();
+            noPassphraseBox.setSelected(noPass);
+            keyPassphraseField.setEnabled(!noPass);
+            keyPassphraseField.setText(noPass ? "" : f.keyPassphrase());
+        } else if ("none".equals(f.authType())) {
+            noneRadio.setSelected(true);
+        } else {
+            passwordRadio.setSelected(true);
+            passwordField.setText(f.password() != null ? f.password() : "");
+        }
+        switchAuth(f.authType());
+
+        parserCombo.setSelectedIndex(0);
+        if (f.parserName() != null) {
+            for (int i = 0; i < parsers.size(); i++) {
+                if (parsers.get(i).getName().equals(f.parserName())) {
+                    parserCombo.setSelectedIndex(i + 1);
+                    break;
+                }
+            }
+        }
+    }
+
+    private void saveFavorite() {
+        String host       = hostField.getText().trim();
+        String user       = userField.getText().trim();
+        String remotePath = remotePathField.getText().trim();
+        if (host.isBlank() || user.isBlank() || remotePath.isBlank()) return;
+
+        String name = user + "@" + host + ":" + remotePath;
+        int    port = (int) portSpinner.getValue();
+
+        String parserName = null;
+        int parserIdx = parserCombo.getSelectedIndex();
+        if (parserIdx > 0) parserName = parsers.get(parserIdx - 1).getName();
+
+        AppPrefs.SshFavorite fav;
+        if (keyRadio.isSelected()) {
+            fav = new AppPrefs.SshFavorite(name, host, port, user,
+                    "key", null,
+                    keyFileField.getText().trim(),
+                    new String(keyPassphraseField.getPassword()),
+                    remotePath, parserName);
+        } else if (noneRadio.isSelected()) {
+            fav = new AppPrefs.SshFavorite(name, host, port, user,
+                    "none", null, null, null, remotePath, parserName);
+        } else {
+            fav = new AppPrefs.SshFavorite(name, host, port, user,
+                    "password", new String(passwordField.getPassword()),
+                    null, null, remotePath, parserName);
+        }
+
+        favorites.removeIf(f -> f.name().equals(name));
+        favorites.add(0, fav);
+        AppPrefs.saveSshFavorites(favorites);
+        rebuildFavoritesCombo();
+        favoritesCombo.setSelectedIndex(1);
     }
 
     private void browseKeyFile() {
@@ -192,6 +337,8 @@ public class SshConnectionDialog extends JDialog {
                     keyFileField.getText().trim(),
                     new String(keyPassphraseField.getPassword()),
                     remotePath);
+        } else if (noneRadio.isSelected()) {
+            config = new SshConfig(host, port, user, null, null, null, remotePath);
         } else {
             config = new SshConfig(host, port, user,
                     new String(passwordField.getPassword()),
