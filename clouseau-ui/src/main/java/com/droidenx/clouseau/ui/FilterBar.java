@@ -295,6 +295,7 @@ final class FilterBar extends JPanel {
 
     private Predicate<LogEntry> buildLoggerPredicate() {
         if (excludedLoggers.isEmpty()) return e -> true;
+        if (excludedLoggers.containsAll(allLoggers)) return e -> false;
         Set<String> snapshot = Set.copyOf(excludedLoggers);
         return e -> e.logger() == null || !snapshot.contains(e.logger());
     }
