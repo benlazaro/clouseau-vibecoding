@@ -209,10 +209,12 @@ final class FilterBar extends JPanel {
                     });
         }
         Set<String> known = new HashSet<>(allLoggers);
-        boolean changed = entries.stream()
+        int sizeBefore = known.size();
+        entries.stream()
                 .map(LogEntry::logger)
                 .filter(Objects::nonNull)
-                .anyMatch(known::add);
+                .forEach(known::add);
+        boolean changed = known.size() > sizeBefore;
         if (changed) {
             allLoggers = known.stream().sorted().toList();
             excludedLoggers.retainAll(known);
