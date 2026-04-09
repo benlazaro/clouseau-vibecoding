@@ -74,9 +74,38 @@ public final class PluginManagerDialog extends JDialog {
         table.getColumnModel().getColumn(3).setCellRenderer(centerRenderer);
         table.getColumnModel().getColumn(4).setCellRenderer(new StatusCellRenderer());
 
-        add(new JScrollPane(table), "grow, wrap");
+        JScrollPane tableScroll = new JScrollPane(table);
+        add(tableScroll, "grow, wrap");
 
         // ── Buttons ───────────────────────────────────────────────────────────
+        JButton deleteBtn = new JButton(Messages.get("plugins.dialog.delete"));
+        deleteBtn.setEnabled(false);
+        deleteBtn.addActionListener(e -> {
+            int row = table.getSelectedRow();
+            if (row < 0) return;
+            String id = (String) tableModel.getValueAt(row, 1);
+            int confirm = JOptionPane.showConfirmDialog(this,
+                    Messages.get("plugins.dialog.delete.confirm.message").formatted(id),
+                    Messages.get("plugins.dialog.delete.confirm.title"),
+                    JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
+            if (confirm != JOptionPane.YES_OPTION) return;
+            pluginManager.deletePlugin(id);
+            onRefresh.run();
+            tableModel.reload();
+        });
+
+        table.getSelectionModel().addListSelectionListener(
+                e -> deleteBtn.setEnabled(table.getSelectedRow() >= 0));
+
+        JButton downloadBtn = new JButton(Messages.get("plugins.dialog.download"));
+        downloadBtn.addActionListener(e -> {
+            new DownloadPluginDialog((JFrame) getOwner(), pluginManager.getPluginsRoot(), () -> {
+                pluginManager.refresh();
+                onRefresh.run();
+                tableModel.reload();
+            }).setVisible(true);
+        });
+
         JButton refreshBtn = new JButton(Messages.get("plugins.dialog.refresh"));
         refreshBtn.addActionListener(e -> {
             pluginManager.refresh();
@@ -87,7 +116,9 @@ public final class PluginManagerDialog extends JDialog {
         JButton closeBtn = new JButton(Messages.get("plugins.dialog.close"));
         closeBtn.addActionListener(e -> dispose());
 
-        JPanel buttons = new JPanel(new MigLayout("insets 0", "push[][]", "[]"));
+        JPanel buttons = new JPanel(new MigLayout("insets 0", "[][]push[][]", "[]"));
+        buttons.add(deleteBtn);
+        buttons.add(downloadBtn);
         buttons.add(refreshBtn);
         buttons.add(closeBtn);
         add(buttons, "growx");

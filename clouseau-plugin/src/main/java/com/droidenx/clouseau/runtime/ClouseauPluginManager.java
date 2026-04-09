@@ -95,6 +95,19 @@ public final class ClouseauPluginManager {
         return pf4j.getExtensions(type);
     }
 
+    /**
+     * Stops, unloads, and deletes the JAR for the given plugin id.
+     * Returns true if the file was successfully deleted.
+     */
+    public boolean deletePlugin(String id) {
+        PluginWrapper pw = pf4j.getPlugin(id);
+        if (pw == null) return false;
+        java.nio.file.Path jar = pw.getPluginPath();
+        pf4j.deletePlugin(id);
+        log.info("Deleted plugin '{}' ({})", id, jar);
+        return true;
+    }
+
     public void stopAll() {
         log.info("Stopping all plugins");
         pf4j.stopPlugins();

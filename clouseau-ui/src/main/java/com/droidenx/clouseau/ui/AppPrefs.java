@@ -37,7 +37,23 @@ public final class AppPrefs {
     private static final String KEY_RECENT_MAX         = "recent.max";
     private static final String KEY_FAVORITES          = "favorites";
     private static final String KEY_SSH_FAVORITES      = "ssh.favorites";
+    private static final String KEY_PLUGIN_REPOS       = "plugin.repos";
     private static final int    MAX_RECENT             = 10;
+
+    /**
+     * A configured plugin repository (Nexus 3, etc.).
+     * Credentials are stored as plaintext in settings.json — prefer token auth
+     * with a read-only token over storing a real password.
+     */
+    public record PluginRepo(
+            String name,
+            String type,        // "nexus3"
+            String url,         // base URL of the server
+            String repository,  // Nexus repo name; null = search all
+            String authType,    // "none", "basic", "token"
+            String username,    // for basic auth; null otherwise
+            String credential   // password for basic, token for token; null for none
+    ) {}
 
     /**
      * A saved SSH connection. Passwords and passphrases are stored as plaintext
@@ -297,6 +313,42 @@ public final class AppPrefs {
             arr.add(o);
         }
         ROOT.add(KEY_SSH_FAVORITES, arr);
+        save();
+    }
+
+    public static List<PluginRepo> getPluginRepos() {
+        if (!ROOT.has(KEY_PLUGIN_REPOS)) return new ArrayList<>();
+        JsonArray arr = ROOT.get(KEY_PLUGIN_REPOS).getAsJsonArray();
+        List<PluginRepo> list = new ArrayList<>(arr.size());
+        for (JsonElement el : arr) {
+            JsonObject o = el.getAsJsonObject();
+            list.add(new PluginRepo(
+                    jsonString(o, "name",       ""),
+                    jsonString(o, "type",       "nexus3"),
+                    jsonString(o, "url",        ""),
+                    jsonString(o, "repository", null),
+                    jsonString(o, "authType",   "none"),
+                    jsonString(o, "username",   null),
+                    jsonString(o, "credential", null)
+            ));
+        }
+        return list;
+    }
+
+    public static void savePluginRepos(List<PluginRepo> repos) {
+        JsonArray arr = new JsonArray();
+        for (PluginRepo r : repos) {
+            JsonObject o = new JsonObject();
+            o.addProperty("name",       r.name());
+            o.addProperty("type",       r.type());
+            o.addProperty("url",        r.url());
+            if (r.repository()  != null) o.addProperty("repository",  r.repository());
+            o.addProperty("authType",   r.authType());
+            if (r.username()    != null) o.addProperty("username",    r.username());
+            if (r.credential()  != null) o.addProperty("credential",  r.credential());
+            arr.add(o);
+        }
+        ROOT.add(KEY_PLUGIN_REPOS, arr);
         save();
     }
 
