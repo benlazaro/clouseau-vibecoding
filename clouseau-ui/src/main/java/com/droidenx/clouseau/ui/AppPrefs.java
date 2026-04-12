@@ -42,8 +42,7 @@ public final class AppPrefs {
 
     /**
      * A configured plugin repository (Nexus 3, etc.).
-     * Credentials are stored as plaintext in settings.json — prefer token auth
-     * with a read-only token over storing a real password.
+     * Credentials are encrypted at rest via {@link CredentialStore}.
      */
     public record PluginRepo(
             String name,
@@ -56,8 +55,8 @@ public final class AppPrefs {
     ) {}
 
     /**
-     * A saved SSH connection. Passwords and passphrases are stored as plaintext
-     * in settings.json — use key-based auth to avoid storing credentials on disk.
+     * A saved SSH connection. Passwords and passphrases are encrypted at rest
+     * via {@link CredentialStore}.
      */
     public record SshFavorite(
             String name,
@@ -286,9 +285,9 @@ public final class AppPrefs {
                     jsonInt(o,    "port", 22),
                     jsonString(o, "user", ""),
                     jsonString(o, "authType", "password"),
-                    jsonString(o, "password", null),
+                    CredentialStore.decrypt(jsonString(o, "password",      null)),
                     jsonString(o, "keyFilePath", null),
-                    jsonString(o, "keyPassphrase", null),
+                    CredentialStore.decrypt(jsonString(o, "keyPassphrase", null)),
                     jsonString(o, "remotePath", ""),
                     jsonString(o, "parserName", null)
             ));
@@ -305,9 +304,9 @@ public final class AppPrefs {
             o.addProperty("port",       f.port());
             o.addProperty("user",       f.user());
             o.addProperty("authType",   f.authType());
-            if (f.password()      != null) o.addProperty("password",      f.password());
+            if (f.password()      != null) o.addProperty("password",      CredentialStore.encrypt(f.password()));
             if (f.keyFilePath()   != null) o.addProperty("keyFilePath",   f.keyFilePath());
-            if (f.keyPassphrase() != null) o.addProperty("keyPassphrase", f.keyPassphrase());
+            if (f.keyPassphrase() != null) o.addProperty("keyPassphrase", CredentialStore.encrypt(f.keyPassphrase()));
             o.addProperty("remotePath", f.remotePath());
             if (f.parserName()    != null) o.addProperty("parserName",    f.parserName());
             arr.add(o);
@@ -329,7 +328,7 @@ public final class AppPrefs {
                     jsonString(o, "repository", null),
                     jsonString(o, "authType",   "none"),
                     jsonString(o, "username",   null),
-                    jsonString(o, "credential", null)
+                    CredentialStore.decrypt(jsonString(o, "credential", null))
             ));
         }
         return list;
@@ -345,7 +344,7 @@ public final class AppPrefs {
             if (r.repository()  != null) o.addProperty("repository",  r.repository());
             o.addProperty("authType",   r.authType());
             if (r.username()    != null) o.addProperty("username",    r.username());
-            if (r.credential()  != null) o.addProperty("credential",  r.credential());
+            if (r.credential()  != null) o.addProperty("credential",  CredentialStore.encrypt(r.credential()));
             arr.add(o);
         }
         ROOT.add(KEY_PLUGIN_REPOS, arr);
