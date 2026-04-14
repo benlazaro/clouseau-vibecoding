@@ -350,17 +350,44 @@ public final class MainFrame extends JFrame {
         header.add(label);
         header.add(close);
 
-        // Switch to the tab on click (needed when the label is clicked but the tab isn't yet active)
-        java.awt.event.MouseAdapter selectOnClick = new java.awt.event.MouseAdapter() {
+        // Select on click + drag-to-reorder
+        java.awt.event.MouseAdapter tabMouseAdapter = new java.awt.event.MouseAdapter() {
             @Override public void mousePressed(java.awt.event.MouseEvent e) {
                 int idx = tabbedPane.indexOfTabComponent(header);
                 if (idx >= 0) tabbedPane.setSelectedIndex(idx);
             }
+            @Override public void mouseReleased(java.awt.event.MouseEvent e) {
+                tabbedPane.setCursor(Cursor.getDefaultCursor());
+            }
+            @Override public void mouseDragged(java.awt.event.MouseEvent e) {
+                int src = tabbedPane.indexOfTabComponent(header);
+                if (src < 0) return;
+                tabbedPane.setCursor(Cursor.getPredefinedCursor(Cursor.MOVE_CURSOR));
+                Point p = SwingUtilities.convertPoint((Component) e.getSource(), e.getPoint(), tabbedPane);
+                int dst = tabbedPane.indexAtLocation(p.x, p.y);
+                if (dst >= 0 && dst != src) moveTab(src, dst);
+            }
         };
-        header.addMouseListener(selectOnClick);
-        label.addMouseListener(selectOnClick);
+        header.addMouseListener(tabMouseAdapter);
+        header.addMouseMotionListener(tabMouseAdapter);
+        label.addMouseListener(tabMouseAdapter);
+        label.addMouseMotionListener(tabMouseAdapter);
 
         return header;
+    }
+
+    private void moveTab(int from, int to) {
+        Component comp    = tabbedPane.getComponentAt(from);
+        Component tabComp = tabbedPane.getTabComponentAt(from);
+        String    title   = tabbedPane.getTitleAt(from);
+        String    tip     = tabbedPane.getToolTipTextAt(from);
+        Icon      icon    = tabbedPane.getIconAt(from);
+        boolean   enabled = tabbedPane.isEnabledAt(from);
+        tabbedPane.remove(from);
+        tabbedPane.insertTab(title, icon, comp, tip, to);
+        tabbedPane.setEnabledAt(to, enabled);
+        tabbedPane.setTabComponentAt(to, tabComp);
+        tabbedPane.setSelectedIndex(to);
     }
 
     private void closeTab(int idx) {
