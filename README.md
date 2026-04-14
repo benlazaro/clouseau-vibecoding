@@ -34,6 +34,8 @@ A log viewer for software engineers, born from a love of OtrosLogViewer and a de
 - **Formatters & syntax highlighters** — built-in JSON pretty-printer and Monokai-inspired JSON syntax highlighter; toggle or override per-entry from the detail toolbar
 - **Find bar** — `Ctrl+F` searches all columns across visible rows with `↑`/`↓` navigation
 - **Plugin system** — drop in a JAR to add new parsers, formatters, colorizers, or sources at runtime
+- **Column management** — hide/show individual columns, drag to reorder, save named layouts and restore them with one click; set a default layout that is applied automatically on every file open
+- **Memory limit per tab** — configurable maximum number of log entries per tab; oldest entries are evicted automatically so the app never runs out of memory during long tailing sessions
 
 ---
 
@@ -125,7 +127,14 @@ Default Logback console format. Two variants are supported:
 
 **Follow** — enabled by default. Toggleable per-tab in the filter bar. New lines are appended as they arrive; opening a file always starts at the top. Log rotation is handled transparently — existing rows are kept and the new file is tailed from the beginning.
 
-**Tab context menu** — right-click any tab to **Reload** (re-read the file from scratch), **Clear Table** (remove all rows with confirmation), or **Close** the tab.
+**Table context menu** — right-click anywhere in the log table to:
+- **Reload File** — re-read the file from scratch (clears the table and re-parses from the beginning).
+- **Clear Table** — remove all rows (with confirmation).
+- **Highlight rows** — assign a colour to selected rows (same as right-clicking a row directly).
+
+**Columns** — right-click any column header to manage columns:
+- **Layouts section** — lists your saved column layouts. The default layout (if set) is marked with ★. Click a layout name to apply it immediately. **Save current layout…** captures the current column order, visibility, and widths under a name you choose. **Manage layouts…** opens a dialog where you can set or clear the default layout and delete layouts you no longer need.
+- **Columns section** — a checkbox per column; uncheck to hide, check to show. At least one column is always kept visible. Column color-coding follows the column as you drag it to a new position.
 
 **Settings** — `File → Settings` (`Ctrl+,`). Stored at `~/.clouseau/settings.json`.
 
@@ -230,9 +239,27 @@ User settings are stored at `~/.clouseau/settings.json`:
   "recent.max": 5,
   "recent.files": [
     "/home/user/logs/app.log"
+  ],
+  "max.entries.per.tab": 200000,
+  "column.layout.default": "my-layout",
+  "column.layouts": [
+    {
+      "name": "my-layout",
+      "columns": [
+        { "modelIndex": 0, "visible": true, "width": 160 },
+        { "modelIndex": 1, "visible": true, "width": 60 },
+        { "modelIndex": 2, "visible": false, "width": 120 }
+      ]
+    }
   ]
 }
 ```
+
+| Key | Default | Description |
+|---|---|---|
+| `max.entries.per.tab` | `200000` | Maximum log entries kept per tab. Oldest entries are dropped when the limit is exceeded. Range: 10,000 – 2,000,000. |
+| `column.layout.default` | _(none)_ | Name of the layout applied automatically when a file is opened. |
+| `column.layouts` | `[]` | Saved column layouts. Each entry records column order, visibility, and width. |
 
 ---
 
