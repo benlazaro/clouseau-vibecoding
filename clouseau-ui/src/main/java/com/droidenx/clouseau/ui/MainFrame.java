@@ -269,9 +269,11 @@ public final class MainFrame extends JFrame {
     private void openFile() {
         new FileChooserDialog(this, parsers, lastParserIndex).showDialog().ifPresent(r -> {
             lastParserIndex = r.parserIndex();
-            log.info("Opening {} with parser: {}", r.file().getFileName(),
-                    r.parser().map(LogParser::getName).orElse("Auto-detect"));
-            openFile(r.file(), r.parser());
+            for (Path file : r.files()) {
+                log.info("Opening {} with parser: {}", file.getFileName(),
+                        r.parser().map(LogParser::getName).orElse("Auto-detect"));
+                openFile(file, r.parser());
+            }
         });
     }
 

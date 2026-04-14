@@ -16,6 +16,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Stream;
@@ -27,7 +28,7 @@ import java.util.stream.Stream;
 @Slf4j
 final class FileChooserDialog extends JDialog {
 
-    record Result(Path file, Optional<LogParser> parser, int parserIndex) {}
+    record Result(List<Path> files, Optional<LogParser> parser, int parserIndex) {}
 
     private final List<LogParser> parsers;
     private final JFileChooser chooser = new JFileChooser();
@@ -46,6 +47,7 @@ final class FileChooserDialog extends JDialog {
         chooser.setFileFilter(new FileNameExtensionFilter(
                 Messages.get("filechooser.filter.desc"), "log", "txt", "out", "gz", "zip"));
         chooser.setAcceptAllFileFilterUsed(true);
+        chooser.setMultiSelectionEnabled(true);
         chooser.setControlButtonsAreShown(false);
         File lastDir = AppPrefs.getLastOpenDir();
         if (lastDir != null) chooser.setCurrentDirectory(lastDir);
@@ -95,12 +97,20 @@ final class FileChooserDialog extends JDialog {
     }
 
     private void doApprove() {
-        File f = chooser.getSelectedFile();
-        if (f == null || !f.isFile()) return;
+        File[] allSelected = chooser.getSelectedFiles();
+        List<Path> files;
+        if (allSelected != null && allSelected.length > 0) {
+            files = Arrays.stream(allSelected).filter(File::isFile).map(File::toPath).toList();
+        } else {
+            File f = chooser.getSelectedFile();
+            if (f == null || !f.isFile()) return;
+            files = List.of(f.toPath());
+        }
+        if (files.isEmpty()) return;
         Optional<LogParser> chosen = selectedParserIndex == 0
                 ? Optional.empty()
                 : Optional.of(parsers.get(selectedParserIndex - 1));
-        result = new Result(f.toPath(), chosen, selectedParserIndex);
+        result = new Result(files, chosen, selectedParserIndex);
         AppPrefs.setLastOpenDir(chooser.getCurrentDirectory());
         dispose();
     }
@@ -273,7 +283,20 @@ final class FileChooserDialog extends JDialog {
         };
 
         Runnable validate = () -> {
-            File selected = chooser.getSelectedFile();
+            File[] allSelected = chooser.getSelectedFiles();
+            long fileCount = allSelected != null
+                    ? Arrays.stream(allSelected).filter(File::isFile).count() : 0;
+            File lead = chooser.getSelectedFile();
+
+            if (fileCount > 1) {
+                statusLabel.setForeground(new Color(0x4CAF50));
+                statusLabel.setText(Messages.get("filechooser.status.files.selected").formatted(fileCount));
+                if (openBtn != null) openBtn.setEnabled(true);
+                updatePreview.run();
+                return;
+            }
+
+            File selected = (fileCount == 1 && allSelected != null) ? allSelected[0] : lead;
             if (selected == null || !selected.isFile()) {
                 statusLabel.setText(" ");
                 if (openBtn != null) openBtn.setEnabled(false);
@@ -306,6 +329,8 @@ final class FileChooserDialog extends JDialog {
             validate.run();
         });
         chooser.addPropertyChangeListener(JFileChooser.SELECTED_FILE_CHANGED_PROPERTY,
+                e -> validate.run());
+        chooser.addPropertyChangeListener(JFileChooser.SELECTED_FILES_CHANGED_PROPERTY,
                 e -> validate.run());
         chooser.addPropertyChangeListener(JFileChooser.DIRECTORY_CHANGED_PROPERTY, e -> {
             chooser.setSelectedFile(null);
