@@ -250,6 +250,7 @@ public final class LogPanel extends JPanel {
                 try {
                     get();
                     autoResizeColumns();
+                    applyDefaultLayoutIfSet();
                     try { tailPosition = Files.size(currentFile); } catch (IOException ignored) {}
                     if (follow) startTailing();
                 } catch (Exception ex) {
@@ -329,6 +330,7 @@ public final class LogPanel extends JPanel {
                 if (firstBatch) {
                     firstBatch = false;
                     ((CardLayout) centerCards.getLayout()).show(centerCards, CARD_CONTENT);
+                    applyDefaultLayoutIfSet();
                 }
                 logTableModel.appendBatch(chunk);
                 filterBar.addBatch(chunk);
@@ -637,12 +639,43 @@ public final class LogPanel extends JPanel {
             private void maybeShowColumnMenu(MouseEvent e) {
                 if (!e.isPopupTrigger()) return;
                 JPopupMenu menu = new JPopupMenu();
-                JLabel title = new JLabel(Messages.get("table.columns.menu.title"));
-                title.setBorder(BorderFactory.createEmptyBorder(3, 6, 5, 6));
-                title.setForeground(FG_DIM);
-                title.setFont(title.getFont().deriveFont(Font.BOLD, 11f));
-                menu.add(title);
+
+                // ── Layouts section ──────────────────────────────────────────
+                menu.add(menuSectionLabel(Messages.get("table.columns.layout.section")));
                 menu.addSeparator();
+
+                List<AppPrefs.ColumnLayout> layouts = AppPrefs.getColumnLayouts();
+                String defaultName = AppPrefs.getDefaultColumnLayout();
+                if (layouts.isEmpty()) {
+                    JMenuItem none = new JMenuItem(Messages.get("table.columns.layout.none"));
+                    none.setEnabled(false);
+                    menu.add(none);
+                } else {
+                    for (AppPrefs.ColumnLayout layout : layouts) {
+                        boolean isDefault = layout.name().equals(defaultName);
+                        String label = (isDefault ? "\u2605 " : "  ") + layout.name();
+                        JMenuItem applyItem = new JMenuItem(label);
+                        applyItem.addActionListener(ev ->
+                            SwingUtilities.invokeLater(() -> applyColumnLayout(layout)));
+                        menu.add(applyItem);
+                    }
+                }
+                menu.addSeparator();
+                JMenuItem saveItem = new JMenuItem(Messages.get("table.columns.layout.save"));
+                saveItem.addActionListener(ev -> saveCurrentLayout());
+                menu.add(saveItem);
+                JMenuItem manageItem = new JMenuItem(Messages.get("table.columns.layout.manage"));
+                manageItem.setEnabled(!layouts.isEmpty());
+                manageItem.addActionListener(ev ->
+                    new ColumnLayoutManagerDialog(SwingUtilities.getWindowAncestor(logTable))
+                            .setVisible(true));
+                menu.add(manageItem);
+
+                // ── Columns section ──────────────────────────────────────────
+                menu.addSeparator();
+                menu.add(menuSectionLabel(Messages.get("table.columns.menu.title")));
+                menu.addSeparator();
+
                 int totalCols = logTableModel.getColumnCount();
                 for (int modelIdx = 0; modelIdx < totalCols; modelIdx++) {
                     String name = logTableModel.getColumnName(modelIdx);
@@ -657,6 +690,14 @@ public final class LogPanel extends JPanel {
                     menu.add(item);
                 }
                 menu.show(header, e.getX(), e.getY());
+            }
+
+            private JLabel menuSectionLabel(String text) {
+                JLabel lbl = new JLabel(text);
+                lbl.setBorder(BorderFactory.createEmptyBorder(3, 6, 1, 6));
+                lbl.setForeground(FG_DIM);
+                lbl.setFont(lbl.getFont().deriveFont(Font.BOLD, 11f));
+                return lbl;
             }
         });
 
@@ -774,6 +815,114 @@ public final class LogPanel extends JPanel {
         for (int i = 0; i < lastCol; i++) total += logTable.getColumnModel().getColumn(i).getWidth();
         fittedColumnsWidth = total;
         stretchMessageColumn();
+    }
+
+    // ── Column layouts ────────────────────────────────────────────────────────
+
+    /** Snapshots the current column order, visibility and widths into a named layout. */
+    AppPrefs.ColumnLayout captureLayout(String name) {
+        List<AppPrefs.ColumnLayout.ColumnEntry> entries = new ArrayList<>();
+        for (int vi = 0; vi < logTable.getColumnCount(); vi++) {
+            TableColumn col = logTable.getColumnModel().getColumn(vi);
+            entries.add(new AppPrefs.ColumnLayout.ColumnEntry(col.getModelIndex(), true, col.getWidth()));
+        }
+        hiddenColumns.entrySet().stream()
+                .sorted(Map.Entry.comparingByKey())
+                .forEach(e -> entries.add(
+                        new AppPrefs.ColumnLayout.ColumnEntry(e.getKey(), false, e.getValue().getWidth())));
+        return new AppPrefs.ColumnLayout(name, entries);
+    }
+
+    /** Applies a saved layout: visibility, order and widths. Safe to call on any file (unknown model indices are skipped). */
+    void applyColumnLayout(AppPrefs.ColumnLayout layout) {
+        int modelCount = logTableModel.getColumnCount();
+
+        // 1. Make all currently-hidden columns visible again
+        new ArrayList<>(hiddenColumns.keySet()).forEach(mi -> {
+            TableColumn col = hiddenColumns.remove(mi);
+            logTable.getColumnModel().addColumn(col);
+        });
+
+        // 2. Hide columns the layout marks as hidden (skip indices outside current model)
+        for (AppPrefs.ColumnLayout.ColumnEntry entry : layout.columns()) {
+            if (!entry.visible() && entry.modelIndex() < modelCount) {
+                javax.swing.table.TableColumnModel cm = logTable.getColumnModel();
+                for (int vi = 0; vi < cm.getColumnCount(); vi++) {
+                    TableColumn col = cm.getColumn(vi);
+                    if (col.getModelIndex() == entry.modelIndex()) {
+                        hiddenColumns.put(entry.modelIndex(), col);
+                        cm.removeColumn(col);
+                        break;
+                    }
+                }
+            }
+        }
+
+        // 3. Reorder visible columns to match layout order
+        List<Integer> desired = layout.columns().stream()
+                .filter(e -> e.visible() && e.modelIndex() < modelCount)
+                .map(AppPrefs.ColumnLayout.ColumnEntry::modelIndex)
+                .toList();
+
+        for (int targetView = 0; targetView < desired.size() && targetView < logTable.getColumnCount(); targetView++) {
+            int desiredModel = desired.get(targetView);
+            for (int vi = targetView; vi < logTable.getColumnCount(); vi++) {
+                if (logTable.getColumnModel().getColumn(vi).getModelIndex() == desiredModel) {
+                    if (vi != targetView) logTable.getColumnModel().moveColumn(vi, targetView);
+                    break;
+                }
+            }
+        }
+
+        // 4. Apply widths
+        Map<Integer, Integer> widthByModel = new LinkedHashMap<>();
+        layout.columns().forEach(e -> widthByModel.put(e.modelIndex(), e.width()));
+
+        for (int vi = 0; vi < logTable.getColumnCount(); vi++) {
+            TableColumn col = logTable.getColumnModel().getColumn(vi);
+            Integer w = widthByModel.get(col.getModelIndex());
+            if (w != null) { col.setPreferredWidth(w); col.setWidth(w); }
+        }
+        hiddenColumns.forEach((mi, col) -> {
+            Integer w = widthByModel.get(mi);
+            if (w != null) col.setPreferredWidth(w);
+        });
+
+        tableColumnsManaged = true;
+        recalcFittedColumnsWidth();
+    }
+
+    private void applyDefaultLayoutIfSet() {
+        String defaultName = AppPrefs.getDefaultColumnLayout();
+        if (defaultName == null) return;
+        AppPrefs.getColumnLayouts().stream()
+                .filter(l -> l.name().equals(defaultName))
+                .findFirst()
+                .ifPresent(this::applyColumnLayout);
+    }
+
+    void saveCurrentLayout() {
+        String name = (String) JOptionPane.showInputDialog(
+                SwingUtilities.getWindowAncestor(this),
+                Messages.get("table.columns.layout.save.message"),
+                Messages.get("table.columns.layout.save.title"),
+                JOptionPane.PLAIN_MESSAGE, null, null, "");
+        if (name == null || name.isBlank()) return;
+        name = name.trim();
+
+        List<AppPrefs.ColumnLayout> layouts = new ArrayList<>(AppPrefs.getColumnLayouts());
+        final String finalName = name;
+        if (layouts.stream().anyMatch(l -> l.name().equals(finalName))) {
+            int confirm = JOptionPane.showConfirmDialog(
+                    SwingUtilities.getWindowAncestor(this),
+                    java.text.MessageFormat.format(Messages.get("table.columns.layout.overwrite.message"), finalName),
+                    Messages.get("table.columns.layout.overwrite.title"),
+                    JOptionPane.YES_NO_OPTION);
+            if (confirm != JOptionPane.YES_OPTION) return;
+            layouts.removeIf(l -> l.name().equals(finalName));
+        }
+        layouts.add(captureLayout(finalName));
+        AppPrefs.saveColumnLayouts(layouts);
     }
 
     // ── Highlight menu ────────────────────────────────────────────────────────

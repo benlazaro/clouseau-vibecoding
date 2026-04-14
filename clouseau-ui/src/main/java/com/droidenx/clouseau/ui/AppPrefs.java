@@ -37,9 +37,11 @@ public final class AppPrefs {
     private static final String KEY_RECENT_MAX         = "recent.max";
     private static final String KEY_FAVORITES          = "favorites";
     private static final String KEY_SSH_FAVORITES      = "ssh.favorites";
-    private static final String KEY_PLUGIN_REPOS       = "plugin.repos";
-    private static final String KEY_MAX_ENTRIES_PER_TAB = "max.entries.per.tab";
-    private static final int    MAX_RECENT             = 10;
+    private static final String KEY_PLUGIN_REPOS         = "plugin.repos";
+    private static final String KEY_MAX_ENTRIES_PER_TAB  = "max.entries.per.tab";
+    private static final String KEY_COLUMN_LAYOUTS        = "column.layouts";
+    private static final String KEY_COLUMN_LAYOUT_DEFAULT = "column.layout.default";
+    private static final int    MAX_RECENT               = 10;
 
     /**
      * A configured plugin repository (Nexus 3, etc.).
@@ -54,6 +56,13 @@ public final class AppPrefs {
             String username,    // for basic auth; null otherwise
             String credential   // password for basic, token for token; null for none
     ) {}
+
+    /**
+     * A saved column layout: column order (visible first, then hidden), per-column width.
+     */
+    public record ColumnLayout(String name, java.util.List<ColumnEntry> columns) {
+        public record ColumnEntry(int modelIndex, boolean visible, int width) {}
+    }
 
     /**
      * A saved SSH connection. Passwords and passphrases are encrypted at rest
@@ -177,6 +186,56 @@ public final class AppPrefs {
 
     public static void setMaxEntriesPerTab(int value) {
         putInt(KEY_MAX_ENTRIES_PER_TAB, Math.max(10_000, Math.min(2_000_000, value)));
+    }
+
+    public static java.util.List<ColumnLayout> getColumnLayouts() {
+        if (!ROOT.has(KEY_COLUMN_LAYOUTS)) return new ArrayList<>();
+        JsonArray arr = ROOT.get(KEY_COLUMN_LAYOUTS).getAsJsonArray();
+        java.util.List<ColumnLayout> list = new ArrayList<>(arr.size());
+        for (JsonElement el : arr) {
+            JsonObject o = el.getAsJsonObject();
+            java.util.List<ColumnLayout.ColumnEntry> entries = new ArrayList<>();
+            if (o.has("columns")) {
+                for (JsonElement ce : o.get("columns").getAsJsonArray()) {
+                    JsonObject co = ce.getAsJsonObject();
+                    entries.add(new ColumnLayout.ColumnEntry(
+                            jsonInt(co, "modelIndex", 0),
+                            !co.has("visible") || co.get("visible").getAsBoolean(),
+                            jsonInt(co, "width", 100)));
+                }
+            }
+            list.add(new ColumnLayout(jsonString(o, "name", ""), entries));
+        }
+        return list;
+    }
+
+    public static void saveColumnLayouts(java.util.List<ColumnLayout> layouts) {
+        JsonArray arr = new JsonArray();
+        for (ColumnLayout layout : layouts) {
+            JsonObject o = new JsonObject();
+            o.addProperty("name", layout.name());
+            JsonArray cols = new JsonArray();
+            for (ColumnLayout.ColumnEntry e : layout.columns()) {
+                JsonObject co = new JsonObject();
+                co.addProperty("modelIndex", e.modelIndex());
+                co.addProperty("visible",    e.visible());
+                co.addProperty("width",      e.width());
+                cols.add(co);
+            }
+            o.add("columns", cols);
+            arr.add(o);
+        }
+        ROOT.add(KEY_COLUMN_LAYOUTS, arr);
+        save();
+    }
+
+    public static String getDefaultColumnLayout() {
+        return getString(KEY_COLUMN_LAYOUT_DEFAULT, null);
+    }
+
+    public static void setDefaultColumnLayout(String name) {
+        if (name == null) remove(KEY_COLUMN_LAYOUT_DEFAULT);
+        else              putString(KEY_COLUMN_LAYOUT_DEFAULT, name);
     }
 
     public static boolean isTabCloseConfirm() {
