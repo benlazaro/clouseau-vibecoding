@@ -70,6 +70,8 @@ public final class LogPanel extends JPanel {
     private int fittedColumnsWidth = 0;
     /** model-column-index → hidden TableColumn, in insertion order for restore positioning */
     private final Map<Integer, TableColumn> hiddenColumns = new LinkedHashMap<>();
+    /** Name of the layout most recently applied via applyColumnLayout; null if none or modified since. */
+    private String activeLayoutName = null;
     private volatile SwingWorker<?, ?> currentWorker;
     private volatile SwingWorker<Void, LogEntry> tailWorker;
     private volatile SshLogSource sshSource;
@@ -208,6 +210,7 @@ public final class LogPanel extends JPanel {
         logTableModel.clear();
         filterBar.clearLoggers();
         hiddenColumns.clear();
+        activeLayoutName = null;
         logTableModel.setCustomFields(parser.map(com.droidenx.clouseau.api.LogParser::customFields).orElse(List.of()));
 
         ((CardLayout) centerCards.getLayout()).show(centerCards, CARD_LOADING);
@@ -295,6 +298,7 @@ public final class LogPanel extends JPanel {
         logTableModel.clear();
         filterBar.clearLoggers();
         hiddenColumns.clear();
+        activeLayoutName = null;
         logTableModel.setCustomFields(parser.map(com.droidenx.clouseau.api.LogParser::customFields).orElse(List.of()));
 
         ((CardLayout) centerCards.getLayout()).show(centerCards, CARD_LOADING);
@@ -653,13 +657,19 @@ public final class LogPanel extends JPanel {
                 } else {
                     for (AppPrefs.ColumnLayout layout : layouts) {
                         boolean isDefault = layout.name().equals(defaultName);
-                        String label = (isDefault ? "\u2605 " : "  ") + layout.name();
-                        JMenuItem applyItem = new JMenuItem(label);
+                        boolean isActive  = layout.name().equals(activeLayoutName);
+                        String prefix = (isDefault ? "\u2605" : " ") + (isActive ? "\u2713 " : "  ");
+                        JMenuItem applyItem = new JMenuItem(prefix + layout.name());
                         applyItem.addActionListener(ev ->
                             SwingUtilities.invokeLater(() -> applyColumnLayout(layout)));
                         menu.add(applyItem);
                     }
                 }
+                menu.addSeparator();
+                JMenuItem showAllItem = new JMenuItem(Messages.get("table.columns.layout.show.all"));
+                showAllItem.setEnabled(!hiddenColumns.isEmpty());
+                showAllItem.addActionListener(ev -> SwingUtilities.invokeLater(LogPanel.this::showAllColumns));
+                menu.add(showAllItem);
                 menu.addSeparator();
                 JMenuItem saveItem = new JMenuItem(Messages.get("table.columns.layout.save"));
                 saveItem.addActionListener(ev -> saveCurrentLayout());
@@ -787,6 +797,7 @@ public final class LogPanel extends JPanel {
             if (col.getModelIndex() == modelIndex) {
                 hiddenColumns.put(modelIndex, col);
                 cm.removeColumn(col);
+                activeLayoutName = null;
                 recalcFittedColumnsWidth();
                 return;
             }
@@ -804,6 +815,7 @@ public final class LogPanel extends JPanel {
             if (cm.getColumn(i).getModelIndex() < modelIndex) targetViewIndex = i + 1;
         }
         cm.moveColumn(cm.getColumnCount() - 1, targetViewIndex);
+        activeLayoutName = null;
         recalcFittedColumnsWidth();
     }
 
@@ -889,6 +901,23 @@ public final class LogPanel extends JPanel {
         });
 
         tableColumnsManaged = true;
+        activeLayoutName = layout.name();
+        recalcFittedColumnsWidth();
+    }
+
+    private void showAllColumns() {
+        new ArrayList<>(hiddenColumns.keySet()).forEach(mi -> {
+            TableColumn col = hiddenColumns.remove(mi);
+            logTable.getColumnModel().addColumn(col);
+            // Reposition: place after the last visible column whose model index is smaller
+            javax.swing.table.TableColumnModel cm = logTable.getColumnModel();
+            int targetViewIndex = 0;
+            for (int i = 0; i < cm.getColumnCount() - 1; i++) {
+                if (cm.getColumn(i).getModelIndex() < mi) targetViewIndex = i + 1;
+            }
+            cm.moveColumn(cm.getColumnCount() - 1, targetViewIndex);
+        });
+        activeLayoutName = null;
         recalcFittedColumnsWidth();
     }
 
