@@ -38,6 +38,7 @@ public final class AppPrefs {
     private static final String KEY_FAVORITES          = "favorites";
     private static final String KEY_SSH_FAVORITES      = "ssh.favorites";
     private static final String KEY_PLUGIN_REPOS       = "plugin.repos";
+    private static final String KEY_MAX_ENTRIES_PER_TAB = "max.entries.per.tab";
     private static final int    MAX_RECENT             = 10;
 
     /**
@@ -168,6 +169,14 @@ public final class AppPrefs {
 
     public static void setFollowByDefault(boolean value) {
         putBool(KEY_FOLLOW_BY_DEFAULT, value);
+    }
+
+    public static int getMaxEntriesPerTab() {
+        return getInt(KEY_MAX_ENTRIES_PER_TAB, 200_000);
+    }
+
+    public static void setMaxEntriesPerTab(int value) {
+        putInt(KEY_MAX_ENTRIES_PER_TAB, Math.max(10_000, Math.min(2_000_000, value)));
     }
 
     public static boolean isTabCloseConfirm() {

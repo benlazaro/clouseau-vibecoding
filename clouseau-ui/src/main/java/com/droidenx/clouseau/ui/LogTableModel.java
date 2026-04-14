@@ -11,6 +11,7 @@ import java.awt.Color;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.IdentityHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -41,6 +42,8 @@ public final class LogTableModel extends AbstractTableModel {
     private       List<LogEntry>         rows       = new ArrayList<>();
     private final Map<LogEntry, Color>   highlights = new IdentityHashMap<>();
     private Predicate<LogEntry>          activeFilter = e -> true;
+    private int                          maxEntries = AppPrefs.getMaxEntriesPerTab();
+    private long                         trimmedCount = 0;
 
     private final ExecutorService filterExecutor = Executors.newSingleThreadExecutor(r -> {
         Thread t = new Thread(r, "clouseau-filter");
@@ -147,6 +150,7 @@ public final class LogTableModel extends AbstractTableModel {
             rows.addAll(matching);
             fireTableRowsInserted(first, rows.size() - 1);
         }
+        trimToLimit();
     }
 
     /** Appends a single entry from file tailing. Must be called on the EDT. */
@@ -157,7 +161,43 @@ public final class LogTableModel extends AbstractTableModel {
             rows.add(entry);
             fireTableRowsInserted(idx, idx);
         }
+        trimToLimit();
     }
+
+    /**
+     * Drops the oldest entries from the front of the list when the entry count
+     * exceeds {@code maxEntries}. Must be called on the EDT.
+     */
+    private void trimToLimit() {
+        if (maxEntries <= 0 || allEntries.size() <= maxEntries) return;
+        int toRemove = allEntries.size() - maxEntries;
+
+        // Build identity set of the entries being evicted
+        Set<LogEntry> evicted = Collections.newSetFromMap(new IdentityHashMap<>());
+        for (int i = 0; i < toRemove; i++) evicted.add(allEntries.get(i));
+
+        allEntries.subList(0, toRemove).clear();
+        trimmedCount += toRemove;
+
+        // Clean up highlight map for evicted entries
+        evicted.forEach(highlights::remove);
+
+        // Remove the corresponding leading rows (rows is always ordered oldest-first)
+        int rowsToRemove = 0;
+        while (rowsToRemove < rows.size() && evicted.contains(rows.get(rowsToRemove))) {
+            rowsToRemove++;
+        }
+        if (rowsToRemove > 0) {
+            rows.subList(0, rowsToRemove).clear();
+            fireTableRowsDeleted(0, rowsToRemove - 1);
+        }
+    }
+
+    /** Updates the per-tab entry cap (0 = unlimited). */
+    public void setMaxEntries(int max) { this.maxEntries = max; }
+
+    /** Total number of entries dropped from the front of this tab since it was opened. */
+    public long getTrimmedCount() { return trimmedCount; }
 
     /** Replaces all entries and reapplies the active filter. Must be called on the EDT. */
     public void load(List<LogEntry> newEntries) {

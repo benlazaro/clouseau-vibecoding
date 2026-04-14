@@ -482,11 +482,19 @@ public final class LogPanel extends JPanel {
     }
 
     private void updateStatusBar() {
-        int visible = logTableModel.getRowCount();
-        int total   = logTableModel.getTotalCount();
-        String text = (visible == total)
-                ? java.text.MessageFormat.format(Messages.get("status.lines"), total)
-                : java.text.MessageFormat.format(Messages.get("status.lines.filtered"), visible, total);
+        int  visible  = logTableModel.getRowCount();
+        int  total    = logTableModel.getTotalCount();
+        long trimmed  = logTableModel.getTrimmedCount();
+        String text;
+        if (trimmed > 0) {
+            text = (visible == total)
+                    ? java.text.MessageFormat.format(Messages.get("status.lines.trimmed"), total, trimmed)
+                    : java.text.MessageFormat.format(Messages.get("status.lines.filtered.trimmed"), visible, total, trimmed);
+        } else {
+            text = (visible == total)
+                    ? java.text.MessageFormat.format(Messages.get("status.lines"), total)
+                    : java.text.MessageFormat.format(Messages.get("status.lines.filtered"), visible, total);
+        }
         statusBarLabel.setText(text);
     }
 

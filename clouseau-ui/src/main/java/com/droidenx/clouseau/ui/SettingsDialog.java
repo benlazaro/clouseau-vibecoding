@@ -28,6 +28,9 @@ final class SettingsDialog extends JDialog {
     // Files settings
     private final JSpinner recentMaxSpinner;
 
+    // Memory settings
+    private final JSpinner maxEntriesSpinner;
+
     SettingsDialog(Frame owner, LogPanel logPanel, Runnable onApply) {
         super(owner, Messages.get("settings.title"), true);
         this.logPanel = logPanel;
@@ -40,6 +43,7 @@ final class SettingsDialog extends JDialog {
         confirmHighlightClearAllCheckBox = new JCheckBox(Messages.get("settings.highlight.confirm.clear.all"), AppPrefs.isHighlightClearAllConfirm());
         followByDefaultCheckBox = new JCheckBox(Messages.get("settings.follow.by.default"), AppPrefs.isFollowByDefault());
         recentMaxSpinner       = new JSpinner(new SpinnerNumberModel(AppPrefs.getRecentFilesMax(), 1, 10, 1));
+        maxEntriesSpinner      = new JSpinner(new SpinnerNumberModel(AppPrefs.getMaxEntriesPerTab(), 10_000, 2_000_000, 10_000));
 
         JPanel content = new JPanel(new MigLayout("insets 16, wrap 2, gapy 6", "[grow,fill][120px!]"));
 
@@ -59,6 +63,8 @@ final class SettingsDialog extends JDialog {
         content.add(confirmCloseCheckBox, "span 2");
         content.add(confirmHighlightClearAllCheckBox, "span 2");
         content.add(followByDefaultCheckBox, "span 2");
+        content.add(new JLabel(Messages.get("settings.max.entries.per.tab")));
+        content.add(maxEntriesSpinner);
 
         // ── Files section ─────────────────────────────────────────────────
         content.add(sectionLabel(Messages.get("settings.section.files")), "span 2, gaptop 12, gapbottom 4");
@@ -98,6 +104,7 @@ final class SettingsDialog extends JDialog {
         AppPrefs.setHighlightClearAllConfirm(confirmHighlightClearAllCheckBox.isSelected());
         AppPrefs.setFollowByDefault(followByDefaultCheckBox.isSelected());
         AppPrefs.setRecentFilesMax((int) recentMaxSpinner.getValue());
+        AppPrefs.setMaxEntriesPerTab((int) maxEntriesSpinner.getValue());
         if (onApply != null) onApply.run();
     }
 
