@@ -413,6 +413,7 @@ public final class LogPanel extends JPanel {
 
             @Override
             protected void process(List<LogEntry> entries) {
+                if (isCancelled()) return;
                 for (LogEntry entry : entries) logTableModel.append(entry);
             }
         };
@@ -641,17 +642,18 @@ public final class LogPanel extends JPanel {
             }
         });
         logTable.addMouseListener(new MouseAdapter() {
-            @Override public void mousePressed(MouseEvent e)  { maybeShowHighlightMenu(e); }
-            @Override public void mouseReleased(MouseEvent e) { maybeShowHighlightMenu(e); }
-            private void maybeShowHighlightMenu(MouseEvent e) {
+            @Override public void mousePressed(MouseEvent e)  { maybeShowTableMenu(e); }
+            @Override public void mouseReleased(MouseEvent e) { maybeShowTableMenu(e); }
+            private void maybeShowTableMenu(MouseEvent e) {
                 if (!e.isPopupTrigger()) return;
                 int viewRow = logTable.rowAtPoint(e.getPoint());
-                if (viewRow < 0) return;
-                if (!logTable.isRowSelected(viewRow)) logTable.setRowSelectionInterval(viewRow, viewRow);
                 List<LogEntry> entries = new ArrayList<>();
-                for (int vr : logTable.getSelectedRows()) {
-                    LogEntry entry = logTableModel.getEntry(logTable.convertRowIndexToModel(vr));
-                    if (entry != null) entries.add(entry);
+                if (viewRow >= 0) {
+                    if (!logTable.isRowSelected(viewRow)) logTable.setRowSelectionInterval(viewRow, viewRow);
+                    for (int vr : logTable.getSelectedRows()) {
+                        LogEntry entry = logTableModel.getEntry(logTable.convertRowIndexToModel(vr));
+                        if (entry != null) entries.add(entry);
+                    }
                 }
                 showHighlightMenu(entries, e.getX(), e.getY());
             }
@@ -702,76 +704,88 @@ public final class LogPanel extends JPanel {
     // ── Highlight menu ────────────────────────────────────────────────────────
 
     private void showHighlightMenu(List<LogEntry> entries, int x, int y) {
-        if (entries.isEmpty()) return;
         boolean anyHighlighted = entries.stream().anyMatch(e -> logTableModel.getHighlight(e) != null);
 
         JPopupMenu menu = new JPopupMenu();
 
-        JPanel swatches = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 4));
-        swatches.setOpaque(false);
-        for (Color color : HIGHLIGHT_COLORS) {
-            boolean allMatch = entries.stream().allMatch(e -> color.equals(logTableModel.getHighlight(e)));
-            JButton swatch = new JButton() {
-                @Override protected void paintComponent(Graphics g) {
-                    Graphics2D g2 = (Graphics2D) g.create();
-                    g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                    g2.setColor(color);
-                    g2.fillRoundRect(0, 0, getWidth(), getHeight(), 6, 6);
-                    if (allMatch) {
-                        g2.setColor(Color.WHITE);
-                        g2.setStroke(new BasicStroke(2f));
-                        g2.drawRoundRect(1, 1, getWidth() - 3, getHeight() - 3, 5, 5);
+        if (!entries.isEmpty()) {
+            JPanel swatches = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 4));
+            swatches.setOpaque(false);
+            for (Color color : HIGHLIGHT_COLORS) {
+                boolean allMatch = entries.stream().allMatch(e -> color.equals(logTableModel.getHighlight(e)));
+                JButton swatch = new JButton() {
+                    @Override protected void paintComponent(Graphics g) {
+                        Graphics2D g2 = (Graphics2D) g.create();
+                        g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                        g2.setColor(color);
+                        g2.fillRoundRect(0, 0, getWidth(), getHeight(), 6, 6);
+                        if (allMatch) {
+                            g2.setColor(Color.WHITE);
+                            g2.setStroke(new BasicStroke(2f));
+                            g2.drawRoundRect(1, 1, getWidth() - 3, getHeight() - 3, 5, 5);
+                        }
+                        g2.dispose();
                     }
-                    g2.dispose();
-                }
-            };
-            swatch.setPreferredSize(new Dimension(22, 22));
-            swatch.setBorderPainted(false);
-            swatch.setContentAreaFilled(false);
-            swatch.setFocusPainted(false);
-            swatch.addActionListener(e -> {
-                entries.forEach(entry -> logTableModel.setHighlight(entry, color));
-                menu.setVisible(false);
-                refreshDetailAfterHighlight();
-            });
-            swatches.add(swatch);
-        }
-        menu.add(swatches);
-        menu.addSeparator();
+                };
+                swatch.setPreferredSize(new Dimension(22, 22));
+                swatch.setBorderPainted(false);
+                swatch.setContentAreaFilled(false);
+                swatch.setFocusPainted(false);
+                swatch.addActionListener(e -> {
+                    entries.forEach(entry -> logTableModel.setHighlight(entry, color));
+                    menu.setVisible(false);
+                    refreshDetailAfterHighlight();
+                });
+                swatches.add(swatch);
+            }
+            menu.add(swatches);
+            menu.addSeparator();
 
-        final boolean hasHL = logTableModel.hasHighlights();
+            final boolean hasHL = logTableModel.hasHighlights();
 
-        JMenuItem clearItem = new JMenuItem(Messages.get("highlight.clear"));
-        if (anyHighlighted) {
-            clearItem.addActionListener(e -> {
-                entries.forEach(entry -> logTableModel.setHighlight(entry, null));
-                refreshDetailAfterHighlight();
-            });
-        } else {
-            clearItem.putClientProperty("FlatLaf.style", "disabledForeground: #3C3C3C");
-            clearItem.setEnabled(false);
-        }
-        menu.add(clearItem);
+            JMenuItem clearItem = new JMenuItem(Messages.get("highlight.clear"));
+            if (anyHighlighted) {
+                clearItem.addActionListener(e -> {
+                    entries.forEach(entry -> logTableModel.setHighlight(entry, null));
+                    refreshDetailAfterHighlight();
+                });
+            } else {
+                clearItem.putClientProperty("FlatLaf.style", "disabledForeground: #3C3C3C");
+                clearItem.setEnabled(false);
+            }
+            menu.add(clearItem);
 
-        JMenuItem clearAllItem = new JMenuItem(Messages.get("highlight.clear.all"));
-        if (hasHL) {
-            clearAllItem.addActionListener(e -> {
-                if (AppPrefs.isHighlightClearAllConfirm()) {
-                    int confirm = JOptionPane.showConfirmDialog(
-                            SwingUtilities.getWindowAncestor(this),
-                            Messages.get("highlight.clear.all.confirm.message"),
-                            Messages.get("highlight.clear.all.confirm.title"),
-                            JOptionPane.YES_NO_OPTION);
-                    if (confirm != JOptionPane.YES_OPTION) return;
-                }
-                logTableModel.clearAllHighlights();
-                refreshDetailAfterHighlight();
-            });
-        } else {
-            clearAllItem.putClientProperty("FlatLaf.style", "disabledForeground: #3C3C3C");
-            clearAllItem.setEnabled(false);
+            JMenuItem clearAllItem = new JMenuItem(Messages.get("highlight.clear.all"));
+            if (hasHL) {
+                clearAllItem.addActionListener(e -> {
+                    if (AppPrefs.isHighlightClearAllConfirm()) {
+                        int confirm = JOptionPane.showConfirmDialog(
+                                SwingUtilities.getWindowAncestor(this),
+                                Messages.get("highlight.clear.all.confirm.message"),
+                                Messages.get("highlight.clear.all.confirm.title"),
+                                JOptionPane.YES_NO_OPTION);
+                        if (confirm != JOptionPane.YES_OPTION) return;
+                    }
+                    logTableModel.clearAllHighlights();
+                    refreshDetailAfterHighlight();
+                });
+            } else {
+                clearAllItem.putClientProperty("FlatLaf.style", "disabledForeground: #3C3C3C");
+                clearAllItem.setEnabled(false);
+            }
+            menu.add(clearAllItem);
+
+            menu.addSeparator();
         }
-        menu.add(clearAllItem);
+
+        JMenuItem reloadFileItem = new JMenuItem(Messages.get("table.context.reload.file"));
+        reloadFileItem.setEnabled(currentFile != null);
+        reloadFileItem.addActionListener(e -> reload());
+        menu.add(reloadFileItem);
+
+        JMenuItem clearTableItem = new JMenuItem(Messages.get("table.clear"));
+        clearTableItem.addActionListener(e -> clearTable());
+        menu.add(clearTableItem);
 
         menu.show(logTable, x, y);
     }

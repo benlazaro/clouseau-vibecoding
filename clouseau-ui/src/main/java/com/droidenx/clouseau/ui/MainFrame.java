@@ -348,33 +348,15 @@ public final class MainFrame extends JFrame {
         header.add(label);
         header.add(close);
 
-        java.awt.event.MouseAdapter tabMenu = new java.awt.event.MouseAdapter() {
+        // Switch to the tab on click (needed when the label is clicked but the tab isn't yet active)
+        java.awt.event.MouseAdapter selectOnClick = new java.awt.event.MouseAdapter() {
             @Override public void mousePressed(java.awt.event.MouseEvent e) {
                 int idx = tabbedPane.indexOfTabComponent(header);
                 if (idx >= 0) tabbedPane.setSelectedIndex(idx);
-                maybeShow(e);
-            }
-            @Override public void mouseReleased(java.awt.event.MouseEvent e) { maybeShow(e); }
-            private void maybeShow(java.awt.event.MouseEvent e) {
-                if (!e.isPopupTrigger()) return;
-                tabbedPane.setSelectedIndex(tabbedPane.indexOfTabComponent(header));
-                JPopupMenu menu = new JPopupMenu();
-                JMenuItem reloadItem = new JMenuItem(Messages.get("tab.context.reload"));
-                reloadItem.addActionListener(ev -> panel.reload());
-                menu.add(reloadItem);
-                JMenuItem clearItem = new JMenuItem(Messages.get("table.clear"));
-                clearItem.addActionListener(ev -> panel.clearTable());
-                menu.add(clearItem);
-                menu.addSeparator();
-                JMenuItem closeItem = new JMenuItem(Messages.get("tab.context.close"));
-                closeItem.addActionListener(ev -> closeTab(tabbedPane.indexOfTabComponent(header)));
-                menu.add(closeItem);
-                java.awt.Point pt = SwingUtilities.convertPoint(e.getComponent(), e.getPoint(), header);
-                menu.show(header, pt.x, pt.y);
             }
         };
-        header.addMouseListener(tabMenu);
-        label.addMouseListener(tabMenu);
+        header.addMouseListener(selectOnClick);
+        label.addMouseListener(selectOnClick);
 
         return header;
     }
