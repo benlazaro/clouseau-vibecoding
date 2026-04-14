@@ -597,7 +597,7 @@ public final class LogPanel extends JPanel {
                     Color levelColor = level != null
                             ? LEVEL_COLORS.getOrDefault(level, FG_DEFAULT)
                             : FG_DEFAULT;
-                    setForeground(switch (c) {
+                    setForeground(switch (t.convertColumnIndexToModel(c)) {
                         case 2, 5 -> levelColor;   // Level, Message
                         case 3, 4 -> FG_DIM;       // Thread, Logger
                         default   -> FG_DEFAULT;   // #, Timestamp
