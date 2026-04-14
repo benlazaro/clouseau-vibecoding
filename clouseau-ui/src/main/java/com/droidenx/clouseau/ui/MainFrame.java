@@ -350,19 +350,32 @@ public final class MainFrame extends JFrame {
         header.add(label);
         header.add(close);
 
-        // Select on click + drag-to-reorder
+        // Select on click + drag-to-reorder with floating ghost
+        int[] clickOff = {0, 0};
+        JWindow[] ghost = {null};
+
         java.awt.event.MouseAdapter tabMouseAdapter = new java.awt.event.MouseAdapter() {
             @Override public void mousePressed(java.awt.event.MouseEvent e) {
                 int idx = tabbedPane.indexOfTabComponent(header);
                 if (idx >= 0) tabbedPane.setSelectedIndex(idx);
+                Point pt = SwingUtilities.convertPoint((Component) e.getSource(), e.getPoint(), header);
+                clickOff[0] = pt.x;
+                clickOff[1] = pt.y;
             }
             @Override public void mouseReleased(java.awt.event.MouseEvent e) {
                 tabbedPane.setCursor(Cursor.getDefaultCursor());
+                if (ghost[0] != null) { ghost[0].dispose(); ghost[0] = null; }
             }
             @Override public void mouseDragged(java.awt.event.MouseEvent e) {
                 int src = tabbedPane.indexOfTabComponent(header);
                 if (src < 0) return;
                 tabbedPane.setCursor(Cursor.getPredefinedCursor(Cursor.MOVE_CURSOR));
+                if (ghost[0] == null) ghost[0] = createGhostWindow(header);
+                if (ghost[0] != null) {
+                    Point screen = e.getLocationOnScreen();
+                    ghost[0].setLocation(screen.x - clickOff[0], screen.y - clickOff[1]);
+                    if (!ghost[0].isVisible()) ghost[0].setVisible(true);
+                }
                 Point p = SwingUtilities.convertPoint((Component) e.getSource(), e.getPoint(), tabbedPane);
                 int dst = tabbedPane.indexAtLocation(p.x, p.y);
                 if (dst >= 0 && dst != src) moveTab(src, dst);
@@ -374,6 +387,28 @@ public final class MainFrame extends JFrame {
         label.addMouseMotionListener(tabMouseAdapter);
 
         return header;
+    }
+
+    private JWindow createGhostWindow(JPanel tabHeader) {
+        int w = tabHeader.getWidth();
+        int h = tabHeader.getHeight();
+        if (w <= 0 || h <= 0) return null;
+
+        BufferedImage img = new BufferedImage(w, h, BufferedImage.TYPE_INT_RGB);
+        Graphics2D g2 = img.createGraphics();
+        g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+        Color bg = UIManager.getColor("TabbedPane.selectedBackground");
+        g2.setColor(bg != null ? bg : new Color(0x2B2B2B));
+        g2.fillRect(0, 0, w, h);
+        tabHeader.paint(g2);
+        g2.dispose();
+
+        JWindow window = new JWindow(this);
+        try { window.setOpacity(0.80f); } catch (Exception ignored) {}
+        JLabel content = new JLabel(new ImageIcon(img));
+        window.setContentPane(content);
+        window.setSize(w, h);
+        return window;
     }
 
     private void moveTab(int from, int to) {
