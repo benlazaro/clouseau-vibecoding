@@ -16,6 +16,7 @@ import javax.swing.event.TableModelEvent;
 import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.JTableHeader;
 import javax.swing.table.TableCellRenderer;
+import javax.swing.table.TableColumn;
 import javax.swing.text.BadLocationException;
 import javax.swing.text.DefaultHighlighter;
 import javax.swing.text.Highlighter;
@@ -43,6 +44,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.EnumMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -66,6 +68,8 @@ public final class LogPanel extends JPanel {
     private JTextPane detailArea;
     private boolean tableColumnsManaged = false;
     private int fittedColumnsWidth = 0;
+    /** model-column-index → hidden TableColumn, in insertion order for restore positioning */
+    private final Map<Integer, TableColumn> hiddenColumns = new LinkedHashMap<>();
     private volatile SwingWorker<?, ?> currentWorker;
     private volatile SwingWorker<Void, LogEntry> tailWorker;
     private volatile SshLogSource sshSource;
@@ -203,6 +207,7 @@ public final class LogPanel extends JPanel {
         logIndex.clear();
         logTableModel.clear();
         filterBar.clearLoggers();
+        hiddenColumns.clear();
         logTableModel.setCustomFields(parser.map(com.droidenx.clouseau.api.LogParser::customFields).orElse(List.of()));
 
         ((CardLayout) centerCards.getLayout()).show(centerCards, CARD_LOADING);
@@ -288,6 +293,7 @@ public final class LogPanel extends JPanel {
         logIndex.clear();
         logTableModel.clear();
         filterBar.clearLoggers();
+        hiddenColumns.clear();
         logTableModel.setCustomFields(parser.map(com.droidenx.clouseau.api.LogParser::customFields).orElse(List.of()));
 
         ((CardLayout) centerCards.getLayout()).show(centerCards, CARD_LOADING);
@@ -625,6 +631,35 @@ public final class LogPanel extends JPanel {
             return c;
         });
 
+        header.addMouseListener(new MouseAdapter() {
+            @Override public void mousePressed(MouseEvent e)  { maybeShowColumnMenu(e); }
+            @Override public void mouseReleased(MouseEvent e) { maybeShowColumnMenu(e); }
+            private void maybeShowColumnMenu(MouseEvent e) {
+                if (!e.isPopupTrigger()) return;
+                JPopupMenu menu = new JPopupMenu();
+                JLabel title = new JLabel(Messages.get("table.columns.menu.title"));
+                title.setBorder(BorderFactory.createEmptyBorder(3, 6, 5, 6));
+                title.setForeground(FG_DIM);
+                title.setFont(title.getFont().deriveFont(Font.BOLD, 11f));
+                menu.add(title);
+                menu.addSeparator();
+                int totalCols = logTableModel.getColumnCount();
+                for (int modelIdx = 0; modelIdx < totalCols; modelIdx++) {
+                    String name = logTableModel.getColumnName(modelIdx);
+                    boolean visible = !hiddenColumns.containsKey(modelIdx);
+                    JCheckBoxMenuItem item = new JCheckBoxMenuItem(name, visible);
+                    final int idx = modelIdx;
+                    item.addActionListener(ev ->
+                        SwingUtilities.invokeLater(() -> {
+                            if (visible) hideColumn(idx);
+                            else         showColumn(idx);
+                        }));
+                    menu.add(item);
+                }
+                menu.show(header, e.getX(), e.getY());
+            }
+        });
+
         Font headerFont = header.getFont();
         for (int i = 0; i < logTable.getColumnCount(); i++) {
             JLabel measure = new JLabel(logTable.getColumnName(i));
@@ -699,6 +734,46 @@ public final class LogPanel extends JPanel {
         int msgWidth = Math.max(logTable.getWidth() - fittedColumnsWidth - margins, 150);
         logTable.getColumnModel().getColumn(lastCol).setPreferredWidth(msgWidth);
         logTable.getColumnModel().getColumn(lastCol).setWidth(msgWidth);
+    }
+
+    // ── Column visibility ─────────────────────────────────────────────────────
+
+    private void hideColumn(int modelIndex) {
+        if (logTable.getColumnCount() <= 1) return; // always keep at least one column visible
+        javax.swing.table.TableColumnModel cm = logTable.getColumnModel();
+        for (int i = 0; i < cm.getColumnCount(); i++) {
+            TableColumn col = cm.getColumn(i);
+            if (col.getModelIndex() == modelIndex) {
+                hiddenColumns.put(modelIndex, col);
+                cm.removeColumn(col);
+                recalcFittedColumnsWidth();
+                return;
+            }
+        }
+    }
+
+    private void showColumn(int modelIndex) {
+        TableColumn col = hiddenColumns.remove(modelIndex);
+        if (col == null) return;
+        javax.swing.table.TableColumnModel cm = logTable.getColumnModel();
+        cm.addColumn(col);
+        // Reposition: place after the last visible column whose model index is smaller
+        int targetViewIndex = 0;
+        for (int i = 0; i < cm.getColumnCount() - 1; i++) {
+            if (cm.getColumn(i).getModelIndex() < modelIndex) targetViewIndex = i + 1;
+        }
+        cm.moveColumn(cm.getColumnCount() - 1, targetViewIndex);
+        recalcFittedColumnsWidth();
+    }
+
+    /** Recomputes {@code fittedColumnsWidth} from current visible column widths and stretches the last column. */
+    private void recalcFittedColumnsWidth() {
+        if (!tableColumnsManaged) return;
+        int lastCol = logTable.getColumnCount() - 1;
+        int total = 0;
+        for (int i = 0; i < lastCol; i++) total += logTable.getColumnModel().getColumn(i).getWidth();
+        fittedColumnsWidth = total;
+        stretchMessageColumn();
     }
 
     // ── Highlight menu ────────────────────────────────────────────────────────
