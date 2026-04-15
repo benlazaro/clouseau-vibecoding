@@ -33,7 +33,7 @@ A log viewer for software engineers, born from a love of OtrosLogViewer and a de
 - **Detail panel** — inspect the full entry with formatted, syntax-highlighted message; copy the message to clipboard
 - **Formatters & syntax highlighters** — built-in JSON pretty-printer and Monokai-inspired JSON syntax highlighter; toggle or override per-entry from the detail toolbar
 - **Find bar** — `Ctrl+F` searches all columns across visible rows with `↑`/`↓` navigation
-- **Plugin system** — drop in a JAR to add new parsers, formatters, colorizers, or sources at runtime
+- **Plugin system** — drop in a JAR to add new parsers, formatters, colorizers, or sources at runtime; browse and install plugins from a Nexus repository via the built-in Plugin Manager (`Plugins → Manage Plugins`)
 - **Column management** — hide/show individual columns, drag to reorder, save named layouts and restore them with one click; set a default layout that is applied automatically on every file open
 - **Memory limit per tab** — configurable maximum number of log entries per tab; oldest entries are evicted automatically so the app never runs out of memory during long tailing sessions
 
@@ -193,6 +193,22 @@ You can add your own log format without writing a plugin. Create `~/.clouseau/pa
 All groups are optional — only define what your format includes. Parsers are loaded on startup; restart the app after editing the file. Invalid entries are skipped with a warning in the log.
 
 > **`timestampFormat`** accepts any [`DateTimeFormatter`](https://docs.oracle.com/en/java/docs/api/java.base/java/time/format/DateTimeFormatter.html) pattern string (e.g. `yyyy-MM-dd HH:mm:ss.SSS`). One special value is also supported: `ISO_OFFSET_DATE_TIME`, which matches timestamps that include a timezone offset or `Z` suffix — for example `2024-01-15 10:30:45.123+01:00` or `2024-01-15 10:30:45.789Z`. Use this for Spring Boot logs. Note that `,` is automatically normalised to `.` before parsing, so `yyyy-MM-dd HH:mm:ss.SSS` matches both `10:30:45.123` and `10:30:45,123`.
+
+---
+
+## Plugin Manager
+
+Open it from **Plugins → Manage Plugins**. The manager connects to a Nexus Maven repository and lists available plugins. Select any entry to see which extensions (parsers, formatters, syntax highlighters, etc.) it provides before installing.
+
+**Connecting to a repository** — click **Configure** to enter the Nexus base URL and choose an authentication method:
+
+| Auth type | When to use |
+|---|---|
+| None | Public or anonymous repository |
+| Basic | Standard username + password credentials |
+| User Token | Nexus-generated user token (token name code + token passcode) |
+
+After installing a plugin the new extensions are immediately available — no restart required.
 
 ---
 
