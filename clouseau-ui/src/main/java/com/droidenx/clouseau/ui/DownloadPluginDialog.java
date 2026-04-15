@@ -183,10 +183,16 @@ final class DownloadPluginDialog extends JDialog {
                 try {
                     tableModel.setResults(get());
                     if (tableModel.getRowCount() == 0) {
+                        boolean authWarning = repo instanceof NexusPluginRepository nexusRepo
+                                && nexusRepo.hasAuthConfigured();
+                        String msg = authWarning
+                                ? Messages.get("plugins.download.search.no.results") + "\n\n"
+                                  + Messages.get("plugins.download.search.no.results.auth.hint")
+                                : Messages.get("plugins.download.search.no.results");
                         JOptionPane.showMessageDialog(DownloadPluginDialog.this,
-                                Messages.get("plugins.download.search.no.results"),
+                                msg,
                                 Messages.get("plugins.download.search.no.results.title"),
-                                JOptionPane.INFORMATION_MESSAGE);
+                                authWarning ? JOptionPane.WARNING_MESSAGE : JOptionPane.INFORMATION_MESSAGE);
                     }
                 } catch (InterruptedException | ExecutionException ex) {
                     Throwable cause = ex.getCause() != null ? ex.getCause() : ex;

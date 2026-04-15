@@ -131,9 +131,19 @@ final class PluginRepoManagerDialog extends JDialog {
             }
         }
 
-        String[]          authOptions   = { "none", "basic", "token" };
-        JComboBox<String> authCombo     = new JComboBox<>(authOptions);
-        if (existing != null && existing.authType() != null) authCombo.setSelectedItem(existing.authType());
+        // Auth type: display label → internal id
+        String[][] authTypes = {
+            { "None",                "none"      },
+            { "Username / Password", "basic"     },
+            { "User Token",          "usertoken" },
+        };
+        String[] authLabels = java.util.Arrays.stream(authTypes).map(t -> t[0]).toArray(String[]::new);
+        JComboBox<String> authCombo = new JComboBox<>(authLabels);
+        if (existing != null && existing.authType() != null) {
+            for (String[] t : authTypes) {
+                if (t[1].equals(existing.authType())) { authCombo.setSelectedItem(t[0]); break; }
+            }
+        }
 
         JTextField     usernameField = new JTextField(
                 existing != null && existing.username() != null ? existing.username() : "", 16);
@@ -144,11 +154,24 @@ final class PluginRepoManagerDialog extends JDialog {
         JLabel credLabel     = new JLabel(Messages.get("plugins.repos.edit.credential"));
 
         Runnable syncAuth = () -> {
-            boolean notNone = !"none".equals(authCombo.getSelectedItem());
+            // Resolve internal id from selected label
+            String selectedLabel = (String) authCombo.getSelectedItem();
+            String authId = "none";
+            for (String[] t : authTypes) {
+                if (t[0].equals(selectedLabel)) { authId = t[1]; break; }
+            }
+            boolean notNone = !"none".equals(authId);
+            boolean isToken = "usertoken".equals(authId);
             usernameLabel.setVisible(notNone);
             usernameField.setVisible(notNone);
             credLabel.setVisible(notNone);
             credField.setVisible(notNone);
+            usernameLabel.setText(isToken
+                    ? Messages.get("plugins.repos.edit.username.usertoken")
+                    : Messages.get("plugins.repos.edit.username"));
+            credLabel.setText(isToken
+                    ? Messages.get("plugins.repos.edit.credential.usertoken")
+                    : Messages.get("plugins.repos.edit.credential"));
         };
         authCombo.addActionListener(e -> syncAuth.run());
         syncAuth.run();
@@ -212,7 +235,11 @@ final class PluginRepoManagerDialog extends JDialog {
             if (t[0].equals(selectedLabel)) { type = t[1]; break; }
         }
 
-        String authType = (String) authCombo.getSelectedItem();
+        String selectedAuthLabel = (String) authCombo.getSelectedItem();
+        String authType = "none";
+        for (String[] t : authTypes) {
+            if (t[0].equals(selectedAuthLabel)) { authType = t[1]; break; }
+        }
         String username = usernameField.getText().trim();
         String cred     = new String(credField.getPassword());
 

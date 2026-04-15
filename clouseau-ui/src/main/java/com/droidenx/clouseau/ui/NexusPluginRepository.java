@@ -60,13 +60,20 @@ final class NexusPluginRepository implements PluginRepository {
 
         HttpResponse<String> resp = http.send(req, HttpResponse.BodyHandlers.ofString());
         log.info("Nexus search response: HTTP {}", resp.statusCode());
-        log.debug("Nexus search response body: {}", resp.body());
         if (resp.statusCode() != 200)
             throw new IOException("Nexus search returned HTTP " + resp.statusCode()
                     + " for " + config.name());
 
         List<Asset> results = parseItems(resp.body());
         log.info("Nexus search returned {} JAR asset(s)", results.size());
+        if (results.isEmpty()) {
+            log.info("Nexus search response body: {}", resp.body());
+            if (hasAuthConfigured()) {
+                log.warn("Nexus returned 0 results but credentials are configured — "
+                        + "verify that your credentials are correct. Nexus silently falls back "
+                        + "to anonymous access when authentication fails.");
+            }
+        }
         return results;
     }
 
@@ -129,12 +136,16 @@ final class NexusPluginRepository implements PluginRepository {
         return dest;
     }
 
+    boolean hasAuthConfigured() {
+        String t = config.authType();
+        return "basic".equals(t) || "usertoken".equals(t);
+    }
+
     private String buildAuthHeader() {
         return switch (config.authType() != null ? config.authType() : "none") {
-            case "basic" -> "Basic " + Base64.getEncoder().encodeToString(
+            case "basic", "usertoken" -> "Basic " + Base64.getEncoder().encodeToString(
                     (config.username() + ":" + config.credential()).getBytes(StandardCharsets.UTF_8));
-            case "token" -> "Bearer " + config.credential();
-            default      -> "";
+            default -> "";
         };
     }
 }
