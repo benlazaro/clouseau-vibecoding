@@ -41,6 +41,7 @@ public final class AppPrefs {
     private static final String KEY_MAX_ENTRIES_PER_TAB  = "max.entries.per.tab";
     private static final String KEY_COLUMN_LAYOUTS        = "column.layouts";
     private static final String KEY_COLUMN_LAYOUT_DEFAULT = "column.layout.default";
+    private static final String KEY_THEME                 = "theme";
     private static final int    MAX_RECENT               = 10;
 
     /**
@@ -236,6 +237,14 @@ public final class AppPrefs {
     public static void setDefaultColumnLayout(String name) {
         if (name == null) remove(KEY_COLUMN_LAYOUT_DEFAULT);
         else              putString(KEY_COLUMN_LAYOUT_DEFAULT, name);
+    }
+
+    public static String getTheme() {
+        return getString(KEY_THEME, "Clouseau Dark");
+    }
+
+    public static void setTheme(String name) {
+        putString(KEY_THEME, name);
     }
 
     public static boolean isTabCloseConfirm() {
