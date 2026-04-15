@@ -17,7 +17,9 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Stream;
 
@@ -29,6 +31,7 @@ import java.util.stream.Stream;
 final class FileChooserDialog extends JDialog {
 
     record Result(List<Path> files, Optional<LogParser> parser, int parserIndex) {}
+    private record PreviewResult(String previewText, String statusText, Color statusColor, boolean canOpen) {}
 
     private final List<LogParser> parsers;
     private final JFileChooser chooser = new JFileChooser();
@@ -36,6 +39,8 @@ final class FileChooserDialog extends JDialog {
     private int selectedParserIndex;
     private JButton openBtn;
     private Result result;
+    private volatile SwingWorker<PreviewResult, Void> pendingWorker;
+    private javax.swing.Timer debounceTimer;
 
     FileChooserDialog(Frame owner, List<LogParser> parsers, int initialParserIndex) {
         super(owner, Messages.get("filechooser.title"), true);
@@ -122,6 +127,7 @@ final class FileChooserDialog extends JDialog {
         list.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
         list.setFixedCellHeight(28);
         FileSystemView fsv = FileSystemView.getFileSystemView();
+        Map<Path, Icon> favIconCache = new HashMap<>();
         list.setCellRenderer(new DefaultListCellRenderer() {
             @Override
             public Component getListCellRendererComponent(
@@ -131,8 +137,8 @@ final class FileChooserDialog extends JDialog {
                 setText(p.getFileName() != null ? p.getFileName().toString() : p.toString());
                 setToolTipText(p.toString());
                 setBorder(BorderFactory.createEmptyBorder(0, 8, 0, 8));
-                File f = p.toFile();
-                setIcon(f.exists() ? fsv.getSystemIcon(f) : null);
+                setIcon(p.toFile().exists()
+                        ? favIconCache.computeIfAbsent(p, k -> fsv.getSystemIcon(k.toFile())) : null);
                 return this;
             }
         });
@@ -251,91 +257,143 @@ final class FileChooserDialog extends JDialog {
         JLabel previewLabel = new JLabel(Messages.get("filechooser.preview.label"));
         previewLabel.setFont(previewLabel.getFont().deriveFont(11f));
 
-        Runnable updatePreview = () -> {
-            File selected = chooser.getSelectedFile();
-            if (selected == null || !selected.isFile()) {
-                previewArea.setText(Messages.get("filechooser.preview.empty"));
+        // Debounced: rapid selection changes restart the timer instead of stacking workers.
+        Runnable scheduleValidation = () -> {
+            if (debounceTimer != null && debounceTimer.isRunning()) {
+                debounceTimer.restart();
                 return;
             }
-            try (BufferedReader reader = LogPanel.openReader(selected.toPath())) {
-                StringBuilder sb = new StringBuilder();
-                String line;
-                int count = 0;
-                while ((line = reader.readLine()) != null && count < 50) {
-                    sb.append(line).append('\n');
-                    count++;
+            debounceTimer = new javax.swing.Timer(150, ev -> {
+                if (pendingWorker != null && !pendingWorker.isDone()) pendingWorker.cancel(true);
+
+                File[] allSelected = chooser.getSelectedFiles();
+                long fileCount = allSelected != null
+                        ? Arrays.stream(allSelected).filter(File::isFile).count() : 0;
+                File lead = chooser.getSelectedFile();
+                boolean multiFile = fileCount > 1;
+
+                // For multi-file, status is known immediately; preview still runs in background.
+                if (multiFile) {
+                    statusLabel.setForeground(new Color(0x4CAF50));
+                    statusLabel.setText(Messages.get("filechooser.status.files.selected").formatted(fileCount));
+                    if (openBtn != null) openBtn.setEnabled(true);
                 }
-                String text = sb.toString();
-                long nonPrintable = text.chars()
-                        .filter(c -> c < 32 && c != '\n' && c != '\r' && c != '\t')
-                        .count();
-                if (nonPrintable > text.length() * 0.05) {
-                    previewArea.setText(Messages.get("filechooser.preview.binary"));
-                } else if (text.isBlank()) {
-                    previewArea.setText(Messages.get("filechooser.preview.empty.file"));
-                } else {
-                    previewArea.setText(text);
-                    previewArea.setCaretPosition(0);
+
+                File toPreview = (fileCount >= 1 && allSelected != null) ? allSelected[0] : lead;
+                if (toPreview == null || !toPreview.isFile()) {
+                    previewArea.setText(Messages.get("filechooser.preview.empty"));
+                    if (!multiFile) {
+                        statusLabel.setText(" ");
+                        if (openBtn != null) openBtn.setEnabled(false);
+                    }
+                    return;
                 }
-            } catch (IOException e) {
-                previewArea.setText(Messages.get("filechooser.preview.error"));
-            }
-        };
 
-        Runnable validate = () -> {
-            File[] allSelected = chooser.getSelectedFiles();
-            long fileCount = allSelected != null
-                    ? Arrays.stream(allSelected).filter(File::isFile).count() : 0;
-            File lead = chooser.getSelectedFile();
+                int idx = combo.getSelectedIndex();
+                Optional<LogParser> chosen = idx == 0
+                        ? Optional.empty() : Optional.of(parsers.get(idx - 1));
+                Path filePath = toPreview.toPath();
 
-            if (fileCount > 1) {
-                statusLabel.setForeground(new Color(0x4CAF50));
-                statusLabel.setText(Messages.get("filechooser.status.files.selected").formatted(fileCount));
-                if (openBtn != null) openBtn.setEnabled(true);
-                updatePreview.run();
-                return;
-            }
+                // Read file once off the EDT; derive both preview text and parser match.
+                pendingWorker = new SwingWorker<>() {
+                    @Override
+                    protected PreviewResult doInBackground() {
+                        List<String> lines = new ArrayList<>(50);
+                        try (BufferedReader reader = LogPanel.openReader(filePath)) {
+                            String line;
+                            while ((line = reader.readLine()) != null && lines.size() < 50) {
+                                if (isCancelled()) return null;
+                                lines.add(line);
+                            }
+                        } catch (IOException e) {
+                            log.warn("Preview read failed for {}", filePath, e);
+                            return new PreviewResult(Messages.get("filechooser.preview.error"),
+                                    " ", new Color(0x9E9E9E),
+                                    chosen.or(() -> parsers.stream().findFirst()).isPresent());
+                        }
+                        if (isCancelled()) return null;
 
-            File selected = (fileCount == 1 && allSelected != null) ? allSelected[0] : lead;
-            if (selected == null || !selected.isFile()) {
-                statusLabel.setText(" ");
-                if (openBtn != null) openBtn.setEnabled(false);
-                updatePreview.run();
-                return;
-            }
-            int idx = combo.getSelectedIndex();
-            Optional<LogParser> chosen = idx == 0
-                    ? Optional.empty()
-                    : Optional.of(parsers.get(idx - 1));
-            Optional<LogParser> matched = detectParser(selected.toPath(), chosen);
-            if (matched.isPresent()) {
-                statusLabel.setForeground(new Color(0x4CAF50));
-                String statusText = chosen.isPresent()
-                        ? Messages.get("filechooser.status.compatible")
-                        : Messages.get("filechooser.status.compatible.detected").formatted(matched.get().getName());
-                statusLabel.setText(statusText);
-            } else {
-                statusLabel.setForeground(new Color(0xE57373));
-                String name = chosen.map(LogParser::getName)
-                        .orElse(Messages.get("filechooser.parser.autodetect"));
-                statusLabel.setText(Messages.get("filechooser.status.incompatible").formatted(name));
-            }
-            if (openBtn != null) openBtn.setEnabled(matched.isPresent());
-            updatePreview.run();
+                        String previewText;
+                        if (lines.isEmpty()) {
+                            previewText = Messages.get("filechooser.preview.empty.file");
+                        } else {
+                            String joined = String.join("\n", lines);
+                            long nonPrintable = joined.chars()
+                                    .filter(c -> c < 32 && c != '\n' && c != '\r' && c != '\t')
+                                    .count();
+                            previewText = nonPrintable > joined.length() * 0.05
+                                    ? Messages.get("filechooser.preview.binary") : joined;
+                        }
+
+                        // Multi-file: status is already set; only preview text needed.
+                        if (multiFile) return new PreviewResult(previewText, null, null, true);
+                        if (isCancelled()) return null;
+
+                        Optional<LogParser> matched = Optional.empty();
+                        for (String line : lines) {
+                            if (isCancelled()) return null;
+                            if (line.isBlank()) continue;
+                            final String candidate = line;
+                            matched = chosen.map(Stream::of)
+                                    .orElseGet(parsers::stream)
+                                    .filter(p -> p.canParse(candidate))
+                                    .findFirst();
+                            if (matched.isPresent()) break;
+                        }
+
+                        String statusText;
+                        Color statusColor;
+                        boolean canOpen;
+                        if (matched.isPresent()) {
+                            statusColor = new Color(0x4CAF50);
+                            statusText = chosen.isPresent()
+                                    ? Messages.get("filechooser.status.compatible")
+                                    : Messages.get("filechooser.status.compatible.detected")
+                                            .formatted(matched.get().getName());
+                            canOpen = true;
+                        } else {
+                            statusColor = new Color(0xE57373);
+                            statusText = Messages.get("filechooser.status.incompatible")
+                                    .formatted(chosen.map(LogParser::getName)
+                                            .orElse(Messages.get("filechooser.parser.autodetect")));
+                            canOpen = false;
+                        }
+                        return new PreviewResult(previewText, statusText, statusColor, canOpen);
+                    }
+
+                    @Override
+                    protected void done() {
+                        if (isCancelled()) return;
+                        PreviewResult r;
+                        try { r = get(); } catch (Exception ex) { return; }
+                        if (r == null) return;
+                        previewArea.setText(r.previewText());
+                        previewArea.setCaretPosition(0);
+                        if (!multiFile) {
+                            statusLabel.setForeground(r.statusColor());
+                            statusLabel.setText(r.statusText());
+                            if (openBtn != null) openBtn.setEnabled(r.canOpen());
+                        }
+                    }
+                };
+                pendingWorker.execute();
+            });
+            debounceTimer.setRepeats(false);
+            debounceTimer.start();
         };
 
         combo.addActionListener(e -> {
             selectedParserIndex = combo.getSelectedIndex();
-            validate.run();
+            scheduleValidation.run();
         });
         chooser.addPropertyChangeListener(JFileChooser.SELECTED_FILE_CHANGED_PROPERTY,
-                e -> validate.run());
+                e -> scheduleValidation.run());
         chooser.addPropertyChangeListener(JFileChooser.SELECTED_FILES_CHANGED_PROPERTY,
-                e -> validate.run());
+                e -> scheduleValidation.run());
         chooser.addPropertyChangeListener(JFileChooser.DIRECTORY_CHANGED_PROPERTY, e -> {
             chooser.setSelectedFile(null);
             if (chooser.getUI() instanceof BasicFileChooserUI basicUI) basicUI.setFileName("");
-            SwingUtilities.invokeLater(validate);
+            SwingUtilities.invokeLater(scheduleValidation);
         });
 
         JPanel panel = new JPanel(new MigLayout("insets 8, fill, wrap 1", "[280px,grow]", "[][]4[]8[][grow]"));
@@ -346,28 +404,6 @@ final class FileChooserDialog extends JDialog {
         panel.add(previewLabel);
         panel.add(previewScroll, "grow");
         return panel;
-    }
-
-    private Optional<LogParser> detectParser(Path file, Optional<LogParser> chosen) {
-        try (BufferedReader reader = LogPanel.openReader(file)) {
-            String line;
-            int checked = 0;
-            while ((line = reader.readLine()) != null && checked < 50) {
-                if (line.isBlank()) continue;
-                checked++;
-                final String candidate = line;
-                Optional<LogParser> match = chosen
-                        .map(Stream::of)
-                        .orElseGet(parsers::stream)
-                        .filter(p -> p.canParse(candidate))
-                        .findFirst();
-                if (match.isPresent()) return match;
-            }
-        } catch (IOException e) {
-            log.warn("Could not validate file {} — proceeding anyway", file, e);
-            return chosen.or(() -> parsers.stream().findFirst());
-        }
-        return Optional.empty();
     }
 
     // ── Button bar ────────────────────────────────────────────────────────────
