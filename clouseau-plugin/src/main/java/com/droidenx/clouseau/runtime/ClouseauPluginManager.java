@@ -2,6 +2,7 @@ package com.droidenx.clouseau.runtime;
 
 import com.droidenx.clouseau.api.LogFormatter;
 import com.droidenx.clouseau.api.LogParser;
+import com.droidenx.clouseau.api.LogSyntaxHighlighter;
 import lombok.extern.slf4j.Slf4j;
 import org.pf4j.DefaultPluginManager;
 import org.pf4j.PluginManager;
@@ -46,9 +47,22 @@ public final class ClouseauPluginManager {
 
     private String deriveTypes(String pluginId) {
         List<String> types = new java.util.ArrayList<>();
-        if (!pf4j.getExtensions(LogParser.class,    pluginId).isEmpty()) types.add("Parser");
-        if (!pf4j.getExtensions(LogFormatter.class, pluginId).isEmpty()) types.add("Formatter");
+        if (!pf4j.getExtensions(LogParser.class,           pluginId).isEmpty()) types.add("Parser");
+        if (!pf4j.getExtensions(LogFormatter.class,        pluginId).isEmpty()) types.add("Formatter");
+        if (!pf4j.getExtensions(LogSyntaxHighlighter.class, pluginId).isEmpty()) types.add("Highlighter");
         return types.isEmpty() ? "\u2014" : String.join(", ", types);
+    }
+
+    /**
+     * Returns a human-readable list of detected extensions for a plugin,
+     * e.g. ["Parser: Log4j Pattern", "Formatter: JSON"].
+     */
+    public List<String> getExtensionDetails(String pluginId) {
+        List<String> details = new java.util.ArrayList<>();
+        pf4j.getExtensions(LogParser.class,            pluginId).forEach(e -> details.add("Parser: "      + e.getName()));
+        pf4j.getExtensions(LogFormatter.class,         pluginId).forEach(e -> details.add("Formatter: "   + e.getName()));
+        pf4j.getExtensions(LogSyntaxHighlighter.class, pluginId).forEach(e -> details.add("Highlighter: " + e.getName()));
+        return details;
     }
 
     public void enablePlugin(String id) {

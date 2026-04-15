@@ -34,7 +34,7 @@ public final class PluginManagerDialog extends JDialog {
     }
 
     private void buildUI() {
-        setLayout(new MigLayout("fill, insets 16", "[grow]", "[][grow][]"));
+        setLayout(new MigLayout("fill, insets 16", "[grow]", "[][grow][][]"));
 
         // ── Plugins directory ─────────────────────────────────────────────────
         Path root = pluginManager.getPluginsRoot();
@@ -76,6 +76,29 @@ public final class PluginManagerDialog extends JDialog {
 
         JScrollPane tableScroll = new JScrollPane(table);
         add(tableScroll, "grow, wrap");
+
+        // ── Extension detail ──────────────────────────────────────────────────
+        JTextArea detailArea = new JTextArea(3, 0);
+        detailArea.setEditable(false);
+        detailArea.setLineWrap(false);
+        detailArea.setOpaque(false);
+        detailArea.setFont(UIManager.getFont("Label.font"));
+        detailArea.setText(Messages.get("plugins.detail.none"));
+        add(detailArea, "growx, wrap");
+
+        table.getSelectionModel().addListSelectionListener(e -> {
+            if (e.getValueIsAdjusting()) return;
+            int row = table.getSelectedRow();
+            if (row < 0) {
+                detailArea.setText(Messages.get("plugins.detail.none"));
+                return;
+            }
+            String id = (String) tableModel.getValueAt(row, 1);
+            List<String> details = pluginManager.getExtensionDetails(id);
+            detailArea.setText(details.isEmpty()
+                    ? Messages.get("plugins.detail.no.extensions")
+                    : String.join("\n", details));
+        });
 
         // ── Buttons ───────────────────────────────────────────────────────────
         JButton deleteBtn = new JButton(Messages.get("plugins.dialog.delete"));
@@ -236,9 +259,10 @@ public final class PluginManagerDialog extends JDialog {
             if ("\u2014".equals(types) || types.isBlank()) return types;
             return Arrays.stream(types.split(", "))
                     .map(t -> switch (t) {
-                        case "Parser"    -> Messages.get("plugins.type.parser");
-                        case "Formatter" -> Messages.get("plugins.type.formatter");
-                        default          -> t;
+                        case "Parser"      -> Messages.get("plugins.type.parser");
+                        case "Formatter"   -> Messages.get("plugins.type.formatter");
+                        case "Highlighter" -> Messages.get("plugins.type.highlighter");
+                        default            -> t;
                     })
                     .collect(Collectors.joining(", "));
         }
