@@ -33,6 +33,8 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.RandomAccessFile;
+import java.nio.charset.CharsetDecoder;
+import java.nio.charset.CodingErrorAction;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -368,17 +370,20 @@ public final class LogPanel extends JPanel {
     }
 
     static BufferedReader openReader(Path file) throws IOException {
+        CharsetDecoder decoder = StandardCharsets.UTF_8.newDecoder()
+                .onMalformedInput(CodingErrorAction.REPLACE)
+                .onUnmappableCharacter(CodingErrorAction.REPLACE);
         String name = file.getFileName().toString().toLowerCase();
         if (name.endsWith(".gz")) {
             return new BufferedReader(new InputStreamReader(
-                    new GZIPInputStream(Files.newInputStream(file)), StandardCharsets.UTF_8));
+                    new GZIPInputStream(Files.newInputStream(file)), decoder));
         }
         if (name.endsWith(".zip")) {
             ZipInputStream zis = new ZipInputStream(Files.newInputStream(file));
             zis.getNextEntry();
-            return new BufferedReader(new InputStreamReader(zis, StandardCharsets.UTF_8));
+            return new BufferedReader(new InputStreamReader(zis, decoder));
         }
-        return Files.newBufferedReader(file, StandardCharsets.UTF_8);
+        return new BufferedReader(new InputStreamReader(Files.newInputStream(file), decoder));
     }
 
     private void startTailing() {
