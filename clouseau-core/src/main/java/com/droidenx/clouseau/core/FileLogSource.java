@@ -5,6 +5,10 @@ import lombok.extern.slf4j.Slf4j;
 
 import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStreamReader;
+import java.nio.charset.CharsetDecoder;
+import java.nio.charset.CodingErrorAction;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.function.Consumer;
@@ -46,7 +50,11 @@ public final class FileLogSource implements LogSource {
     public void open(Consumer<String> lineConsumer, Runnable onComplete) throws Exception {
         log.info("Opening log file: {}", file);
         readerThread = new Thread(() -> {
-            try (BufferedReader reader = Files.newBufferedReader(file)) {
+            CharsetDecoder decoder = StandardCharsets.UTF_8.newDecoder()
+                    .onMalformedInput(CodingErrorAction.REPLACE)
+                    .onUnmappableCharacter(CodingErrorAction.REPLACE);
+            try (BufferedReader reader = new BufferedReader(
+                    new InputStreamReader(Files.newInputStream(file), decoder))) {
                 String line;
                 while ((line = reader.readLine()) != null
                         && !Thread.currentThread().isInterrupted()) {

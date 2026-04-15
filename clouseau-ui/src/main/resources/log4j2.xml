@@ -10,7 +10,7 @@
         <RollingFile name="FileAppender"
                      fileName="${log.dir}/clouseau.log"
                      filePattern="${log.dir}/clouseau.%i.log.gz">
-            <PatternLayout pattern="${log.pattern}"/>
+            <PatternLayout pattern="${log.pattern}" charset="UTF-8"/>
             <Policies>
                 <SizeBasedTriggeringPolicy size="10MB"/>
             </Policies>
@@ -19,7 +19,7 @@
 
         <!-- Console appender: WARNING and above -->
         <Console name="ConsoleAppender" target="SYSTEM_ERR">
-            <PatternLayout pattern="${log.pattern}"/>
+            <PatternLayout pattern="${log.pattern}" charset="UTF-8"/>
             <ThresholdFilter level="WARN" onMatch="ACCEPT" onMismatch="DENY"/>
         </Console>
     </Appenders>
