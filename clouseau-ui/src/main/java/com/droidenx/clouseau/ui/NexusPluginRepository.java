@@ -4,6 +4,7 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import lombok.extern.slf4j.Slf4j;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -25,6 +26,7 @@ import java.util.function.LongConsumer;
  * Searches and downloads plugin JARs from a Nexus Repository Manager 3 instance
  * via its REST API ({@code /service/rest/v1/search/assets}).
  */
+@Slf4j
 final class NexusPluginRepository implements PluginRepository {
 
     private final AppPrefs.PluginRepo config;
@@ -44,8 +46,10 @@ final class NexusPluginRepository implements PluginRepository {
         String repoParam = (config.repository() != null && !config.repository().isBlank())
                 ? "&repository=" + URLEncoder.encode(config.repository(), StandardCharsets.UTF_8)
                 : "";
-        String url = base + "/service/rest/v1/search/assets?q="
+        String url = base + "/service/rest/v1/search/assets?name="
                 + URLEncoder.encode(query, StandardCharsets.UTF_8) + repoParam;
+
+        log.info("Nexus search: GET {}", url);
 
         HttpRequest req = HttpRequest.newBuilder()
                 .uri(URI.create(url))
@@ -55,22 +59,31 @@ final class NexusPluginRepository implements PluginRepository {
                 .build();
 
         HttpResponse<String> resp = http.send(req, HttpResponse.BodyHandlers.ofString());
+        log.info("Nexus search response: HTTP {}", resp.statusCode());
+        log.debug("Nexus search response body: {}", resp.body());
         if (resp.statusCode() != 200)
             throw new IOException("Nexus search returned HTTP " + resp.statusCode()
                     + " for " + config.name());
 
-        return parseItems(resp.body());
+        List<Asset> results = parseItems(resp.body());
+        log.info("Nexus search returned {} JAR asset(s)", results.size());
+        return results;
     }
 
     private List<Asset> parseItems(String body) {
         JsonObject root  = JsonParser.parseString(body).getAsJsonObject();
         JsonArray  items = root.getAsJsonArray("items");
+        log.info("Nexus response contains {} total item(s) before JAR filter", items.size());
         List<Asset> result = new ArrayList<>();
         for (JsonElement el : items) {
             JsonObject item = el.getAsJsonObject();
             String path = item.has("path") ? item.get("path").getAsString() : "";
             String contentType = item.has("contentType") ? item.get("contentType").getAsString() : "";
-            if (!contentType.contains("java-archive") && !path.endsWith(".jar")) continue;
+            log.debug("Nexus item: path={} contentType={}", path, contentType);
+            if (!contentType.contains("java-archive") && !path.endsWith(".jar")) {
+                log.debug("Nexus item skipped (not a JAR): path={} contentType={}", path, contentType);
+                continue;
+            }
 
             String downloadUrl = item.get("downloadUrl").getAsString();
             long   size        = item.has("fileSize") ? item.get("fileSize").getAsLong() : -1;
@@ -88,6 +101,7 @@ final class NexusPluginRepository implements PluginRepository {
     @Override
     public Path download(Asset asset, Path destDir, LongConsumer onBytesRead)
             throws IOException, InterruptedException {
+        log.info("Nexus download: GET {}", asset.downloadUrl());
         HttpRequest req = HttpRequest.newBuilder()
                 .uri(URI.create(asset.downloadUrl()))
                 .header("Authorization", buildAuthHeader())
@@ -98,6 +112,7 @@ final class NexusPluginRepository implements PluginRepository {
         Path dest = destDir.resolve(rawName);
 
         HttpResponse<InputStream> resp = http.send(req, HttpResponse.BodyHandlers.ofInputStream());
+        log.info("Nexus download response: HTTP {}", resp.statusCode());
         if (resp.statusCode() != 200)
             throw new IOException("Download returned HTTP " + resp.statusCode());
 
