@@ -74,12 +74,27 @@ public final class MainFrame extends JFrame {
         });
     }
 
-    // ── Parser list management ────────────────────────────────────────────────
+    // ── Extension list management ─────────────────────────────────────────────
 
     /** Called after parsers.json is saved to reload user-defined parsers. */
     void reloadParsers() {
         this.parsers = new ArrayList<>(UserParsersLoader.load());
         if (lastParserIndex > parsers.size()) lastParserIndex = 0;
+    }
+
+    /** Called after a plugin refresh to re-fetch formatters and highlighters from the plugin manager. */
+    void reloadExtensions() {
+        this.formatters = new ArrayList<>();
+        this.formatters.add(new JsonMessageFormatter());
+        this.formatters.addAll(pluginManager.getExtensions(LogFormatter.class));
+        log.info("Reloaded {} formatter(s): {}", formatters.size(),
+                formatters.stream().map(LogFormatter::getName).toList());
+
+        this.syntaxHighlighters = new ArrayList<>();
+        this.syntaxHighlighters.add(new JsonSyntaxHighlighter());
+        this.syntaxHighlighters.addAll(pluginManager.getExtensions(LogSyntaxHighlighter.class));
+        log.info("Reloaded {} syntax highlighter(s): {}", syntaxHighlighters.size(),
+                syntaxHighlighters.stream().map(LogSyntaxHighlighter::getName).toList());
     }
 
     // ── Menu bar ─────────────────────────────────────────────────────────────
@@ -143,7 +158,7 @@ public final class MainFrame extends JFrame {
         JMenuItem pluginsItem = menuItem(Messages.get("menu.tools.plugins"));
         pluginsItem.setToolTipText(Messages.get("toolbar.plugins.tooltip"));
         pluginsItem.addActionListener(e ->
-                new PluginManagerDialog(this, pluginManager, () -> {}).setVisible(true));
+                new PluginManagerDialog(this, pluginManager, this::reloadExtensions).setVisible(true));
         toolsMenu.add(pluginsItem);
         menuBar.add(toolsMenu);
 
