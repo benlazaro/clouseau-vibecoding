@@ -54,15 +54,21 @@ public final class ClouseauPluginManager {
     }
 
     /**
-     * Returns a human-readable list of detected extensions for a plugin,
-     * e.g. ["Parser: Log4j Pattern", "Formatter: JSON"].
+     * Returns a human-readable list of detected extensions for a plugin, grouped by type.
+     * e.g. ["Parsers:  Log4j Pattern, Log4j JSON", "Formatter:  JSON"]
      */
     public List<String> getExtensionDetails(String pluginId) {
         List<String> details = new java.util.ArrayList<>();
-        pf4j.getExtensions(LogParser.class,            pluginId).forEach(e -> details.add("Parser: "      + e.getName()));
-        pf4j.getExtensions(LogFormatter.class,         pluginId).forEach(e -> details.add("Formatter: "   + e.getName()));
-        pf4j.getExtensions(LogSyntaxHighlighter.class, pluginId).forEach(e -> details.add("Highlighter: " + e.getName()));
+        addGroup(details, "Parser",      pf4j.getExtensions(LogParser.class,            pluginId).stream().map(LogParser::getName).toList());
+        addGroup(details, "Formatter",   pf4j.getExtensions(LogFormatter.class,         pluginId).stream().map(LogFormatter::getName).toList());
+        addGroup(details, "Highlighter", pf4j.getExtensions(LogSyntaxHighlighter.class, pluginId).stream().map(LogSyntaxHighlighter::getName).toList());
         return details;
+    }
+
+    private static void addGroup(List<String> out, String label, List<String> names) {
+        if (names.isEmpty()) return;
+        String plural = names.size() == 1 ? label : label + "s";
+        out.add(plural + ":  " + String.join(", ", names));
     }
 
     public void enablePlugin(String id) {
