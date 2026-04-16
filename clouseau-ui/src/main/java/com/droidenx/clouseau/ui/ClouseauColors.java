@@ -59,7 +59,7 @@ final class ClouseauColors {
     static Color loadingBackground()  { return get("Clouseau.loadingBackground",  "Panel.background"); }
 
     /** Splash window background. */
-    static Color splashBackground()   { return get("Clouseau.splashBackground",   "Panel.background"); }
+    static Color splashBackground()   { return UIManager.getColor("Panel.background"); }
 
     // ── Borders & separators ──────────────────────────────────────────────────
 
@@ -112,13 +112,6 @@ final class ClouseauColors {
             case ERROR          -> FB_LEVEL_ERROR;
             case FATAL          -> FB_LEVEL_FATAL;
         };
-    }
-
-    /** Background tint for a log-level toggle button. */
-    static Color levelBackground(LogLevel level) {
-        if (level == null) return tableBackground();
-        Color c = UIManager.getColor("Clouseau.levelBg." + level.name());
-        return c != null ? c : tableBackground();
     }
 
     // ── Status / feedback ─────────────────────────────────────────────────────

@@ -72,7 +72,6 @@ final class FilterBar extends JPanel {
             btn.setFocusPainted(false);
             btn.setMargin(new Insets(2, 5, 2, 5));
             btn.setFont(btn.getFont().deriveFont(11f));
-            btn.setBackground(ClouseauColors.levelBackground(level));
             Color onColor  = ClouseauColors.levelColor(level);
             Color offColor = ClouseauColors.offColor();
             btn.setForeground(btn.isSelected() ? onColor : offColor);
@@ -459,14 +458,11 @@ final class FilterBar extends JPanel {
     }
 
     static void applyToggleStyle(JToggleButton btn) {
-        final Color naturalBg = btn.getBackground();
         final Color naturalFg = btn.getForeground();
         btn.addItemListener(e -> {
-            btn.setBackground(btn.isSelected() ? naturalBg : ClouseauColors.levelBackground(null));
             btn.setForeground(btn.isSelected() ? naturalFg : ClouseauColors.offColor());
         });
         if (!btn.isSelected()) {
-            btn.setBackground(ClouseauColors.levelBackground(null));
             btn.setForeground(ClouseauColors.offColor());
         }
     }

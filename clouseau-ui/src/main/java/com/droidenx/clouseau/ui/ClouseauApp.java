@@ -20,6 +20,8 @@ public final class ClouseauApp {
 
         log.info("Starting Clouseau Log Viewer");
 
+        ThemeManager.applyTheme(AppPrefs.getTheme());
+
         SplashWindow splash = SplashWindow.createAndShow();
 
         // Plugin parsers — loaded from the plugins directory; may be empty if dir not found
@@ -54,9 +56,6 @@ public final class ClouseauApp {
             log.info("Delegated to existing instance — exiting.");
             System.exit(0);
         }
-
-        ThemeManager.applyTheme(AppPrefs.getTheme());
-
 
         SwingUtilities.invokeLater(() -> {
             MainFrame frame = new MainFrame(pluginManager);

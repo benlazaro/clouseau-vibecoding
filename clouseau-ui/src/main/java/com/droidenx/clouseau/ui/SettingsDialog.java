@@ -55,7 +55,10 @@ final class SettingsDialog extends JDialog {
         themeCombo.setSelectedItem(originalThemeName);
         themeCombo.addActionListener(e -> {
             String sel = (String) themeCombo.getSelectedItem();
-            if (sel != null) { ThemeManager.applyTheme(sel); ThemeManager.updateUI(); }
+            if (sel != null) {
+                ThemeManager.applyTheme(sel);
+                SwingUtilities.invokeLater(ThemeManager::updateUI);
+            }
         });
 
         JPanel content = new JPanel(new MigLayout("insets 16, wrap 2, gapy 6", "[grow,fill][120px!]"));

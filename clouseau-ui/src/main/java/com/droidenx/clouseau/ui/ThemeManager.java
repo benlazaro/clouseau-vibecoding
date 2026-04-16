@@ -1,7 +1,7 @@
 package com.droidenx.clouseau.ui;
 
 import com.formdev.flatlaf.*;
-import com.formdev.flatlaf.intellijthemes.*;
+import com.formdev.flatlaf.intellijthemes.FlatAllIJThemes;
 import lombok.extern.slf4j.Slf4j;
 
 import javax.swing.*;
@@ -38,10 +38,11 @@ public final class ThemeManager {
         BUILTINS.put("Clouseau Dark", ThemeManager::setupClouseauDark);
         BUILTINS.put("FlatLaf Dark",  () -> setup(new FlatDarkLaf()));
         BUILTINS.put("FlatLaf Light", () -> setup(new FlatLightLaf()));
-        BUILTINS.put("Darcula",       () -> setup(new FlatDarculaLaf()));
-        BUILTINS.put("IntelliJ",      () -> setup(new FlatIntelliJLaf()));
-        BUILTINS.put("One Dark",      () -> setup(new FlatOneDarkIJTheme()));
-        BUILTINS.put("Dracula",       () -> setup(new FlatDraculaIJTheme()));
+        for (UIManager.LookAndFeelInfo info : FlatAllIJThemes.INFOS) {
+            String name      = info.getName();
+            String className = info.getClassName();
+            BUILTINS.put(name, () -> setupFromClassName(className));
+        }
     }
 
     /** Represents one entry in the theme list (builtin or user-installed). */
@@ -136,6 +137,15 @@ public final class ThemeManager {
 
     // ── Private setup helpers ─────────────────────────────────────────────────
 
+    private static void setupFromClassName(String className) {
+        try {
+            LookAndFeel laf = (LookAndFeel) Class.forName(className).getDeclaredConstructor().newInstance();
+            setup(laf);
+        } catch (Exception e) {
+            log.warn("Failed to apply theme '{}'", className, e);
+        }
+    }
+
     private static void setup(LookAndFeel laf) {
         FlatLaf.setGlobalExtraDefaults(null);
         clearClouseauDefaults();
@@ -191,10 +201,8 @@ public final class ThemeManager {
 
     private static LookAndFeel resolveBaseLaf(String name) {
         return switch (name) {
-            case "FlatLightLaf"    -> new FlatLightLaf();
-            case "FlatDarculaLaf"  -> new FlatDarculaLaf();
-            case "FlatIntelliJLaf" -> new FlatIntelliJLaf();
-            default                -> new FlatDarkLaf();
+            case "FlatLightLaf" -> new FlatLightLaf();
+            default             -> new FlatDarkLaf();
         };
     }
 
