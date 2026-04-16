@@ -230,10 +230,10 @@ public final class MainFrame extends JFrame {
     private static void addDialogSection(JPanel grid, String title, String gapConstraint) {
         JLabel label = new JLabel(title);
         label.setFont(label.getFont().deriveFont(Font.BOLD));
-        label.setForeground(new Color(0x82AAFF));
+        label.setForeground(ClouseauColors.accentBlue());
         grid.add(label, "span 2, " + gapConstraint + ", gapbottom 2");
         JSeparator sep = new JSeparator();
-        sep.setForeground(new Color(0x3A3A3A));
+        sep.setForeground(ClouseauColors.separatorColor());
         grid.add(sep, "span 2, growx, gapbottom 4");
     }
 
@@ -413,7 +413,7 @@ public final class MainFrame extends JFrame {
         Graphics2D g2 = img.createGraphics();
         g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
         Color bg = UIManager.getColor("TabbedPane.selectedBackground");
-        g2.setColor(bg != null ? bg : new Color(0x2B2B2B));
+        g2.setColor(bg != null ? bg : ClouseauColors.tableBackground());
         g2.fillRect(0, 0, w, h);
         tabHeader.paint(g2);
         g2.dispose();
@@ -528,9 +528,9 @@ public final class MainFrame extends JFrame {
             protected void paintComponent(Graphics g) {
                 Graphics2D g2 = (Graphics2D) g.create();
                 g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                g2.setColor(new Color(0x2D2F38));
+                g2.setColor(ClouseauColors.keyBadgeFill());
                 g2.fillRoundRect(0, 0, getWidth(), getHeight(), 8, 8);
-                g2.setColor(new Color(0x555566));
+                g2.setColor(ClouseauColors.keyBadgeBorder());
                 g2.drawRoundRect(0, 0, getWidth() - 1, getHeight() - 1, 8, 8);
                 g2.dispose();
             }

@@ -200,7 +200,7 @@ final class FileChooserDialog extends JDialog {
                     px[i] = (int) Math.round(cx - r * Math.cos(angle));
                     py[i] = (int) Math.round(cy - r * Math.sin(angle));
                 }
-                g2.setColor(new Color(0xFFD700));
+                g2.setColor(ClouseauColors.starColor());
                 g2.fillPolygon(px, py, 10);
                 g2.dispose();
             }
@@ -244,15 +244,15 @@ final class FileChooserDialog extends JDialog {
         JTextArea previewArea = new JTextArea();
         previewArea.setEditable(false);
         previewArea.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 11));
-        previewArea.setBackground(new Color(0x191919));
-        previewArea.setForeground(new Color(0x9E9E9E));
+        previewArea.setBackground(ClouseauColors.detailBackground());
+        previewArea.setForeground(ClouseauColors.dimForeground());
         previewArea.setBorder(BorderFactory.createEmptyBorder(4, 6, 4, 6));
         previewArea.setLineWrap(false);
         previewArea.setRows(6);
         previewArea.setText(Messages.get("filechooser.preview.empty"));
 
         JScrollPane previewScroll = new JScrollPane(previewArea);
-        previewScroll.setBorder(BorderFactory.createLineBorder(new Color(0x3C3C3C)));
+        previewScroll.setBorder(BorderFactory.createLineBorder(ClouseauColors.borderColor()));
 
         JLabel previewLabel = new JLabel(Messages.get("filechooser.preview.label"));
         previewLabel.setFont(previewLabel.getFont().deriveFont(11f));
@@ -274,7 +274,7 @@ final class FileChooserDialog extends JDialog {
 
                 // For multi-file, status is known immediately; preview still runs in background.
                 if (multiFile) {
-                    statusLabel.setForeground(new Color(0x4CAF50));
+                    statusLabel.setForeground(ClouseauColors.statusOk());
                     statusLabel.setText(Messages.get("filechooser.status.files.selected").formatted(fileCount));
                     if (openBtn != null) openBtn.setEnabled(true);
                 }
@@ -308,7 +308,7 @@ final class FileChooserDialog extends JDialog {
                         } catch (IOException e) {
                             log.warn("Preview read failed for {}", filePath, e);
                             return new PreviewResult(Messages.get("filechooser.preview.error"),
-                                    " ", new Color(0x9E9E9E),
+                                    " ", ClouseauColors.dimForeground(),
                                     chosen.or(() -> parsers.stream().findFirst()).isPresent());
                         }
                         if (isCancelled()) return null;
@@ -345,14 +345,14 @@ final class FileChooserDialog extends JDialog {
                         Color statusColor;
                         boolean canOpen;
                         if (matched.isPresent()) {
-                            statusColor = new Color(0x4CAF50);
+                            statusColor = ClouseauColors.statusOk();
                             statusText = chosen.isPresent()
                                     ? Messages.get("filechooser.status.compatible")
                                     : Messages.get("filechooser.status.compatible.detected")
                                             .formatted(matched.get().getName());
                             canOpen = true;
                         } else {
-                            statusColor = new Color(0xE57373);
+                            statusColor = ClouseauColors.statusError();
                             statusText = Messages.get("filechooser.status.incompatible")
                                     .formatted(chosen.map(LogParser::getName)
                                             .orElse(Messages.get("filechooser.parser.autodetect")));
@@ -417,7 +417,7 @@ final class FileChooserDialog extends JDialog {
         openBtn.addActionListener(e -> chooser.approveSelection());
 
         JPanel bar = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 8));
-        bar.setBorder(BorderFactory.createMatteBorder(1, 0, 0, 0, new Color(0x3C3C3C)));
+        bar.setBorder(BorderFactory.createMatteBorder(1, 0, 0, 0, ClouseauColors.borderColor()));
         bar.add(cancelBtn);
         bar.add(openBtn);
         getRootPane().setDefaultButton(openBtn);

@@ -476,7 +476,7 @@ public final class LogPanel extends JPanel {
         statusBarLabel.setBorder(BorderFactory.createEmptyBorder(6, 8, 8, 8));
 
         JPanel panel = new JPanel(new BorderLayout());
-        panel.setBorder(BorderFactory.createMatteBorder(1, 0, 0, 0, new Color(0x272727)));
+        panel.setBorder(BorderFactory.createMatteBorder(1, 0, 0, 0, ClouseauColors.separatorColor()));
         panel.add(statusBarPathLabel, BorderLayout.WEST);
         panel.add(statusBarLabel, BorderLayout.EAST);
         return panel;
@@ -520,17 +520,17 @@ public final class LogPanel extends JPanel {
 
     private JPanel buildLoadingPanel() {
         JPanel panel = new JPanel(new BorderLayout());
-        panel.setBackground(new Color(0x181818));
+        panel.setBackground(ClouseauColors.loadingBackground());
 
         JProgressBar bar = new JProgressBar();
         bar.setIndeterminate(true);
         bar.setBorderPainted(false);
-        bar.setForeground(new Color(0x29B6F6));
-        bar.setBackground(new Color(0x272727));
+        bar.setForeground(ClouseauColors.progressForeground());
+        bar.setBackground(ClouseauColors.progressBackground());
         bar.setPreferredSize(new Dimension(280, 4));
 
         JLabel label = new JLabel(Messages.get("loading.message"), SwingConstants.CENTER);
-        label.setForeground(new Color(0x6B7280));
+        label.setForeground(ClouseauColors.dimForeground());
         label.setFont(label.getFont().deriveFont(13f));
 
         JPanel inner = new JPanel(new MigLayout("insets 0", "[280!]", "[]10[]"));
@@ -554,7 +554,7 @@ public final class LogPanel extends JPanel {
                 super.doLayout();
             }
         };
-        logTable.setBackground(new Color(0x191919));
+        logTable.setBackground(ClouseauColors.tableBackground());
         logTable.getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT)
                 .put(KeyStroke.getKeyStroke(KeyEvent.VK_HOME, InputEvent.CTRL_DOWN_MASK), "scrollToTop");
         logTable.getInputMap(JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT)
@@ -588,16 +588,16 @@ public final class LogPanel extends JPanel {
                 if (hl != null) {
                     setBackground(sel ? blend(hl, t.getSelectionBackground(), 0.55f) : hl);
                 } else if (sel) {
-                    setBackground(SEL_BG);
+                    setBackground(ClouseauColors.selectionBackground());
                 } else if (isSearchMatch) {
-                    setBackground(SEARCH_MATCH_BG);
+                    setBackground(ClouseauColors.searchMatchBackground());
                 } else {
                     setBackground(t.getBackground());
                 }
 
                 // Ring border on any selected row
                 if (sel) {
-                    Color ring = hl != null ? hl.brighter().brighter() : SEL_BG.brighter();
+                    Color ring = hl != null ? hl.brighter().brighter() : ClouseauColors.selectionBackground().brighter();
                     int lastCol = t.getColumnCount() - 1;
                     setBorder(BorderFactory.createCompoundBorder(
                             BorderFactory.createMatteBorder(2, c == 0 ? 2 : 0, 2, c == lastCol ? 2 : 0, ring),
@@ -611,13 +611,11 @@ public final class LogPanel extends JPanel {
                     setForeground(Color.BLACK);
                 } else if (!sel) {
                     LogEntry.LogLevel level = entry != null ? entry.level() : null;
-                    Color levelColor = level != null
-                            ? LEVEL_COLORS.getOrDefault(level, FG_DEFAULT)
-                            : FG_DEFAULT;
+                    Color levelColor = ClouseauColors.levelColor(level);
                     setForeground(switch (t.convertColumnIndexToModel(c)) {
-                        case 2, 5 -> levelColor;   // Level, Message
-                        case 3, 4 -> FG_DIM;       // Thread, Logger
-                        default   -> FG_DEFAULT;   // #, Timestamp
+                        case 2, 5 -> levelColor;                          // Level, Message
+                        case 3, 4 -> ClouseauColors.dimForeground();      // Thread, Logger
+                        default   -> ClouseauColors.foreground();         // #, Timestamp
                     });
                 }
                 setFont(getFont().deriveFont(sel ? Font.BOLD : Font.PLAIN));
@@ -710,7 +708,7 @@ public final class LogPanel extends JPanel {
             private JLabel menuSectionLabel(String text) {
                 JLabel lbl = new JLabel(text);
                 lbl.setBorder(BorderFactory.createEmptyBorder(3, 6, 1, 6));
-                lbl.setForeground(FG_DIM);
+                lbl.setForeground(ClouseauColors.dimForeground());
                 lbl.setFont(lbl.getFont().deriveFont(Font.BOLD, 11f));
                 return lbl;
             }
@@ -725,7 +723,7 @@ public final class LogPanel extends JPanel {
         }
         logTable.setShowHorizontalLines(true);
         logTable.setShowVerticalLines(false);
-        logTable.setGridColor(new Color(0x272727));
+        logTable.setGridColor(ClouseauColors.separatorColor());
         logTable.setRowHeight(AppPrefs.getRowHeight());
         logTable.addComponentListener(new java.awt.event.ComponentAdapter() {
             @Override public void componentResized(java.awt.event.ComponentEvent e) {
@@ -751,7 +749,7 @@ public final class LogPanel extends JPanel {
         });
 
         JScrollPane scrollPane = new JScrollPane(logTable);
-        scrollPane.getViewport().setBackground(new Color(0x181818));
+        scrollPane.getViewport().setBackground(ClouseauColors.viewportBackground());
         return scrollPane;
     }
 
@@ -969,7 +967,7 @@ public final class LogPanel extends JPanel {
         if (!entries.isEmpty()) {
             JPanel swatches = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 4));
             swatches.setOpaque(false);
-            for (Color color : HIGHLIGHT_COLORS) {
+            for (Color color : ClouseauColors.highlightColors()) {
                 boolean allMatch = entries.stream().allMatch(e -> color.equals(logTableModel.getHighlight(e)));
                 JButton swatch = new JButton() {
                     @Override protected void paintComponent(Graphics g) {
@@ -1008,7 +1006,7 @@ public final class LogPanel extends JPanel {
                     refreshDetailAfterHighlight();
                 });
             } else {
-                clearItem.putClientProperty("FlatLaf.style", "disabledForeground: #3C3C3C");
+                clearItem.putClientProperty("FlatLaf.style", "disabledForeground: " + colorToHex(ClouseauColors.borderColor()));
                 clearItem.setEnabled(false);
             }
             menu.add(clearItem);
@@ -1028,7 +1026,7 @@ public final class LogPanel extends JPanel {
                     refreshDetailAfterHighlight();
                 });
             } else {
-                clearAllItem.putClientProperty("FlatLaf.style", "disabledForeground: #3C3C3C");
+                clearAllItem.putClientProperty("FlatLaf.style", "disabledForeground: " + colorToHex(ClouseauColors.borderColor()));
                 clearAllItem.setEnabled(false);
             }
             menu.add(clearAllItem);
@@ -1059,18 +1057,18 @@ public final class LogPanel extends JPanel {
 
     private JPanel buildHighlightNavBar() {
         highlightNavBar = new JPanel(new MigLayout("insets 3 8 3 8, gapy 0", "[][grow][]", "[]"));
-        highlightNavBar.setBorder(BorderFactory.createMatteBorder(0, 0, 1, 0, new Color(0x272727)));
+        highlightNavBar.setBorder(BorderFactory.createMatteBorder(0, 0, 1, 0, ClouseauColors.separatorColor()));
         highlightNavBar.setVisible(false);
 
         JLabel label = new JLabel(Messages.get("highlight.nav.label"));
-        label.setForeground(FG_DIM);
+        label.setForeground(ClouseauColors.dimForeground());
         label.setFont(label.getFont().deriveFont(12f));
 
         highlightNavSwatches = new JPanel(new FlowLayout(FlowLayout.LEFT, 3, 0));
         highlightNavSwatches.setOpaque(false);
 
         highlightNavPosition = new JLabel("0 / 0");
-        highlightNavPosition.setForeground(FG_DIM);
+        highlightNavPosition.setForeground(ClouseauColors.dimForeground());
         highlightNavPosition.setFont(highlightNavPosition.getFont().deriveFont(12f));
 
         JButton prevBtn = makeNavArrowButton("\u25b2");
@@ -1120,9 +1118,9 @@ public final class LogPanel extends JPanel {
             @Override protected void paintComponent(Graphics g) {
                 Graphics2D g2 = (Graphics2D) g.create();
                 g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                g2.setColor(navColorSnap == null ? new Color(0x4A4A4A) : new Color(0x2A2A2A));
+                g2.setColor(navColorSnap == null ? ClouseauColors.highlightNavSelected() : ClouseauColors.highlightNavUnselected());
                 g2.fillRoundRect(0, 0, getWidth(), getHeight(), 5, 5);
-                g2.setColor(navColorSnap == null ? Color.WHITE : new Color(0x6B7280));
+                g2.setColor(navColorSnap == null ? Color.WHITE : ClouseauColors.dimForeground());
                 FontMetrics fm = g2.getFontMetrics();
                 int x = (getWidth() - fm.stringWidth(getText())) / 2;
                 int y = (getHeight() + fm.getAscent() - fm.getDescent()) / 2;
@@ -1138,8 +1136,8 @@ public final class LogPanel extends JPanel {
         allBtn.addActionListener(e -> { highlightNavColor = null; refreshHighlightNav(); });
         highlightNavSwatches.add(allBtn);
 
-        // Color swatches in HIGHLIGHT_COLORS palette order
-        for (Color palette : HIGHLIGHT_COLORS) {
+        // Color swatches in highlight palette order
+        for (Color palette : ClouseauColors.highlightColors()) {
             if (!activeColors.contains(palette)) continue;
             final Color c = palette;
             final boolean selected = c.equals(highlightNavColor);
@@ -1213,11 +1211,11 @@ public final class LogPanel extends JPanel {
 
     private JPanel buildFindBar() {
         JPanel bar = new JPanel(new MigLayout("insets 3 8 3 8, gap 4", "[][grow][][][]", "[center]"));
-        bar.setBorder(BorderFactory.createMatteBorder(0, 0, 1, 0, new Color(0x272727)));
+        bar.setBorder(BorderFactory.createMatteBorder(0, 0, 1, 0, ClouseauColors.separatorColor()));
         bar.setVisible(false);
 
         JLabel label = new JLabel("Find:");
-        label.setForeground(FG_DIM);
+        label.setForeground(ClouseauColors.dimForeground());
         label.setFont(label.getFont().deriveFont(12f));
 
         findField = new JTextField();
@@ -1257,7 +1255,7 @@ public final class LogPanel extends JPanel {
                 JComponent.WHEN_FOCUSED);
 
         findCounter = new JLabel();
-        findCounter.setForeground(FG_DIM);
+        findCounter.setForeground(ClouseauColors.dimForeground());
         findCounter.setFont(findCounter.getFont().deriveFont(11f));
         findCounter.setPreferredSize(new Dimension(80, findCounter.getPreferredSize().height));
 
@@ -1302,7 +1300,7 @@ public final class LogPanel extends JPanel {
         searchMatchList      = Collections.unmodifiableList(list);
         searchMatchCursor    = -1;
         int n = list.size();
-        findCounter.setForeground(n == 0 ? new Color(0xEF5350) : FG_DIM);
+        findCounter.setForeground(n == 0 ? ClouseauColors.statusError() : ClouseauColors.dimForeground());
         findCounter.setText(n + (n == 1 ? " match" : " matches"));
         logTable.repaint();
         if (n > 0) navigateSearch(+1);
@@ -1365,23 +1363,11 @@ public final class LogPanel extends JPanel {
     }
 
     // ── Level color palette ───────────────────────────────────────────────────
+    // Colors are read from UIManager via ClouseauColors at paint time.
 
-    private static final Map<LogEntry.LogLevel, Color> LEVEL_COLORS;
-    static {
-        Map<LogEntry.LogLevel, Color> m = new EnumMap<>(LogEntry.LogLevel.class);
-        m.put(LogEntry.LogLevel.TRACE,   new Color(0x9E9E9E));
-        m.put(LogEntry.LogLevel.DEBUG,   new Color(0x66BB6A));
-        m.put(LogEntry.LogLevel.INFO,    new Color(0x29B6F6));
-        m.put(LogEntry.LogLevel.WARN,    new Color(0xFFA726));
-        m.put(LogEntry.LogLevel.ERROR,   new Color(0xEF5350));
-        m.put(LogEntry.LogLevel.FATAL,   new Color(0xFF4081));
-        m.put(LogEntry.LogLevel.UNKNOWN, new Color(0x9E9E9E));
-        LEVEL_COLORS = Collections.unmodifiableMap(m);
+    private static String colorToHex(Color c) {
+        return String.format("#%06X", c.getRGB() & 0xFFFFFF);
     }
-    private static final Color FG_DEFAULT      = new Color(0xB0B7C3);
-    private static final Color FG_DIM          = new Color(0x6B7280);
-    private static final Color SEL_BG          = new Color(0xC8D8E8);
-    private static final Color SEARCH_MATCH_BG = new Color(0x2E2800);
 
     private static Color blend(Color a, Color b, float t) {
         return new Color(
@@ -1392,16 +1378,7 @@ public final class LogPanel extends JPanel {
     }
 
     // ── Highlight palette ─────────────────────────────────────────────────────
-    static final Color[] HIGHLIGHT_COLORS = {
-        new Color(0x6B2020), // Red
-        new Color(0x6B4A20), // Orange
-        new Color(0x5C5C1A), // Yellow
-        new Color(0x1A5C1A), // Green
-        new Color(0x1A5C5C), // Teal
-        new Color(0x1A2E6B), // Blue
-        new Color(0x3D1A6B), // Purple
-        new Color(0x6B1A4A), // Pink
-    };
+    // Colors are read from UIManager via ClouseauColors.highlightColors() at use time.
 
     // ── Detail panel ─────────────────────────────────────────────────────────
 
@@ -1413,8 +1390,8 @@ public final class LogPanel extends JPanel {
 
     private void flashMessageField() {
         if (messageFieldStart < 0 || messageFieldEnd <= messageFieldStart) return;
-        final Color peak = new Color(0x6B7280);
-        final Color bg   = new Color(0x191919);
+        final Color peak = ClouseauColors.flashPeakColor();
+        final Color bg   = ClouseauColors.detailBackground();
         final int   steps = 25;
         final int[] step  = {0};
         final Object[] tag = {null};
@@ -1445,7 +1422,7 @@ public final class LogPanel extends JPanel {
 
     private JPanel buildDetailToolbar() {
         JPanel bar = new JPanel(new BorderLayout());
-        bar.setBorder(BorderFactory.createMatteBorder(0, 0, 1, 0, new Color(0x272727)));
+        bar.setBorder(BorderFactory.createMatteBorder(0, 0, 1, 0, ClouseauColors.separatorColor()));
 
         // ── Left: formatter / syntax highlight toggles ───────────────────────────────
         JPanel controls = new JPanel(new FlowLayout(FlowLayout.LEFT, 4, 3));
@@ -1456,7 +1433,7 @@ public final class LogPanel extends JPanel {
         formatterPanel.setVisible(false);
         if (!formatters.isEmpty()) {
             JLabel label = new JLabel(Messages.get("detail.toolbar.format"));
-            label.setForeground(FG_DIM);
+            label.setForeground(ClouseauColors.dimForeground());
             label.setFont(label.getFont().deriveFont(11f));
             formatterPanel.add(label);
 
@@ -1487,7 +1464,7 @@ public final class LogPanel extends JPanel {
                 syntaxHighlightPanel.add(sep);
             }
             JLabel label = new JLabel(Messages.get("detail.toolbar.color"));
-            label.setForeground(FG_DIM);
+            label.setForeground(ClouseauColors.dimForeground());
             label.setFont(label.getFont().deriveFont(11f));
             syntaxHighlightPanel.add(label);
 
@@ -1575,8 +1552,8 @@ public final class LogPanel extends JPanel {
             }
         };
         detailArea.setEditable(false);
-        detailArea.setBackground(new Color(0x191919));
-        detailArea.setForeground(FG_DEFAULT);
+        detailArea.setBackground(ClouseauColors.detailBackground());
+        detailArea.setForeground(ClouseauColors.foreground());
         detailArea.setBorder(BorderFactory.createEmptyBorder(8, 10, 8, 10));
         JPanel toolbar = buildDetailToolbar();
         showDetail(null, -1);
@@ -1621,12 +1598,12 @@ public final class LogPanel extends JPanel {
         StyleConstants.setFontFamily(key, Font.MONOSPACED);
         StyleConstants.setFontSize(key, fontSize);
         StyleConstants.setBold(key, true);
-        StyleConstants.setForeground(key, new Color(0x6B9FD4));
+        StyleConstants.setForeground(key, ClouseauColors.detailKeyColor());
 
         SimpleAttributeSet val = new SimpleAttributeSet();
         StyleConstants.setFontFamily(val, Font.MONOSPACED);
         StyleConstants.setFontSize(val, fontSize);
-        StyleConstants.setForeground(val, FG_DEFAULT);
+        StyleConstants.setForeground(val, ClouseauColors.foreground());
 
         if (entry == null) {
             lastFormattedMessage = "";
@@ -1638,9 +1615,7 @@ public final class LogPanel extends JPanel {
             return;
         }
 
-        Color levelColor = entry.level() != null
-                ? LEVEL_COLORS.getOrDefault(entry.level(), FG_DEFAULT)
-                : FG_DEFAULT;
+        Color levelColor = ClouseauColors.levelColor(entry.level());
         SimpleAttributeSet msgVal = new SimpleAttributeSet(val);
         StyleConstants.setForeground(msgVal, levelColor);
 

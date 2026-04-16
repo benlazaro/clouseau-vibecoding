@@ -8,6 +8,7 @@ import javax.swing.*;
 import javax.swing.plaf.FontUIResource;
 import java.awt.*;
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.file.*;
 import java.util.*;
 import java.util.List;
@@ -142,21 +143,66 @@ public final class ThemeManager {
     }
 
     private static void setupClouseauDark() {
-        FlatLaf.setGlobalExtraDefaults(Map.of(
-                "@background",          "#2c2c2c",
-                "@componentBackground", "#282828",
-                "@accentColor",         "#4d4d4d"
-        ));
+        Properties props = loadThemeProperties("ClouseauDark.properties");
+
+        // ── Pass FlatLaf variables and standard UI overrides ──────────────────
+        // Keys starting with '@' are LAF variables; all other non-Clouseau keys
+        // are standard FlatLaf / Swing UI defaults.
+        Map<String, String> extraDefaults = new LinkedHashMap<>();
+        props.forEach((k, v) -> {
+            String key = k.toString().trim();
+            String val = v.toString().trim();
+            if (!key.startsWith("Clouseau.") && !key.startsWith("#")) {
+                extraDefaults.put(key, val);
+            }
+        });
+        FlatLaf.setGlobalExtraDefaults(extraDefaults.isEmpty() ? null : extraDefaults);
         FlatLaf.setup(new FlatDarkLaf());
         applyNeutralOverrides();
-        Color bg = new Color(0x282828);
-        UIManager.put("TabbedPane.selectedBackground", new Color(0x191919));
-        UIManager.put("TabbedPane.hoverBackground",    new Color(0x4d4d4d));
-        UIManager.put("TabbedPane.underlineColor",     new Color(0x4d4d4d));
-        UIManager.put("MenuBar.selectionBackground",   bg);
-        UIManager.put("PopupMenu.background",          bg);
-        UIManager.put("Menu.background",               bg);
-        UIManager.put("MenuItem.background",           bg);
+
+        // ── Apply Clouseau-specific custom UI keys for ClouseauColors ─────────
+        props.forEach((k, v) -> {
+            String key = k.toString().trim();
+            String val = v.toString().trim();
+            if (key.startsWith("Clouseau.")) {
+                Color color = parseHexColor(val);
+                if (color != null) UIManager.put(key, color);
+            }
+        });
+    }
+
+    /**
+     * Loads a properties file from the same classpath package as {@link ThemeManager}.
+     * Returns an empty {@link Properties} on failure so callers can always iterate safely.
+     */
+    private static Properties loadThemeProperties(String resourceName) {
+        Properties props = new Properties();
+        try (InputStream in = ThemeManager.class.getResourceAsStream(resourceName)) {
+            if (in == null) {
+                log.warn("Theme resource not found: {}", resourceName);
+                return props;
+            }
+            props.load(in);
+        } catch (IOException e) {
+            log.warn("Failed to load theme properties: {}", resourceName, e);
+        }
+        return props;
+    }
+
+    /** Parses a {@code #rrggbb} or {@code #aarrggbb} string; returns {@code null} on failure. */
+    private static Color parseHexColor(String value) {
+        if (value == null || !value.startsWith("#")) return null;
+        try {
+            String hex = value.substring(1);
+            if (hex.length() == 6) {
+                return new Color(Integer.parseUnsignedInt(hex, 16));
+            } else if (hex.length() == 8) {
+                long argb = Long.parseUnsignedLong(hex, 16);
+                return new Color((int)(argb >> 16 & 0xFF), (int)(argb >> 8 & 0xFF),
+                        (int)(argb & 0xFF), (int)(argb >> 24 & 0xFF));
+            }
+        } catch (NumberFormatException ignored) {}
+        return null;
     }
 
     /** Structural/layout overrides that apply regardless of which theme is active. */

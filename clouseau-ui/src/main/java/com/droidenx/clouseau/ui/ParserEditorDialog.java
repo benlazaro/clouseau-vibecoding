@@ -30,10 +30,7 @@ public final class ParserEditorDialog extends JDialog {
     private static final String DEFAULT_RESOURCE = "com/droidenx/clouseau/ui/default-parsers.json";
     private static final Gson   GSON             = new GsonBuilder().setPrettyPrinting().create();
 
-    private static final Color COLOR_OK    = new Color(0x4CAF50);
-    private static final Color COLOR_WARN  = new Color(0xFFA726);
-    private static final Color COLOR_ERROR = new Color(0xE57373);
-    private static final Color FG_DIM      = new Color(0x6B7280);
+    // Status and dim colors are read from UIManager via ClouseauColors at use time.
 
     private final Runnable onSave;
     private final DefaultListModel<ParserDef> listModel  = new DefaultListModel<>();
@@ -54,7 +51,7 @@ public final class ParserEditorDialog extends JDialog {
             if (getText().isEmpty()) {
                 Graphics2D g2 = (Graphics2D) g.create();
                 g2.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
-                g2.setColor(FG_DIM);
+                g2.setColor(ClouseauColors.dimForeground());
                 g2.setFont(getFont().deriveFont(Font.ITALIC));
                 Insets ins = getInsets();
                 g2.drawString(Messages.get("parsereditor.source.placeholder"), ins.left + 2, ins.top + g2.getFontMetrics().getAscent());
@@ -185,7 +182,7 @@ public final class ParserEditorDialog extends JDialog {
                 super.getListCellRendererComponent(l, v, i, sel, foc);
                 ParserDef def = (ParserDef) v;
                 setText(def.builtin() ? def.name() + "  ·" : def.name());
-                if (def.builtin() && !sel) setForeground(FG_DIM);
+                if (def.builtin() && !sel) setForeground(ClouseauColors.dimForeground());
                 return this;
             }
         });
@@ -238,7 +235,7 @@ public final class ParserEditorDialog extends JDialog {
         typeRow.add(helpBtn, "hidemode 3");
         form.add(typeRow);
 
-        regexWarning.setForeground(new Color(0x888888));
+        regexWarning.setForeground(ClouseauColors.mutedForeground());
         regexWarning.setFont(regexWarning.getFont().deriveFont(Font.ITALIC, 11f));
         form.add(regexWarning, "span 2, hidemode 3");
 
@@ -495,7 +492,7 @@ public final class ParserEditorDialog extends JDialog {
         clearTestResults();
         if (conversionErrorMsg != null) {
             matchLabel.setText(conversionErrorMsg);
-            matchLabel.setForeground(COLOR_ERROR);
+            matchLabel.setForeground(ClouseauColors.statusError());
             return;
         }
         String line = sampleField.getText().strip();
@@ -503,16 +500,16 @@ public final class ParserEditorDialog extends JDialog {
         RegexLogParser parser = buildPreviewParser();
         if (parser == null) {
             matchLabel.setText(Messages.get("parsereditor.test.invalid.pattern"));
-            matchLabel.setForeground(COLOR_ERROR);
+            matchLabel.setForeground(ClouseauColors.statusError());
             return;
         }
         if (!parser.canParse(line)) {
             matchLabel.setText(Messages.get("parsereditor.test.no.match"));
-            matchLabel.setForeground(COLOR_ERROR);
+            matchLabel.setForeground(ClouseauColors.statusError());
             return;
         }
         matchLabel.setText(Messages.get("parsereditor.test.matched"));
-        matchLabel.setForeground(COLOR_OK);
+        matchLabel.setForeground(ClouseauColors.statusOk());
         LogEntry entry = parser.parse(line);
         addField("timestamp", entry.timestamp() != null ? entry.timestamp().toString() : "(not parsed)");
         addField("level",     entry.level().name());
@@ -531,7 +528,7 @@ public final class ParserEditorDialog extends JDialog {
         RegexLogParser parser = buildPreviewParser();
         if (parser == null) {
             fileTestLabel.setText(Messages.get("parsereditor.test.invalid.pattern"));
-            fileTestLabel.setForeground(COLOR_ERROR);
+            fileTestLabel.setForeground(ClouseauColors.statusError());
             return;
         }
         try (var reader = LogPanel.openReader(chooser.getSelectedFile().toPath())) {
@@ -544,15 +541,15 @@ public final class ParserEditorDialog extends JDialog {
             }
             if (total == 0) {
                 fileTestLabel.setText(Messages.get("parsereditor.test.file.empty"));
-                fileTestLabel.setForeground(COLOR_WARN);
+                fileTestLabel.setForeground(ClouseauColors.statusWarn());
                 return;
             }
             int pct = matched * 100 / total;
             fileTestLabel.setText(matched + " / " + total + " lines matched (" + pct + "%)");
-            fileTestLabel.setForeground(pct >= 80 ? COLOR_OK : pct >= 20 ? COLOR_WARN : COLOR_ERROR);
+            fileTestLabel.setForeground(pct >= 80 ? ClouseauColors.statusOk() : pct >= 20 ? ClouseauColors.statusWarn() : ClouseauColors.statusError());
         } catch (IOException e) {
             fileTestLabel.setText(Messages.get("parsereditor.test.file.error") + e.getMessage());
-            fileTestLabel.setForeground(COLOR_ERROR);
+            fileTestLabel.setForeground(ClouseauColors.statusError());
         }
     }
 
@@ -569,7 +566,7 @@ public final class ParserEditorDialog extends JDialog {
 
     private void addField(String key, String value) {
         JLabel k = new JLabel(key + ":");
-        k.setForeground(FG_DIM);
+        k.setForeground(ClouseauColors.dimForeground());
         k.setFont(k.getFont().deriveFont(11f));
         JLabel v = new JLabel(value != null ? value : "");
         v.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 11));
@@ -632,7 +629,7 @@ public final class ParserEditorDialog extends JDialog {
 
     private static JLabel dimLabel(String text) {
         JLabel l = new JLabel(text);
-        l.setForeground(FG_DIM);
+        l.setForeground(ClouseauColors.dimForeground());
         l.setFont(l.getFont().deriveFont(12f));
         return l;
     }

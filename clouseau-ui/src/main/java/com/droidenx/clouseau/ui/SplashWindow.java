@@ -16,7 +16,9 @@ public final class SplashWindow extends JWindow {
     private static final int    SVG_H          = 300;
     private static final int    PAD            = 24;
     private static final int    STATUS_H       = 32;
-    private static final Color  BG             = new Color(0x2c2c2c);
+    // Background is resolved at paint time so it picks up the active theme.
+    // Falls back to the Clouseau Dark palette value when shown before theme init.
+    private static final Color  BG_FALLBACK    = new Color(0x2c2c2c);
     private static final long   MIN_DISPLAY_MS = 1_500;
 
     private final long   shownAt = System.currentTimeMillis();
@@ -27,7 +29,8 @@ public final class SplashWindow extends JWindow {
             @Override
             protected void paintComponent(Graphics g) {
                 Graphics2D g2 = (Graphics2D) g.create();
-                g2.setColor(BG);
+                Color splash = ClouseauColors.splashBackground();
+                g2.setColor(splash != Color.GRAY ? splash : BG_FALLBACK);
                 g2.fillRect(0, 0, getWidth(), getHeight());
                 if (img != null) {
                     g2.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BICUBIC);
@@ -47,7 +50,7 @@ public final class SplashWindow extends JWindow {
         Font statusFont = UIManager.getFont("defaultFont") != null
                 ? UIManager.getFont("defaultFont").deriveFont(Font.PLAIN, 11f)
                 : new JLabel().getFont().deriveFont(Font.PLAIN, 11f);
-        Color statusColor = new Color(0x888888);
+        Color statusColor = ClouseauColors.mutedForeground();
 
         statusLabel = new JLabel("Initializing application...", SwingConstants.LEFT);
         statusLabel.setForeground(statusColor);

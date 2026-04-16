@@ -16,12 +16,7 @@ import java.util.List;
  */
 final class JsonSyntaxHighlighter implements LogSyntaxHighlighter {
 
-    // Monokai-inspired palette
-    private static final int KEY        = 0xA6E22E; // vivid green
-    private static final int STRING_VAL = 0xE6DB74; // vivid yellow
-    private static final int NUMBER     = 0xAE81FF; // vivid purple
-    private static final int BOOL_NULL  = 0x66D9E8; // vivid cyan
-    private static final int PUNCT      = 0x75715E; // warm gray
+    // Monokai-inspired palette — read from UIManager via ClouseauColors at highlight time.
 
     @Override
     public String getName() { return "JSON"; }
@@ -56,29 +51,29 @@ final class JsonSyntaxHighlighter implements LogSyntaxHighlighter {
             char c = text.charAt(i);
             switch (c) {
                 case '{' -> {
-                    spans.add(new ColorSpan(i, i + 1, PUNCT));
+                    spans.add(new ColorSpan(i, i + 1, ClouseauColors.jsonPunctColor()));
                     stack.push(true);
                     expectKey = true;
                     i++;
                 }
                 case '[' -> {
-                    spans.add(new ColorSpan(i, i + 1, PUNCT));
+                    spans.add(new ColorSpan(i, i + 1, ClouseauColors.jsonPunctColor()));
                     stack.push(false);
                     expectKey = false;
                     i++;
                 }
                 case '}', ']' -> {
-                    spans.add(new ColorSpan(i, i + 1, PUNCT));
+                    spans.add(new ColorSpan(i, i + 1, ClouseauColors.jsonPunctColor()));
                     if (!stack.isEmpty()) stack.pop();
                     i++;
                 }
                 case ',' -> {
-                    spans.add(new ColorSpan(i, i + 1, PUNCT));
+                    spans.add(new ColorSpan(i, i + 1, ClouseauColors.jsonPunctColor()));
                     expectKey = !stack.isEmpty() && Boolean.TRUE.equals(stack.peek());
                     i++;
                 }
                 case ':' -> {
-                    spans.add(new ColorSpan(i, i + 1, PUNCT));
+                    spans.add(new ColorSpan(i, i + 1, ClouseauColors.jsonPunctColor()));
                     expectKey = false;
                     i++;
                 }
@@ -90,12 +85,12 @@ final class JsonSyntaxHighlighter implements LogSyntaxHighlighter {
                         if (sc == '"') { i++; break; }
                         i++;
                     }
-                    spans.add(new ColorSpan(start, i, expectKey ? KEY : STRING_VAL));
+                    spans.add(new ColorSpan(start, i, expectKey ? ClouseauColors.jsonKeyColor() : ClouseauColors.jsonStringColor()));
                 }
                 case 't', 'f', 'n' -> {
                     int start = i;
                     while (i < len && Character.isLetter(text.charAt(i))) i++;
-                    spans.add(new ColorSpan(start, i, BOOL_NULL));
+                    spans.add(new ColorSpan(start, i, ClouseauColors.jsonBoolNullColor()));
                 }
                 default -> {
                     if (Character.isDigit(c) || c == '-') {
@@ -106,7 +101,7 @@ final class JsonSyntaxHighlighter implements LogSyntaxHighlighter {
                                     || nc == 'E' || nc == '+' || nc == '-') i++;
                             else break;
                         }
-                        spans.add(new ColorSpan(start, i, NUMBER));
+                        spans.add(new ColorSpan(start, i, ClouseauColors.jsonNumberColor()));
                     } else {
                         i++; // whitespace, newlines
                     }

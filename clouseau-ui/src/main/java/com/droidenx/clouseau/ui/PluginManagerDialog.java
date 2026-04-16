@@ -162,9 +162,6 @@ public final class PluginManagerDialog extends JDialog {
     // ── Status cell renderer ──────────────────────────────────────────────────
 
     private static final class StatusCellRenderer extends DefaultTableCellRenderer {
-        private static final Color COLOR_ENABLED  = new Color(0x66BB6A);
-        private static final Color COLOR_DISABLED = new Color(0xFFA726);
-        private static final Color COLOR_FAILED   = new Color(0xEF5350);
 
         StatusCellRenderer() {
             setHorizontalAlignment(SwingConstants.CENTER);
@@ -177,11 +174,11 @@ public final class PluginManagerDialog extends JDialog {
             if (!isSelected) {
                 String state = value == null ? "" : value.toString();
                 if (state.equals(Messages.get("plugins.state.enabled"))) {
-                    setForeground(COLOR_ENABLED);
+                    setForeground(ClouseauColors.pluginEnabled());
                 } else if (state.equals(Messages.get("plugins.state.disabled"))) {
-                    setForeground(COLOR_DISABLED);
+                    setForeground(ClouseauColors.pluginDisabled());
                 } else if (state.equals(Messages.get("plugins.state.failed"))) {
-                    setForeground(COLOR_FAILED);
+                    setForeground(ClouseauColors.pluginFailed());
                 } else {
                     setForeground(table.getForeground());
                 }
