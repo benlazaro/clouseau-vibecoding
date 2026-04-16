@@ -145,19 +145,23 @@ public final class ThemeManager {
     private static void setupClouseauDark() {
         Properties props = loadThemeProperties("ClouseauDark.properties");
 
+        // ── Resolve base LAF from the properties file ─────────────────────────
+        LookAndFeel baseLaf = resolveBaseLaf(props.getProperty("@baseTheme", "FlatDarkLaf").trim());
+
         // ── Pass FlatLaf variables and standard UI overrides ──────────────────
-        // Keys starting with '@' are LAF variables; all other non-Clouseau keys
-        // are standard FlatLaf / Swing UI defaults.
+        // Keys starting with '@' are LAF variables (except @baseTheme which is
+        // a loader directive); all other non-Clouseau keys are standard FlatLaf
+        // / Swing UI defaults.
         Map<String, String> extraDefaults = new LinkedHashMap<>();
         props.forEach((k, v) -> {
             String key = k.toString().trim();
             String val = v.toString().trim();
-            if (!key.startsWith("Clouseau.") && !key.startsWith("#")) {
+            if (!key.equals("@baseTheme") && !key.startsWith("Clouseau.") && !key.startsWith("#")) {
                 extraDefaults.put(key, val);
             }
         });
         FlatLaf.setGlobalExtraDefaults(extraDefaults.isEmpty() ? null : extraDefaults);
-        FlatLaf.setup(new FlatDarkLaf());
+        FlatLaf.setup(baseLaf);
         applyNeutralOverrides();
 
         // ── Apply Clouseau-specific custom UI keys for ClouseauColors ─────────
@@ -169,6 +173,15 @@ public final class ThemeManager {
                 if (color != null) UIManager.put(key, color);
             }
         });
+    }
+
+    private static LookAndFeel resolveBaseLaf(String name) {
+        return switch (name) {
+            case "FlatLightLaf"    -> new FlatLightLaf();
+            case "FlatDarculaLaf"  -> new FlatDarculaLaf();
+            case "FlatIntelliJLaf" -> new FlatIntelliJLaf();
+            default                -> new FlatDarkLaf();
+        };
     }
 
     /**
