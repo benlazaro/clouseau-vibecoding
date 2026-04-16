@@ -138,8 +138,22 @@ public final class ThemeManager {
 
     private static void setup(LookAndFeel laf) {
         FlatLaf.setGlobalExtraDefaults(null);
+        clearClouseauDefaults();
         FlatLaf.setup(laf);
         applyNeutralOverrides();
+    }
+
+    /**
+     * Removes all {@code Clouseau.*} entries from UIManager's user defaults.
+     * Called before applying any non-Clouseau theme so stale Clouseau Dark
+     * values don't leak into FlatLaf Light or other themes.
+     */
+    private static void clearClouseauDefaults() {
+        UIManager.getDefaults().entrySet().stream()
+                .map(Map.Entry::getKey)
+                .filter(k -> k instanceof String s && s.startsWith("Clouseau."))
+                .toList()
+                .forEach(k -> UIManager.put(k, null));
     }
 
     private static void setupClouseauDark() {

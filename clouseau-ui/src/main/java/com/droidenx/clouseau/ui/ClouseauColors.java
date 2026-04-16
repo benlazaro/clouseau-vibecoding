@@ -47,13 +47,13 @@ final class ClouseauColors {
     // ── Surface / background ──────────────────────────────────────────────────
 
     /** Main log table background. */
-    static Color tableBackground()    { return get("Clouseau.tableBackground",    "Table.background"); }
+    static Color tableBackground()    { return UIManager.getColor("Table.background"); }
 
     /** Detail text-pane background. */
-    static Color detailBackground()   { return get("Clouseau.detailBackground",   "TextArea.background"); }
+    static Color detailBackground()   { return UIManager.getColor("TextArea.background"); }
 
     /** Scroll-pane viewport background (slightly darker than table). */
-    static Color viewportBackground() { return get("Clouseau.viewportBackground", "Viewport.background"); }
+    static Color viewportBackground() { return get("Clouseau.viewportBackground", "Table.background"); }
 
     /** Full-panel loading overlay background. */
     static Color loadingBackground()  { return get("Clouseau.loadingBackground",  "Panel.background"); }
@@ -64,10 +64,10 @@ final class ClouseauColors {
     // ── Borders & separators ──────────────────────────────────────────────────
 
     /** Thin separator line between panels / toolbar borders. */
-    static Color separatorColor()     { return get("Clouseau.separatorColor", "Separator.foreground"); }
+    static Color separatorColor()     { return UIManager.getColor("Separator.foreground"); }
 
     /** Border around panels and scroll panes. */
-    static Color borderColor()        { return get("Clouseau.borderColor",    "Component.borderColor"); }
+    static Color borderColor()        { return UIManager.getColor("Component.borderColor"); }
 
     // ── Welcome panel key-badge chip ──────────────────────────────────────────
 
@@ -80,10 +80,10 @@ final class ClouseauColors {
     // ── Foreground / text ─────────────────────────────────────────────────────
 
     /** Primary text color used in the table and detail pane. */
-    static Color foreground()         { return get("Clouseau.foreground",    "Label.foreground"); }
+    static Color foreground()         { return UIManager.getColor("Label.foreground"); }
 
     /** Secondary / muted text (labels, counters, section headers). */
-    static Color dimForeground()      { return get("Clouseau.dimForeground", "Label.disabledForeground"); }
+    static Color dimForeground()      { return UIManager.getColor("Label.disabledForeground"); }
 
     /** Very muted text (regex hints, sub-labels). */
     static Color mutedForeground()    { return get("Clouseau.mutedForeground", "Label.disabledForeground"); }
