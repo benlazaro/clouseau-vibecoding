@@ -2,6 +2,7 @@ package com.droidenx.clouseau.ui;
 
 import com.droidenx.clouseau.runtime.ClouseauPluginManager;
 import com.droidenx.clouseau.runtime.ClouseauPluginManager.PluginInfo;
+import com.droidenx.clouseau.ui.theme.ClouseauColors;
 import net.miginfocom.swing.MigLayout;
 
 import javax.swing.*;

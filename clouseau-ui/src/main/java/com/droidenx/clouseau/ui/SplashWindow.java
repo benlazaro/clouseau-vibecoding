@@ -1,5 +1,6 @@
 package com.droidenx.clouseau.ui;
 
+import com.droidenx.clouseau.ui.theme.ClouseauColors;
 import lombok.extern.slf4j.Slf4j;
 
 import javax.imageio.ImageIO;

@@ -3,6 +3,7 @@ package com.droidenx.clouseau.ui;
 import com.google.gson.JsonParseException;
 import com.google.gson.JsonParser;
 import com.droidenx.clouseau.api.LogSyntaxHighlighter;
+import com.droidenx.clouseau.ui.theme.ClouseauColors;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;

@@ -1,5 +1,7 @@
 package com.droidenx.clouseau.ui;
 
+import com.droidenx.clouseau.ui.theme.ThemeManager;
+import com.droidenx.clouseau.ui.theme.ThemeManagerDialog;
 import net.miginfocom.swing.MigLayout;
 
 import javax.swing.*;

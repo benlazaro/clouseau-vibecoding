@@ -1,6 +1,8 @@
 package com.droidenx.clouseau.ui;
 
 import com.droidenx.clouseau.runtime.ClouseauPluginManager;
+import com.droidenx.clouseau.ui.theme.ThemeManager;
+import com.formdev.flatlaf.FlatLaf;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.core.LoggerContext;
@@ -20,6 +22,7 @@ public final class ClouseauApp {
 
         log.info("Starting Clouseau Log Viewer");
 
+        FlatLaf.registerCustomDefaultsSource("com.droidenx.clouseau.ui.theme");
         ThemeManager.applyTheme(AppPrefs.getTheme());
 
         SplashWindow splash = SplashWindow.createAndShow();

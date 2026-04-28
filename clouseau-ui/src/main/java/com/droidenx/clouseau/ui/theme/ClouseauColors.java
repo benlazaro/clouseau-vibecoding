@@ -1,4 +1,4 @@
-package com.droidenx.clouseau.ui;
+package com.droidenx.clouseau.ui.theme;
 
 import com.droidenx.clouseau.api.LogEntry.LogLevel;
 
@@ -17,7 +17,7 @@ import java.awt.*;
  * <p>Every method is a live UIManager lookup, so the correct value is always
  * returned for whichever theme is active at paint time.
  */
-final class ClouseauColors {
+public final class ClouseauColors {
 
     private ClouseauColors() {}
 
@@ -47,60 +47,60 @@ final class ClouseauColors {
     // ── Surface / background ──────────────────────────────────────────────────
 
     /** Main log table background. */
-    static Color tableBackground()    { return UIManager.getColor("Table.background"); }
+    public static Color tableBackground()    { return UIManager.getColor("Table.background"); }
 
     /** Detail text-pane background. */
-    static Color detailBackground()   { return UIManager.getColor("TextArea.background"); }
+    public static Color detailBackground()   { return UIManager.getColor("TextArea.background"); }
 
     /** Scroll-pane viewport background (slightly darker than table). */
-    static Color viewportBackground() { return get("Clouseau.viewportBackground", "Table.background"); }
+    public static Color viewportBackground() { return get("Clouseau.viewportBackground", "Table.background"); }
 
     /** Full-panel loading overlay background. */
-    static Color loadingBackground()  { return get("Clouseau.loadingBackground",  "Panel.background"); }
+    public static Color loadingBackground()  { return get("Clouseau.loadingBackground",  "Panel.background"); }
 
     /** Splash window background. */
-    static Color splashBackground()   { return UIManager.getColor("Panel.background"); }
+    public static Color splashBackground()   { return UIManager.getColor("Panel.background"); }
 
     // ── Borders & separators ──────────────────────────────────────────────────
 
     /** Thin separator line between panels / toolbar borders. */
-    static Color separatorColor()     { return UIManager.getColor("Separator.foreground"); }
+    public static Color separatorColor()     { return UIManager.getColor("Separator.foreground"); }
 
     /** Border around panels and scroll panes. */
-    static Color borderColor()        { return UIManager.getColor("Component.borderColor"); }
+    public static Color borderColor()        { return UIManager.getColor("Component.borderColor"); }
 
     // ── Welcome panel key-badge chip ──────────────────────────────────────────
 
     /** Fill color of a keyboard shortcut badge. */
-    static Color keyBadgeFill()       { return get("Clouseau.keyBadgeFill",   "Button.background"); }
+    public static Color keyBadgeFill()       { return get("Clouseau.keyBadgeFill",   "Button.background"); }
 
     /** Stroke color of a keyboard shortcut badge. */
-    static Color keyBadgeBorder()     { return get("Clouseau.keyBadgeBorder", "Component.borderColor"); }
+    public static Color keyBadgeBorder()     { return get("Clouseau.keyBadgeBorder", "Component.borderColor"); }
 
     // ── Foreground / text ─────────────────────────────────────────────────────
 
     /** Primary text color used in the table and detail pane. */
-    static Color foreground()         { return UIManager.getColor("Label.foreground"); }
+    public static Color foreground()         { return UIManager.getColor("Label.foreground"); }
 
     /** Secondary / muted text (labels, counters, section headers). */
-    static Color dimForeground()      { return UIManager.getColor("Label.disabledForeground"); }
+    public static Color dimForeground()      { return UIManager.getColor("Label.disabledForeground"); }
 
     /** Very muted text (regex hints, sub-labels). */
-    static Color mutedForeground()    { return get("Clouseau.mutedForeground", "Label.disabledForeground"); }
+    public static Color mutedForeground()    { return get("Clouseau.mutedForeground", "Label.disabledForeground"); }
 
     /** Blue accent used in section headings and logger-tree depth 1. */
-    static Color accentBlue()         { return get("Clouseau.accentBlue",    "Label.foreground"); }
+    public static Color accentBlue()         { return get("Clouseau.accentBlue",    "Label.foreground"); }
 
     /** Key label color in the detail pane. */
-    static Color detailKeyColor()     { return get("Clouseau.detailKeyColor", "Label.foreground"); }
+    public static Color detailKeyColor()     { return get("Clouseau.detailKeyColor", "Label.foreground"); }
 
     /** Foreground for a de-selected / disabled toggle button. */
-    static Color offColor()           { return get("Clouseau.offColor", "Label.disabledForeground"); }
+    public static Color offColor()           { return get("Clouseau.offColor", "Label.disabledForeground"); }
 
     // ── Log-level colors ──────────────────────────────────────────────────────
 
     /** Foreground color for the given log level. */
-    static Color levelColor(LogLevel level) {
+    public static Color levelColor(LogLevel level) {
         if (level == null) return foreground();
         Color c = UIManager.getColor("Clouseau.level." + level.name());
         if (c != null) return c;
@@ -116,22 +116,22 @@ final class ClouseauColors {
 
     // ── Status / feedback ─────────────────────────────────────────────────────
 
-    static Color statusOk()    { return get("Clouseau.status.ok",    null, FB_STATUS_OK); }
-    static Color statusWarn()  { return get("Clouseau.status.warn",  null, FB_STATUS_WARN); }
-    static Color statusError() { return get("Clouseau.status.error", null, FB_STATUS_ERROR); }
+    public static Color statusOk()    { return get("Clouseau.status.ok",    null, FB_STATUS_OK); }
+    public static Color statusWarn()  { return get("Clouseau.status.warn",  null, FB_STATUS_WARN); }
+    public static Color statusError() { return get("Clouseau.status.error", null, FB_STATUS_ERROR); }
 
     // ── Selection & find-bar search ───────────────────────────────────────────
 
     /** Row selection background color. */
-    static Color selectionBackground()  { return get("Clouseau.selectionBackground", "Table.selectionBackground"); }
+    public static Color selectionBackground()  { return get("Clouseau.selectionBackground", "Table.selectionBackground"); }
 
     /** Background tint for find-bar matched rows. */
-    static Color searchMatchBackground(){ return get("Clouseau.searchMatchBg", "Table.background"); }
+    public static Color searchMatchBackground(){ return get("Clouseau.searchMatchBg", "Table.background"); }
 
     // ── Row-highlight palette ─────────────────────────────────────────────────
 
     /** Returns the 8-color highlight palette, reading from UIManager when available. */
-    static Color[] highlightColors() {
+    public static Color[] highlightColors() {
         Color[] result = new Color[FB_HIGHLIGHTS.length];
         for (int i = 0; i < result.length; i++) {
             Color c = UIManager.getColor("Clouseau.highlight." + i);
@@ -143,15 +143,15 @@ final class ClouseauColors {
     // ── Highlight navigation bar ──────────────────────────────────────────────
 
     /** Fill for the "All" button when it is the active filter. */
-    static Color highlightNavSelected()   { return get("Clouseau.highlightNav.selected",   null, new Color(0x4A4A4A)); }
+    public static Color highlightNavSelected()   { return get("Clouseau.highlightNav.selected",   null, new Color(0x4A4A4A)); }
 
     /** Fill for the "All" button when a specific color is the active filter. */
-    static Color highlightNavUnselected() { return get("Clouseau.highlightNav.unselected", null, new Color(0x2A2A2A)); }
+    public static Color highlightNavUnselected() { return get("Clouseau.highlightNav.unselected", null, new Color(0x2A2A2A)); }
 
     // ── Logger-tree depth colors ──────────────────────────────────────────────
 
     /** Returns the 5-entry depth color array, reading from UIManager when available. */
-    static Color[] loggerDepthColors() {
+    public static Color[] loggerDepthColors() {
         Color[] result = new Color[FB_DEPTHS.length];
         for (int i = 0; i < result.length; i++) {
             Color c = UIManager.getColor("Clouseau.logger.depth." + i);
@@ -162,30 +162,30 @@ final class ClouseauColors {
 
     // ── Plugin status ─────────────────────────────────────────────────────────
 
-    static Color pluginEnabled()  { return get("Clouseau.plugin.enabled",  null, FB_LEVEL_DEBUG); }
-    static Color pluginDisabled() { return get("Clouseau.plugin.disabled", null, FB_LEVEL_WARN); }
-    static Color pluginFailed()   { return get("Clouseau.plugin.failed",   null, FB_LEVEL_ERROR); }
+    public static Color pluginEnabled()  { return get("Clouseau.plugin.enabled",  null, FB_LEVEL_DEBUG); }
+    public static Color pluginDisabled() { return get("Clouseau.plugin.disabled", null, FB_LEVEL_WARN); }
+    public static Color pluginFailed()   { return get("Clouseau.plugin.failed",   null, FB_LEVEL_ERROR); }
 
     // ── Loading progress bar ──────────────────────────────────────────────────
 
-    static Color progressForeground() { return get("Clouseau.progressForeground", null, FB_LEVEL_INFO); }
-    static Color progressBackground() { return get("Clouseau.progressBackground", "Clouseau.separatorColor", "Separator.foreground"); }
+    public static Color progressForeground() { return get("Clouseau.progressForeground", null, FB_LEVEL_INFO); }
+    public static Color progressBackground() { return get("Clouseau.progressBackground", "Clouseau.separatorColor", "Separator.foreground"); }
 
     // ── Misc ──────────────────────────────────────────────────────────────────
 
     /** Favorites-sidebar star icon color. */
-    static Color starColor()       { return get("Clouseau.starColor", null, new Color(0xFFD700)); }
+    public static Color starColor()       { return get("Clouseau.starColor", null, new Color(0xFFD700)); }
 
     /** Peak flash color for the detail-pane copy animation. */
-    static Color flashPeakColor()  { return get("Clouseau.flashPeakColor", "Clouseau.dimForeground", "Label.disabledForeground"); }
+    public static Color flashPeakColor()  { return get("Clouseau.flashPeakColor", "Clouseau.dimForeground", "Label.disabledForeground"); }
 
     // ── JSON syntax-highlight palette (returned as packed RGB int) ────────────
 
-    static int jsonKeyColor()      { return colorToRgb("Clouseau.json.key",     0xA6E22E); }
-    static int jsonStringColor()   { return colorToRgb("Clouseau.json.string",  0xE6DB74); }
-    static int jsonNumberColor()   { return colorToRgb("Clouseau.json.number",  0xAE81FF); }
-    static int jsonBoolNullColor() { return colorToRgb("Clouseau.json.boolNull",0x66D9E8); }
-    static int jsonPunctColor()    { return colorToRgb("Clouseau.json.punct",   0x75715E); }
+    public static int jsonKeyColor()      { return colorToRgb("Clouseau.json.key",     0xA6E22E); }
+    public static int jsonStringColor()   { return colorToRgb("Clouseau.json.string",  0xE6DB74); }
+    public static int jsonNumberColor()   { return colorToRgb("Clouseau.json.number",  0xAE81FF); }
+    public static int jsonBoolNullColor() { return colorToRgb("Clouseau.json.boolNull",0x66D9E8); }
+    public static int jsonPunctColor()    { return colorToRgb("Clouseau.json.punct",   0x75715E); }
 
     // ── Private helpers ───────────────────────────────────────────────────────
 

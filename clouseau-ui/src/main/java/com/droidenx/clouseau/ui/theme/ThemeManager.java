@@ -1,14 +1,13 @@
-package com.droidenx.clouseau.ui;
+package com.droidenx.clouseau.ui.theme;
 
+import com.droidenx.clouseau.ui.AppPrefs;
 import com.formdev.flatlaf.*;
-import com.formdev.flatlaf.intellijthemes.FlatAllIJThemes;
 import lombok.extern.slf4j.Slf4j;
 
 import javax.swing.*;
 import javax.swing.plaf.FontUIResource;
 import java.awt.*;
 import java.io.IOException;
-import java.io.InputStream;
 import java.nio.file.*;
 import java.util.*;
 import java.util.List;
@@ -35,14 +34,14 @@ public final class ThemeManager {
     private static final LinkedHashMap<String, Runnable> BUILTINS = new LinkedHashMap<>();
 
     static {
-        BUILTINS.put("Clouseau Dark", ThemeManager::setupClouseauDark);
-        BUILTINS.put("FlatLaf Dark",  () -> setup(new FlatDarkLaf()));
-        BUILTINS.put("FlatLaf Light", () -> setup(new FlatLightLaf()));
-        for (UIManager.LookAndFeelInfo info : FlatAllIJThemes.INFOS) {
-            String name      = info.getName();
-            String className = info.getClassName();
-            BUILTINS.put(name, () -> setupFromClassName(className));
-        }
+        BUILTINS.put("Dark", () -> setup(new ClouseauDarkLaf()));
+//        BUILTINS.put("FlatLaf Dark",  () -> setup(new FlatDarkLaf()));
+        BUILTINS.put("Light", () -> setup(new FlatLightLaf()));
+//        for (UIManager.LookAndFeelInfo info : FlatAllIJThemes.INFOS) {
+//            String name      = info.getName();
+//            String className = info.getClassName();
+//            BUILTINS.put(name, () -> setupFromClassName(className));
+//        }
     }
 
     /** Represents one entry in the theme list (builtin or user-installed). */
@@ -103,7 +102,7 @@ public final class ThemeManager {
             }
         }
         log.warn("Unknown theme '{}', applying default", name);
-        setupClouseauDark();
+        setup(new ClouseauDarkLaf());
     }
 
     /** Refreshes all open windows after a theme switch. Call on EDT only. */
@@ -137,118 +136,14 @@ public final class ThemeManager {
 
     // ── Private setup helpers ─────────────────────────────────────────────────
 
-    private static void setupFromClassName(String className) {
-        try {
-            LookAndFeel laf = (LookAndFeel) Class.forName(className).getDeclaredConstructor().newInstance();
-            setup(laf);
-        } catch (Exception e) {
-            log.warn("Failed to apply theme '{}'", className, e);
-        }
-    }
-
     private static void setup(LookAndFeel laf) {
         FlatLaf.setGlobalExtraDefaults(null);
-        clearClouseauDefaults();
         FlatLaf.setup(laf);
         applyNeutralOverrides();
-    }
-
-    /**
-     * Removes all {@code Clouseau.*} entries from UIManager's user defaults.
-     * Called before applying any non-Clouseau theme so stale Clouseau Dark
-     * values don't leak into FlatLaf Light or other themes.
-     */
-    private static void clearClouseauDefaults() {
-        UIManager.getDefaults().entrySet().stream()
-                .map(Map.Entry::getKey)
-                .filter(k -> k instanceof String s && s.startsWith("Clouseau."))
-                .toList()
-                .forEach(k -> UIManager.put(k, null));
-    }
-
-    private static void setupClouseauDark() {
-        Properties props = loadThemeProperties("ClouseauDark.properties");
-
-        // ── Resolve base LAF from the properties file ─────────────────────────
-        LookAndFeel baseLaf = resolveBaseLaf(props.getProperty("@baseTheme", "FlatDarkLaf").trim());
-
-        // ── Pass FlatLaf variables and standard UI overrides ──────────────────
-        // Keys starting with '@' are LAF variables (except @baseTheme which is
-        // a loader directive); all other non-Clouseau keys are standard FlatLaf
-        // / Swing UI defaults.
-        Map<String, String> extraDefaults = new LinkedHashMap<>();
-        props.forEach((k, v) -> {
-            String key = k.toString().trim();
-            String val = v.toString().trim();
-            if (!key.equals("@baseTheme") && !key.startsWith("Clouseau.") && !key.startsWith("#")) {
-                extraDefaults.put(key, val);
-            }
-        });
-        FlatLaf.setGlobalExtraDefaults(extraDefaults.isEmpty() ? null : extraDefaults);
-        FlatLaf.setup(baseLaf);
-        applyNeutralOverrides();
-
-        // ── Apply Clouseau-specific custom UI keys for ClouseauColors ─────────
-        props.forEach((k, v) -> {
-            String key = k.toString().trim();
-            String val = v.toString().trim();
-            if (key.startsWith("Clouseau.")) {
-                Color color = parseHexColor(val);
-                if (color != null) UIManager.put(key, color);
-            }
-        });
-    }
-
-    private static LookAndFeel resolveBaseLaf(String name) {
-        return switch (name) {
-            case "FlatLightLaf" -> new FlatLightLaf();
-            default             -> new FlatDarkLaf();
-        };
-    }
-
-    /**
-     * Loads a properties file from the same classpath package as {@link ThemeManager}.
-     * Returns an empty {@link Properties} on failure so callers can always iterate safely.
-     */
-    private static Properties loadThemeProperties(String resourceName) {
-        Properties props = new Properties();
-        try (InputStream in = ThemeManager.class.getResourceAsStream(resourceName)) {
-            if (in == null) {
-                log.warn("Theme resource not found: {}", resourceName);
-                return props;
-            }
-            props.load(in);
-        } catch (IOException e) {
-            log.warn("Failed to load theme properties: {}", resourceName, e);
-        }
-        return props;
-    }
-
-    /** Parses a {@code #rrggbb} or {@code #aarrggbb} string; returns {@code null} on failure. */
-    private static Color parseHexColor(String value) {
-        if (value == null || !value.startsWith("#")) return null;
-        try {
-            String hex = value.substring(1);
-            if (hex.length() == 6) {
-                return new Color(Integer.parseUnsignedInt(hex, 16));
-            } else if (hex.length() == 8) {
-                long argb = Long.parseUnsignedLong(hex, 16);
-                return new Color((int)(argb >> 16 & 0xFF), (int)(argb >> 8 & 0xFF),
-                        (int)(argb & 0xFF), (int)(argb >> 24 & 0xFF));
-            }
-        } catch (NumberFormatException ignored) {}
-        return null;
     }
 
     /** Structural/layout overrides that apply regardless of which theme is active. */
     private static void applyNeutralOverrides() {
         UIManager.put("defaultFont",                  new FontUIResource(new Font(Font.SANS_SERIF, Font.PLAIN, 13)));
-        UIManager.put("TabbedPane.showTabSeparators", true);
-        UIManager.put("TabbedPane.tabArc",             10);
-        UIManager.put("TabbedPane.underlineHeight",    2);
-        UIManager.put("ScrollBar.thumbArc",           999);
-        UIManager.put("Component.focusWidth",         0.5);
-        UIManager.put("MenuBar.itemMargins",          new Insets(0, 8, 0, 8));
-        UIManager.put("MenuBar.selectionArc",         8);
     }
 }

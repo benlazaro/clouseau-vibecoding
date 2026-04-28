@@ -22,7 +22,7 @@ import java.util.List;
 @Slf4j
 public final class AppPrefs {
 
-    static final Path PREFS_DIR  = Path.of(System.getProperty("user.home"), ".clouseau");
+    public static final Path PREFS_DIR  = Path.of(System.getProperty("user.home"), ".clouseau");
     private static final Path PREFS_FILE = PREFS_DIR.resolve("settings.json");
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
 

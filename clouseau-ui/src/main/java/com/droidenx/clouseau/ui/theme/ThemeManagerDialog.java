@@ -1,4 +1,7 @@
-package com.droidenx.clouseau.ui;
+package com.droidenx.clouseau.ui.theme;
+
+import com.droidenx.clouseau.ui.AppPrefs;
+import com.droidenx.clouseau.ui.Messages;
 
 import net.miginfocom.swing.MigLayout;
 
@@ -13,14 +16,14 @@ import java.util.List;
  * Dialog for installing and uninstalling user themes.
  * Built-in themes are always available and cannot be removed.
  */
-final class ThemeManagerDialog extends JDialog {
+public final class ThemeManagerDialog extends JDialog {
 
     private final DefaultListModel<String> listModel = new DefaultListModel<>();
     private final JList<String> themeList            = new JList<>(listModel);
     private final JButton uninstallBtn;
     private List<ThemeManager.ThemeEntry> userThemes;
 
-    ThemeManagerDialog(Window owner) {
+    public ThemeManagerDialog(Window owner) {
         super(owner, Messages.get("themes.manage.title"), ModalityType.APPLICATION_MODAL);
         userThemes = new ArrayList<>(ThemeManager.getUserThemes());
 

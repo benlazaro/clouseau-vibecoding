@@ -2,6 +2,7 @@ package com.droidenx.clouseau.ui;
 
 import com.google.gson.*;
 import com.droidenx.clouseau.api.LogEntry;
+import com.droidenx.clouseau.ui.theme.ClouseauColors;
 import com.droidenx.clouseau.core.RegexLogParser;
 import lombok.extern.slf4j.Slf4j;
 import net.miginfocom.swing.MigLayout;

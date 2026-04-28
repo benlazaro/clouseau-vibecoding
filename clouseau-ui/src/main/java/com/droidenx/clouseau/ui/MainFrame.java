@@ -4,6 +4,9 @@ import com.droidenx.clouseau.api.LogSyntaxHighlighter;
 import com.droidenx.clouseau.api.LogFormatter;
 import com.droidenx.clouseau.api.LogParser;
 import com.droidenx.clouseau.runtime.ClouseauPluginManager;
+import com.droidenx.clouseau.ui.theme.ClouseauColors;
+import com.droidenx.clouseau.ui.theme.ThemeManager;
+import com.droidenx.clouseau.ui.theme.ThemeManagerDialog;
 import lombok.extern.slf4j.Slf4j;
 import net.miginfocom.swing.MigLayout;
 
