@@ -38,16 +38,17 @@ final class FilterBar extends JPanel {
     // Level colors are read from UIManager via ClouseauColors at paint time.
 
     private static final List<DateTimeFormatter> TS_FORMATS = List.of(
-        DateTimeFormatter.ofPattern("HH:mm:ss.SSS"),
-        DateTimeFormatter.ofPattern("HH:mm:ss"),
         DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS"),
-        DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
+        DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"),
+        DateTimeFormatter.ofPattern("yyyy-MM-dd"),
+        DateTimeFormatter.ofPattern("HH:mm:ss.SSS"),
+        DateTimeFormatter.ofPattern("HH:mm:ss")
     );
 
     private final Map<LogLevel, JToggleButton> levelButtons = new EnumMap<>(LogLevel.class);
     private final JButton        loggerButton;
-    private final JTextField     fromField   = new JTextField(9);
-    private final JTextField     toField     = new JTextField(9);
+    private final JTextField     fromField   = new JTextField(19);
+    private final JTextField     toField     = new JTextField(19);
     private final JTextField     searchField = new JTextField(16);
     private final Runnable       onChanged;
     private JToggleButton        followBtn;
@@ -436,6 +437,8 @@ final class FilterBar extends JPanel {
         if (text.isEmpty()) return null;
         for (DateTimeFormatter fmt : TS_FORMATS) {
             try { return LocalDateTime.parse(text, fmt).atZone(ZoneId.systemDefault()).toInstant(); }
+            catch (DateTimeParseException ignored) {}
+            try { return LocalDate.parse(text, fmt).atStartOfDay(ZoneId.systemDefault()).toInstant(); }
             catch (DateTimeParseException ignored) {}
             try { return LocalTime.parse(text, fmt).atDate(referenceDate).atZone(ZoneId.systemDefault()).toInstant(); }
             catch (DateTimeParseException ignored) {}
