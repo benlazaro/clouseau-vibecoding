@@ -45,7 +45,6 @@ import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.EnumMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -611,15 +610,15 @@ public final class LogPanel extends JPanel {
                 if (sel && hl == null) {
                     setForeground(Color.BLACK);
                 } else if (!sel) {
-                    LogEntry.LogLevel level = entry != null ? entry.level() : null;
-                    Color levelColor = ClouseauColors.levelColor(level);
-                    setForeground(switch (t.convertColumnIndexToModel(c)) {
-                        case 2, 5 -> levelColor;                          // Level, Message
-                        case 3, 4 -> ClouseauColors.dimForeground();      // Thread, Logger
-                        default   -> ClouseauColors.foreground();         // #, Timestamp
-                    });
+                    if (t.convertColumnIndexToModel(c) == 2) {            // Level column only
+                        LogEntry.LogLevel level = entry != null ? entry.level() : null;
+                        setForeground(ClouseauColors.levelColor(level));
+                    } else {
+                        setForeground(t.getForeground());
+                    }
                 }
-                setFont(getFont().deriveFont(sel ? Font.BOLD : Font.PLAIN));
+                boolean isLevel = t.convertColumnIndexToModel(c) == 2;
+                setFont(getFont().deriveFont(sel || isLevel ? Font.BOLD : Font.PLAIN));
                 return this;
             }
         };
@@ -1616,9 +1615,9 @@ public final class LogPanel extends JPanel {
             return;
         }
 
-        Color levelColor = ClouseauColors.levelColor(entry.level());
-        SimpleAttributeSet msgVal = new SimpleAttributeSet(val);
-        StyleConstants.setForeground(msgVal, levelColor);
+        SimpleAttributeSet levelVal = new SimpleAttributeSet(val);
+        StyleConstants.setForeground(levelVal, ClouseauColors.levelColor(entry.level()));
+        StyleConstants.setBold(levelVal, true);
 
         String ts     = entry.timestamp() != null ? DETAIL_TS_FMT.format(entry.timestamp()) : "";
         String level  = entry.level()     != null ? entry.level().name()  : "";
@@ -1634,10 +1633,10 @@ public final class LogPanel extends JPanel {
             appendField(doc, key, swatchStyle, Messages.get("detail.highlight.label"), "\u2588\u2588\u2588\u2588\u2588\u2588");
         }
 
-        appendField(doc, key, val,    Messages.get("table.col.timestamp"), ts);
-        appendField(doc, key, msgVal, Messages.get("table.col.level"),     level);
-        appendField(doc, key, val,    Messages.get("table.col.thread"),    thread);
-        appendField(doc, key, val,    Messages.get("table.col.logger"),    logger);
+        appendField(doc, key, val,      Messages.get("table.col.timestamp"), ts);
+        appendField(doc, key, levelVal, Messages.get("table.col.level"),     level);
+        appendField(doc, key, val,      Messages.get("table.col.thread"),    thread);
+        appendField(doc, key, val,      Messages.get("table.col.logger"),    logger);
 
         if (entry.fields() != null) {
             entry.fields().forEach((k, v) -> appendField(doc, key, val, k, v));
@@ -1682,9 +1681,9 @@ public final class LogPanel extends JPanel {
         String msgLabel = String.format("%-12s ", Messages.get("table.col.message") + ":");
         messageFieldStart = doc.getLength() + msgLabel.length();
         if (colorizer != null) {
-            renderSyntaxHighlightedField(doc, key, msgVal, Messages.get("table.col.message"), messageText, colorizer);
+            renderSyntaxHighlightedField(doc, key, val, Messages.get("table.col.message"), messageText, colorizer);
         } else {
-            appendField(doc, key, msgVal, Messages.get("table.col.message"), messageText);
+            appendField(doc, key, val, Messages.get("table.col.message"), messageText);
         }
         messageFieldEnd = doc.getLength() - 1; // exclude trailing newline
 
