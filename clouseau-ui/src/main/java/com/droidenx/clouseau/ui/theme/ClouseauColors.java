@@ -23,7 +23,7 @@ public final class ClouseauColors {
 
     // ── Hardcoded fallback colors (used when UIManager has no entry) ──────────
 
-    private static final Color FB_LEVEL_TRACE   = new Color(0x9E9E9E);
+    private static final Color FB_LEVEL_TRACE   = new Color(0x757575);
     private static final Color FB_LEVEL_DEBUG   = new Color(0x66BB6A);
     private static final Color FB_LEVEL_INFO    = new Color(0x29B6F6);
     private static final Color FB_LEVEL_WARN    = new Color(0xFFA726);

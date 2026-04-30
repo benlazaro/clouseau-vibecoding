@@ -556,7 +556,10 @@ public final class LogPanel extends JPanel {
 
             @Override
             public boolean getScrollableTracksViewportWidth() {
-                // Let the table fill the viewport when columns are narrower; scroll when wider.
+                // During a column resize drag, release the viewport constraint so the column
+                // can grow freely and the horizontal scrollbar appears immediately.
+                if (getTableHeader().getResizingColumn() != null) return false;
+                // Otherwise fill the viewport when columns are narrower; scroll when wider.
                 return getParent() == null || getPreferredSize().width < getParent().getWidth();
             }
         };
@@ -613,17 +616,18 @@ public final class LogPanel extends JPanel {
                 }
 
                 // Foreground + font
+                int modelCol = t.convertColumnIndexToModel(c);
                 if (sel && hl == null) {
                     setForeground(Color.BLACK);
                 } else if (!sel) {
-                    if (t.convertColumnIndexToModel(c) == 2) {            // Level column only
+                    if (modelCol == 2 || modelCol == 5) {                  // Level + Message columns
                         LogEntry.LogLevel level = entry != null ? entry.level() : null;
                         setForeground(ClouseauColors.levelColor(level));
                     } else {
                         setForeground(t.getForeground());
                     }
                 }
-                boolean isLevel = t.convertColumnIndexToModel(c) == 2;
+                boolean isLevel = modelCol == 2;
                 setFont(getFont().deriveFont(sel || isLevel ? Font.BOLD : Font.PLAIN));
                 return this;
             }
