@@ -48,6 +48,7 @@ final class FilterBar extends JPanel {
 
     private final Map<LogLevel, JToggleButton> levelButtons = new EnumMap<>(LogLevel.class);
     private final JButton        loggerButton;
+    private final JButton        fieldsButton;
     private final JTextField     fromField   = new JTextField(19);
     private final JTextField     toField     = new JTextField(19);
     private final JTextField     searchField = new JTextField(16);
@@ -58,6 +59,10 @@ final class FilterBar extends JPanel {
     // Logger picker state
     private List<String>     allLoggers      = List.of();
     private final Set<String> excludedLoggers = new LinkedHashSet<>();
+
+    // Field value picker state: fieldKey → sorted distinct values / excluded values
+    private final Map<String, TreeSet<String>> allFieldValues      = new LinkedHashMap<>();
+    private final Map<String, Set<String>>     excludedFieldValues = new LinkedHashMap<>();
 
     // Used when only HH:mm:ss is typed — anchors time to the date of the first log entry
     private LocalDate referenceDate = LocalDate.now();
@@ -103,6 +108,12 @@ final class FilterBar extends JPanel {
         loggerButton = new JButton(Messages.get("filter.loggers.all"));
         loggerButton.addActionListener(e -> showLoggerPopup(loggerButton));
         add(loggerButton);
+
+        // ── Field value picker button ─────────────────────────────────────────
+        fieldsButton = new JButton(Messages.get("filter.fields.all"));
+        fieldsButton.addActionListener(e -> showFieldsPopup(fieldsButton));
+        fieldsButton.setVisible(false);
+        add(fieldsButton);
 
         add(new JSeparator(JSeparator.VERTICAL), "growy, gapx 4");
 
@@ -162,12 +173,16 @@ final class FilterBar extends JPanel {
         add(followBtn);
     }
 
-    /** Resets logger state at the start of a new file load. */
+    /** Resets logger and field state at the start of a new file load. */
     void clearLoggers() {
         allLoggers = List.of();
         excludedLoggers.clear();
         referenceDateSet = false;
         updateLoggerButtonLabel();
+        allFieldValues.clear();
+        excludedFieldValues.clear();
+        fieldsButton.setVisible(false);
+        updateFieldsButtonLabel();
     }
 
     /**
@@ -196,6 +211,22 @@ final class FilterBar extends JPanel {
             allLoggers = known.stream().sorted().toList();
             excludedLoggers.retainAll(known);
             updateLoggerButtonLabel();
+        }
+
+        boolean fieldsChanged = false;
+        for (LogEntry entry : entries) {
+            if (entry.fields() == null || entry.fields().isEmpty()) continue;
+            for (Map.Entry<String, String> fe : entry.fields().entrySet()) {
+                if (fe.getValue() == null || fe.getValue().isBlank()) continue;
+                boolean added = allFieldValues
+                        .computeIfAbsent(fe.getKey(), k -> new TreeSet<>())
+                        .add(fe.getValue());
+                if (added) fieldsChanged = true;
+            }
+        }
+        if (fieldsChanged) {
+            fieldsButton.setVisible(true);
+            updateFieldsButtonLabel();
         }
     }
 
@@ -235,6 +266,7 @@ final class FilterBar extends JPanel {
     Predicate<LogEntry> buildPredicate() {
         return buildLevelPredicate()
             .and(buildLoggerPredicate())
+            .and(buildFieldPredicate())
             .and(buildTimestampPredicate())
             .and(buildTextPredicate());
     }
@@ -244,6 +276,8 @@ final class FilterBar extends JPanel {
         levelButtons.forEach((level, btn) -> btn.setSelected(level != LogLevel.UNKNOWN));
         excludedLoggers.clear();
         updateLoggerButtonLabel();
+        excludedFieldValues.values().forEach(Set::clear);
+        updateFieldsButtonLabel();
         fromField.setText("");
         toField.setText("");
         searchField.setText("");
@@ -273,6 +307,21 @@ final class FilterBar extends JPanel {
         if (excludedLoggers.containsAll(allLoggers)) return e -> false;
         Set<String> snapshot = Set.copyOf(excludedLoggers);
         return e -> e.logger() == null || !snapshot.contains(e.logger());
+    }
+
+    private Predicate<LogEntry> buildFieldPredicate() {
+        // Snapshot only the fields that actually have exclusions
+        Map<String, Set<String>> snapshot = new LinkedHashMap<>();
+        excludedFieldValues.forEach((k, v) -> { if (!v.isEmpty()) snapshot.put(k, Set.copyOf(v)); });
+        if (snapshot.isEmpty()) return e -> true;
+        return entry -> {
+            if (entry.fields() == null) return true;
+            for (Map.Entry<String, Set<String>> excl : snapshot.entrySet()) {
+                String val = entry.fields().get(excl.getKey());
+                if (val != null && excl.getValue().contains(val)) return false;
+            }
+            return true;
+        };
     }
 
     private Predicate<LogEntry> buildTimestampPredicate() {
@@ -430,6 +479,80 @@ final class FilterBar extends JPanel {
     private record LoggerNode(String segment, String fullPath) {}
     private enum CheckState { CHECKED, UNCHECKED, INDETERMINATE }
 
+    // ── Field value picker popup ──────────────────────────────────────────────
+
+    private void showFieldsPopup(JButton invoker) {
+        JPopupMenu popup = new JPopupMenu();
+        JPanel content = new JPanel(new MigLayout("fill, insets 6", "[grow]", "[grow][]"));
+        content.setPreferredSize(new Dimension(280, 320));
+
+        JPanel listPanel = new JPanel();
+        listPanel.setLayout(new BoxLayout(listPanel, BoxLayout.Y_AXIS));
+        listPanel.setBorder(BorderFactory.createEmptyBorder(2, 2, 2, 2));
+
+        List<JCheckBox> allBoxes = new ArrayList<>();
+
+        for (Map.Entry<String, TreeSet<String>> fieldEntry : allFieldValues.entrySet()) {
+            String fieldKey = fieldEntry.getKey();
+            Set<String> excluded = excludedFieldValues.computeIfAbsent(fieldKey, k -> new LinkedHashSet<>());
+
+            JLabel sectionLabel = new JLabel(fieldKey);
+            sectionLabel.setForeground(ClouseauColors.dimForeground());
+            sectionLabel.setFont(sectionLabel.getFont().deriveFont(Font.BOLD, 11f));
+            sectionLabel.setBorder(BorderFactory.createEmptyBorder(6, 4, 2, 4));
+            sectionLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
+            listPanel.add(sectionLabel);
+
+            for (String value : fieldEntry.getValue()) {
+                JCheckBox cb = new JCheckBox(value, !excluded.contains(value));
+                cb.setFont(cb.getFont().deriveFont(12f));
+                cb.setAlignmentX(Component.LEFT_ALIGNMENT);
+                cb.addActionListener(e -> {
+                    if (cb.isSelected()) excluded.remove(value);
+                    else                 excluded.add(value);
+                    updateFieldsButtonLabel();
+                    onChanged.run();
+                });
+                listPanel.add(cb);
+                allBoxes.add(cb);
+            }
+        }
+
+        JScrollPane scroll = new JScrollPane(listPanel,
+                JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED,
+                JScrollPane.HORIZONTAL_SCROLLBAR_NEVER);
+        scroll.setBorder(UIManager.getBorder("PopupMenu.border"));
+        content.add(scroll, "grow, wrap");
+
+        JButton allBtn   = new JButton(Messages.get("filter.loggers.select.all"));
+        JButton noneBtn  = new JButton(Messages.get("filter.loggers.select.none"));
+        JButton closeBtn = new JButton(Messages.get("filter.loggers.close"));
+
+        allBtn.addActionListener(e -> {
+            excludedFieldValues.values().forEach(Set::clear);
+            allBoxes.forEach(cb -> cb.setSelected(true));
+            updateFieldsButtonLabel();
+            onChanged.run();
+        });
+        noneBtn.addActionListener(e -> {
+            allFieldValues.forEach((k, vals) ->
+                    excludedFieldValues.computeIfAbsent(k, key -> new LinkedHashSet<>()).addAll(vals));
+            allBoxes.forEach(cb -> cb.setSelected(false));
+            updateFieldsButtonLabel();
+            onChanged.run();
+        });
+        closeBtn.addActionListener(e -> popup.setVisible(false));
+
+        JPanel btnRow = new JPanel(new MigLayout("insets 0", "[]push[][]"));
+        btnRow.add(allBtn);
+        btnRow.add(noneBtn);
+        btnRow.add(closeBtn);
+        content.add(btnRow, "growx");
+
+        popup.add(content);
+        popup.show(invoker, 0, invoker.getHeight());
+    }
+
     // Logger-tree depth colors read from UIManager via ClouseauColors at render time.
 
     // ── Helpers ───────────────────────────────────────────────────────────────
@@ -459,6 +582,13 @@ final class FilterBar extends JPanel {
         loggerButton.setText(excludedLoggers.isEmpty() || total == 0
             ? Messages.get("filter.loggers.all")
             : Messages.get("filter.loggers.partial").formatted(active, total));
+    }
+
+    private void updateFieldsButtonLabel() {
+        boolean anyExcluded = excludedFieldValues.values().stream().anyMatch(s -> !s.isEmpty());
+        fieldsButton.setText(anyExcluded
+            ? Messages.get("filter.fields.partial")
+            : Messages.get("filter.fields.all"));
     }
 
     static void applyToggleStyle(JToggleButton btn) {

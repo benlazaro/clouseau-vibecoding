@@ -74,6 +74,7 @@ public final class LogPanel extends JPanel {
     private final Map<Integer, TableColumn> hiddenColumns = new LinkedHashMap<>();
     /** Name of the layout most recently applied via applyColumnLayout; null if none or modified since. */
     private String activeLayoutName = null;
+    private JScrollPane tableScrollPane;
     private volatile SwingWorker<?, ?> currentWorker;
     private volatile SwingWorker<Void, LogEntry> tailWorker;
     private volatile SshLogSource sshSource;
@@ -554,9 +555,9 @@ public final class LogPanel extends JPanel {
             @Override public boolean isCellEditable(int r, int c) { return false; }
 
             @Override
-            public void doLayout() {
-                if (tableColumnsManaged && getTableHeader().getResizingColumn() == null) return;
-                super.doLayout();
+            public boolean getScrollableTracksViewportWidth() {
+                // Let the table fill the viewport when columns are narrower; scroll when wider.
+                return getParent() == null || getPreferredSize().width < getParent().getWidth();
             }
         };
         logTable.setBackground(ClouseauColors.tableBackground());
@@ -570,7 +571,7 @@ public final class LogPanel extends JPanel {
         logTable.getActionMap().put("scrollToBottom", new AbstractAction() {
             public void actionPerformed(java.awt.event.ActionEvent e) { scrollToBottom(); }
         });
-        logTable.setAutoResizeMode(JTable.AUTO_RESIZE_LAST_COLUMN);
+        logTable.setAutoResizeMode(JTable.AUTO_RESIZE_OFF);
         logTable.setRowSorter(new javax.swing.table.TableRowSorter<>(logTableModel));
         logTable.getColumnModel().getColumn(0).setPreferredWidth(50);
         logTable.getColumnModel().getColumn(1).setPreferredWidth(180);
@@ -730,11 +731,6 @@ public final class LogPanel extends JPanel {
         logTable.setShowVerticalLines(false);
         logTable.setGridColor(ClouseauColors.separatorColor());
         logTable.setRowHeight(AppPrefs.getRowHeight());
-        logTable.addComponentListener(new java.awt.event.ComponentAdapter() {
-            @Override public void componentResized(java.awt.event.ComponentEvent e) {
-                if (tableColumnsManaged) stretchMessageColumn();
-            }
-        });
         logTable.addMouseListener(new MouseAdapter() {
             @Override public void mousePressed(MouseEvent e)  { maybeShowTableMenu(e); }
             @Override public void mouseReleased(MouseEvent e) { maybeShowTableMenu(e); }
@@ -753,9 +749,16 @@ public final class LogPanel extends JPanel {
             }
         });
 
-        JScrollPane scrollPane = new JScrollPane(logTable);
-        scrollPane.getViewport().setBackground(ClouseauColors.viewportBackground());
-        return scrollPane;
+        tableScrollPane = new JScrollPane(logTable,
+                JScrollPane.VERTICAL_SCROLLBAR_AS_NEEDED,
+                JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED);
+        tableScrollPane.getViewport().setBackground(ClouseauColors.viewportBackground());
+        tableScrollPane.getViewport().addComponentListener(new java.awt.event.ComponentAdapter() {
+            @Override public void componentResized(java.awt.event.ComponentEvent e) {
+                if (tableColumnsManaged) stretchMessageColumn();
+            }
+        });
+        return tableScrollPane;
     }
 
     /** Model column index of the Message column — always stretched to fill remaining width. */
@@ -804,7 +807,8 @@ public final class LogPanel extends JPanel {
             msgViewCol = logTable.getColumnCount() - 1;
         }
         int margins = logTable.getColumnModel().getColumnMargin() * logTable.getColumnCount();
-        int msgWidth = Math.max(logTable.getWidth() - fittedColumnsWidth - margins, 150);
+        int viewportWidth = (tableScrollPane != null) ? tableScrollPane.getViewport().getWidth() : logTable.getWidth();
+        int msgWidth = Math.max(viewportWidth - fittedColumnsWidth - margins, 150);
         logTable.getColumnModel().getColumn(msgViewCol).setPreferredWidth(msgWidth);
         logTable.getColumnModel().getColumn(msgViewCol).setWidth(msgWidth);
     }
