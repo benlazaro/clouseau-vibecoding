@@ -214,6 +214,7 @@ public final class LogPanel extends JPanel {
         hiddenColumns.clear();
         activeLayoutName = null;
         logTableModel.setCustomFields(parser.map(com.droidenx.clouseau.api.LogParser::customFields).orElse(List.of()));
+        logTableModel.beginBatchLoad();
 
         ((CardLayout) centerCards.getLayout()).show(centerCards, CARD_LOADING);
 
@@ -250,6 +251,7 @@ public final class LogPanel extends JPanel {
             @Override
             protected void done() {
                 loading = false;
+                logTableModel.endBatchLoad();
                 ((CardLayout) centerCards.getLayout()).show(centerCards, CARD_CONTENT);
                 if (isCancelled()) return;
                 try {
@@ -302,6 +304,7 @@ public final class LogPanel extends JPanel {
         hiddenColumns.clear();
         activeLayoutName = null;
         logTableModel.setCustomFields(parser.map(com.droidenx.clouseau.api.LogParser::customFields).orElse(List.of()));
+        logTableModel.beginBatchLoad();
 
         ((CardLayout) centerCards.getLayout()).show(centerCards, CARD_LOADING);
 
@@ -335,8 +338,10 @@ public final class LogPanel extends JPanel {
                 if (isCancelled()) return;
                 if (firstBatch) {
                     firstBatch = false;
+                    logTableModel.endBatchLoad();
                     ((CardLayout) centerCards.getLayout()).show(centerCards, CARD_CONTENT);
                     applyDefaultLayoutIfSet();
+                    autoResizeColumns();
                 }
                 logTableModel.appendBatch(chunk);
                 filterBar.addBatch(chunk);
@@ -753,12 +758,15 @@ public final class LogPanel extends JPanel {
         return scrollPane;
     }
 
+    /** Model column index of the Message column — always stretched to fill remaining width. */
+    private static final int MESSAGE_MODEL_COL = 5;
+
     private void autoResizeColumns() {
-        int lastCol = logTable.getColumnCount() - 1;
         int totalFitted = 0;
         int sampleSize = Math.min(logTable.getRowCount(), 50);
 
-        for (int col = 0; col < lastCol; col++) {
+        for (int col = 0; col < logTable.getColumnCount(); col++) {
+            if (logTable.getColumnModel().getColumn(col).getModelIndex() == MESSAGE_MODEL_COL) continue;
             int maxWidth = 0;
             TableCellRenderer hr = logTable.getColumnModel().getColumn(col).getHeaderRenderer();
             if (hr == null) hr = logTable.getTableHeader().getDefaultRenderer();
@@ -783,11 +791,22 @@ public final class LogPanel extends JPanel {
     }
 
     private void stretchMessageColumn() {
-        int lastCol = logTable.getColumnCount() - 1;
+        // Find the Message column by model index; fall back to the last visible column if hidden.
+        int msgViewCol = -1;
+        for (int i = 0; i < logTable.getColumnCount(); i++) {
+            if (logTable.getColumnModel().getColumn(i).getModelIndex() == MESSAGE_MODEL_COL) {
+                msgViewCol = i;
+                break;
+            }
+        }
+        if (msgViewCol < 0) {
+            if (logTable.getColumnCount() == 0) return;
+            msgViewCol = logTable.getColumnCount() - 1;
+        }
         int margins = logTable.getColumnModel().getColumnMargin() * logTable.getColumnCount();
         int msgWidth = Math.max(logTable.getWidth() - fittedColumnsWidth - margins, 150);
-        logTable.getColumnModel().getColumn(lastCol).setPreferredWidth(msgWidth);
-        logTable.getColumnModel().getColumn(lastCol).setWidth(msgWidth);
+        logTable.getColumnModel().getColumn(msgViewCol).setPreferredWidth(msgWidth);
+        logTable.getColumnModel().getColumn(msgViewCol).setWidth(msgWidth);
     }
 
     // ── Column visibility ─────────────────────────────────────────────────────
@@ -822,12 +841,14 @@ public final class LogPanel extends JPanel {
         recalcFittedColumnsWidth();
     }
 
-    /** Recomputes {@code fittedColumnsWidth} from current visible column widths and stretches the last column. */
+    /** Recomputes {@code fittedColumnsWidth} from current visible column widths and stretches Message. */
     private void recalcFittedColumnsWidth() {
         if (!tableColumnsManaged) return;
-        int lastCol = logTable.getColumnCount() - 1;
         int total = 0;
-        for (int i = 0; i < lastCol; i++) total += logTable.getColumnModel().getColumn(i).getWidth();
+        for (int i = 0; i < logTable.getColumnCount(); i++) {
+            if (logTable.getColumnModel().getColumn(i).getModelIndex() != MESSAGE_MODEL_COL)
+                total += logTable.getColumnModel().getColumn(i).getWidth();
+        }
         fittedColumnsWidth = total;
         stretchMessageColumn();
     }

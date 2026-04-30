@@ -34,7 +34,11 @@ public final class LogTableModel extends AbstractTableModel {
         "table.col.thread", "table.col.logger",   "table.col.message"
     };
 
+    private final LinkedHashSet<String> knownFieldKeys = new LinkedHashSet<>();
     private List<String> customFields = List.of();
+    /** True while a bulk file load is in progress; defers structure changes to {@link #endBatchLoad()}. */
+    private boolean batchLoad = false;
+    private boolean structureChangePending = false;
     private static final DateTimeFormatter TS_FMT =
         DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS").withZone(ZoneId.systemDefault());
 
@@ -67,6 +71,7 @@ public final class LogTableModel extends AbstractTableModel {
         LogEntry entry = event.entry();
         SwingUtilities.invokeLater(() -> {
             allEntries.add(entry);
+            discoverFields(List.of(entry));
             if (activeFilter.test(entry)) {
                 int idx = rows.size();
                 rows.add(entry);
@@ -80,6 +85,7 @@ public final class LogTableModel extends AbstractTableModel {
         List<LogEntry> batch = List.copyOf(event.entries());
         SwingUtilities.invokeLater(() -> {
             allEntries.addAll(batch);
+            discoverFields(batch);
             int first = rows.size();
             List<LogEntry> matching = batch.stream().filter(activeFilter).toList();
             if (!matching.isEmpty()) {
@@ -132,10 +138,11 @@ public final class LogTableModel extends AbstractTableModel {
         Runnable doClear = () -> {
             allEntries.clear();
             highlights.clear();
+            knownFieldKeys.clear();
+            customFields = List.of();
             int last = rows.size() - 1;
-            if (last < 0) return;
             rows.clear();
-            fireTableRowsDeleted(0, last);
+            fireTableStructureChanged();
         };
         if (SwingUtilities.isEventDispatchThread()) doClear.run();
         else SwingUtilities.invokeLater(doClear);
@@ -144,6 +151,7 @@ public final class LogTableModel extends AbstractTableModel {
     /** Appends a batch of entries from streaming load. Must be called on the EDT. */
     public void appendBatch(List<LogEntry> entries) {
         allEntries.addAll(entries);
+        discoverFields(entries);
         int first = rows.size();
         List<LogEntry> matching = entries.stream().filter(activeFilter).toList();
         if (!matching.isEmpty()) {
@@ -156,6 +164,7 @@ public final class LogTableModel extends AbstractTableModel {
     /** Appends a single entry from file tailing. Must be called on the EDT. */
     public void append(LogEntry entry) {
         allEntries.add(entry);
+        discoverFields(List.of(entry));
         if (activeFilter.test(entry)) {
             int idx = rows.size();
             rows.add(entry);
@@ -275,12 +284,55 @@ public final class LogTableModel extends AbstractTableModel {
 
     public int getTotalCount() { return allEntries.size(); }
 
-    /** Sets the custom field columns for the currently loaded file. Must be called on the EDT. */
+    /** Call before streaming a file batch-load; defers field-discovery structure changes to {@link #endBatchLoad()}. */
+    public void beginBatchLoad() {
+        batchLoad = true;
+        structureChangePending = false;
+    }
+
+    /**
+     * Call after the last batch has been appended. Fires a single {@code fireTableStructureChanged()}
+     * if any new fields were discovered during loading, then resets batch-load mode.
+     */
+    public void endBatchLoad() {
+        batchLoad = false;
+        if (structureChangePending) {
+            structureChangePending = false;
+            fireTableStructureChanged();
+        }
+    }
+
+    /** Sets the initial custom field columns (from parser declaration). Must be called on the EDT. */
     public void setCustomFields(List<String> fields) {
-        List<String> newFields = List.copyOf(fields);
+        knownFieldKeys.clear();
+        knownFieldKeys.addAll(fields);
+        List<String> newFields = List.copyOf(knownFieldKeys);
         if (newFields.equals(customFields)) return;
         customFields = newFields;
         fireTableStructureChanged();
+    }
+
+    /**
+     * Scans entries for field keys not yet known and merges them in.
+     * Returns true if new fields were discovered (caller should fire structure changed).
+     * Must be called on the EDT.
+     */
+    private void discoverFields(List<LogEntry> entries) {
+        boolean changed = false;
+        for (LogEntry e : entries) {
+            Map<String, String> fields = e.fields();
+            if (fields == null || fields.isEmpty()) continue;
+            for (String key : fields.keySet()) {
+                if (knownFieldKeys.add(key)) changed = true;
+            }
+        }
+        if (!changed) return;
+        customFields = List.copyOf(knownFieldKeys);
+        if (batchLoad) {
+            structureChangePending = true;
+        } else {
+            fireTableStructureChanged();
+        }
     }
 
     @Override public int getRowCount()    { return rows.size(); }
@@ -308,6 +360,7 @@ public final class LogTableModel extends AbstractTableModel {
             case 5 -> e.message()   != null ? e.message()                  : "";
             default -> "";
         };
-        return e.fields().getOrDefault(customFields.get(col - FIXED_COLUMNS), "");
+        Map<String, String> fields = e.fields();
+        return fields != null ? fields.getOrDefault(customFields.get(col - FIXED_COLUMNS), "") : "";
     }
 }
